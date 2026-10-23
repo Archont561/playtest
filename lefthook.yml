@@ -1,0 +1,30 @@
+# Lefthook Git hooks
+# https://github.com/evilmartians/lefthook
+
+commit-msg:
+  commands:
+    convco:
+      run: pixi run --frozen lint-commit < {1}
+
+pre-commit:
+  parallel: true
+  commands:
+    fmt:
+      run: pixi run --frozen fmt-check
+    lint:
+      run: pixi run --frozen lint
+    actionlint:
+      glob: ".github/workflows/*.{yml,yaml}"
+      run: pixi run --frozen actionlint
+    toml:
+      glob: "*.toml"
+      run: pixi run --frozen lint-toml
+
+pre-push:
+  parallel: false
+  commands:
+    audit:
+      run: pixi run --frozen audit
+    test-all:
+      run: pixi run --frozen test-all
+

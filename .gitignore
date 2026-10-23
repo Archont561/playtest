@@ -1,0 +1,44 @@
+# Rust & Compiled
+target/
+**/*.rs.bk
+
+# .NET & C#
+bin/
+obj/
+*.nupkg
+*.snupkg
+
+# Code Coverage
+coverage/
+*.profdata
+*.profraw
+coverage.xml
+coverage.out
+.coverage*
+*.gcov
+*.gcda
+*.gcno
+
+# Node & TypeScript
+node_modules/
+
+# Python & Package Builds
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+__pycache__/
+*.whl
+*.tgz
+*.tar.gz
+
+# Pixi
+.pixi/
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

@@ -1,0 +1,225 @@
+[workspace]
+name = "playtest"
+version = "0.1.0"
+channels = ["https://prefix.dev/archont561/archont561", "conda-forge"]
+platforms = ["linux-64"]
+
+[dependencies]
+rust = ">=1.82.0"
+cargo-nextest = ">=0.9.70"
+cargo-llvm-cov = ">=0.6.14"
+cargo-audit = ">=0.20.0"
+convco = ">=0.5.1"
+actionlint = ">=1.7.1"
+shellcheck = ">=0.10.0"
+lefthook = ">=1.7.0"
+taplo = ">=0.9.0"
+pixi-sandbox = ">=0.8.0"
+bun = ">=1.3.0"
+python = ">=3.11"
+pytest = ">=8.0.0"
+ruff = ">=0.6.0"
+twine = ">=7.0.0,<8"
+clang-tools = ">=23.1.4,<24"
+clang-format = ">=23.1.4,<24"
+lcov = ">=2.5,<3"
+golangci-lint = ">=2.15.0,<3"
+biome = ">=2.6.2,<3"
+
+[tasks]
+# --- Conventional Commits, Changelog & Git Hooks ---
+commit-check = "convco check --from-stdin"
+lint-commit = "convco check --from-stdin"
+changelog = "convco changelog"
+changelog-unreleased = "convco changelog --unreleased"
+install-hooks = "lefthook install"
+
+# --- Repository Tooling & Auditing ---
+actionlint = "actionlint"
+audit = "cargo audit --no-fetch || cargo audit"
+automation = "python scripts/automation.py"
+sandbox-plan = "pixi-sandbox plan --config pixi-sandbox.toml"
+sandbox-restore = "pixi-sandbox restore --config pixi-sandbox.toml"
+bunx = "bunx"
+
+# --- Formatting ---
+fmt-rs = "cargo fmt --all"
+fmt-check-rs = "cargo fmt --all -- --check"
+fmt-toml = "taplo fmt Cargo.toml pixi.toml pixi-sandbox.toml crates/playtest/Cargo.toml crates/playtest-macros/Cargo.toml python/pixi.toml typescript/pixi.toml cpp/pixi.toml go/pixi.toml java/pixi.toml r/pixi.toml c/pixi.toml csharp/pixi.toml"
+lint-toml = "taplo fmt --check Cargo.toml pixi.toml pixi-sandbox.toml crates/playtest/Cargo.toml crates/playtest-macros/Cargo.toml python/pixi.toml typescript/pixi.toml cpp/pixi.toml go/pixi.toml java/pixi.toml r/pixi.toml c/pixi.toml csharp/pixi.toml"
+fmt-py = "pixi run --manifest-path python/pixi.toml fmt"
+fmt-check-py = "pixi run --manifest-path python/pixi.toml fmt-check"
+fmt-ts = "pixi run --manifest-path typescript/pixi.toml fmt"
+fmt-check-ts = "pixi run --manifest-path typescript/pixi.toml fmt-check"
+fmt-cpp = "pixi run --manifest-path cpp/pixi.toml fmt"
+fmt-check-cpp = "pixi run --manifest-path cpp/pixi.toml fmt-check"
+fmt-c = "pixi run --manifest-path c/pixi.toml fmt"
+fmt-check-c = "pixi run --manifest-path c/pixi.toml fmt-check"
+fmt-csharp = "pixi run --manifest-path csharp/pixi.toml fmt"
+fmt-check-csharp = "pixi run --manifest-path csharp/pixi.toml fmt-check"
+fmt-go = "pixi run --manifest-path go/pixi.toml fmt"
+fmt-check-go = "pixi run --manifest-path go/pixi.toml fmt-check"
+
+fmt = { depends-on = [
+  "fmt-rs",
+  "fmt-toml",
+  "fmt-py",
+  "fmt-ts",
+  "fmt-cpp",
+  "fmt-c",
+  "fmt-csharp",
+  "fmt-go",
+] }
+fmt-check = { depends-on = [
+  "fmt-check-rs",
+  "lint-toml",
+  "fmt-check-py",
+  "fmt-check-ts",
+  "fmt-check-cpp",
+  "fmt-check-c",
+  "fmt-check-csharp",
+  "fmt-check-go",
+] }
+
+# --- Linting ---
+clippy = "cargo clippy --workspace --all-targets --all-features -- -D warnings"
+lint-py = "pixi run --manifest-path python/pixi.toml lint"
+lint-ts = "pixi run --manifest-path typescript/pixi.toml lint"
+lint-cpp = "pixi run --manifest-path cpp/pixi.toml lint"
+lint-c = "pixi run --manifest-path c/pixi.toml lint"
+lint-csharp = "pixi run --manifest-path csharp/pixi.toml lint"
+lint-go = "pixi run --manifest-path go/pixi.toml lint"
+lint-java = "pixi run --manifest-path java/pixi.toml lint"
+lint-r = "pixi run --manifest-path r/pixi.toml lint"
+
+# Default lint gate (CI / pre-push)
+lint = { depends-on = [
+  "fmt-check",
+  "clippy",
+  "lint-toml",
+  "actionlint",
+  "lint-py",
+] }
+lint-all = { depends-on = [
+  "fmt-check",
+  "clippy",
+  "lint-toml",
+  "actionlint",
+  "lint-py",
+  "lint-ts",
+  "lint-cpp",
+  "lint-c",
+  "lint-csharp",
+  "lint-go",
+  "lint-java",
+  "lint-r",
+] }
+
+# --- Testing ---
+test-rs = "cargo nextest run --workspace --all-features"
+test-doc = "cargo test --doc --workspace"
+test-py = "pixi run --manifest-path python/pixi.toml test"
+test-ts = "pixi run --manifest-path typescript/pixi.toml test"
+test-cpp = "pixi run --manifest-path cpp/pixi.toml test"
+test-c = "pixi run --manifest-path c/pixi.toml test"
+test-csharp = "pixi run --manifest-path csharp/pixi.toml test"
+test-go = "pixi run --manifest-path go/pixi.toml test"
+test-java = "pixi run --manifest-path java/pixi.toml test"
+test-r = "pixi run --manifest-path r/pixi.toml test"
+
+# Default test task (Rust core) & all-targets suite
+test = { depends-on = ["test-rs", "test-doc"] }
+test-all = { depends-on = [
+  "test-rs",
+  "test-doc",
+  "test-py",
+  "test-ts",
+  "test-cpp",
+  "test-c",
+  "test-csharp",
+  "test-go",
+  "test-java",
+  "test-r",
+] }
+
+# --- Coverage ---
+coverage-rs = "mkdir -p coverage && cargo llvm-cov nextest --workspace --all-features --lcov --output-path coverage/lcov-rs.info"
+coverage-py = "pixi run --manifest-path python/pixi.toml coverage"
+coverage-ts = "pixi run --manifest-path typescript/pixi.toml coverage"
+coverage-cpp = "pixi run --manifest-path cpp/pixi.toml coverage"
+coverage-c = "pixi run --manifest-path c/pixi.toml coverage"
+coverage-csharp = "pixi run --manifest-path csharp/pixi.toml coverage"
+coverage-go = "pixi run --manifest-path go/pixi.toml coverage"
+coverage-java = "pixi run --manifest-path java/pixi.toml coverage"
+coverage-r = "pixi run --manifest-path r/pixi.toml coverage"
+coverage-merge = "python scripts/merge_lcov.py -o coverage/lcov.info"
+
+coverage = { depends-on = ["coverage-rs", "coverage-merge"] }
+coverage-all = { depends-on = [
+  "coverage-rs",
+  "coverage-py",
+  "coverage-ts",
+  "coverage-cpp",
+  "coverage-c",
+  "coverage-csharp",
+  "coverage-go",
+  "coverage-java",
+  "coverage-r",
+  "coverage-merge",
+] }
+coverage-html = "cargo llvm-cov nextest --workspace --all-features --html --output-dir coverage/html --open"
+
+# --- Building ---
+build-rs = "cargo build --workspace --all-targets"
+build-py = "pixi run --manifest-path python/pixi.toml build"
+build-ts = "pixi run --manifest-path typescript/pixi.toml build"
+build-cpp = "pixi run --manifest-path cpp/pixi.toml build"
+build-c = "pixi run --manifest-path c/pixi.toml build"
+build-csharp = "pixi run --manifest-path csharp/pixi.toml build"
+build-go = "pixi run --manifest-path go/pixi.toml build"
+build-java = "pixi run --manifest-path java/pixi.toml build"
+build-r = "pixi run --manifest-path r/pixi.toml build"
+
+build = { depends-on = ["build-rs"] }
+build-all = { depends-on = [
+  "build-rs",
+  "build-py",
+  "build-ts",
+  "build-cpp",
+  "build-c",
+  "build-csharp",
+  "build-go",
+  "build-java",
+  "build-r",
+] }
+
+# --- Release & Packaging ---
+detect-release = "python scripts/detect_release.py"
+package-rs = "cargo package -p playtest-macros --no-verify --allow-dirty && (cargo package -p playtest --no-verify --allow-dirty || cargo package -p playtest --list --allow-dirty)"
+publish-rs = "cargo publish -p playtest-macros --locked && cargo publish -p playtest --locked"
+release-rs = "cargo publish -p playtest-macros --locked && cargo publish -p playtest --locked"
+
+release-py = "pixi run --manifest-path python/pixi.toml release"
+release-ts = "pixi run --manifest-path typescript/pixi.toml release"
+publish-ts = "pixi run --manifest-path typescript/pixi.toml publish"
+release-cpp = "pixi run --manifest-path cpp/pixi.toml release"
+release-c = "pixi run --manifest-path c/pixi.toml release"
+release-csharp = "pixi run --manifest-path csharp/pixi.toml release"
+release-go = "pixi run --manifest-path go/pixi.toml release"
+release-java = "pixi run --manifest-path java/pixi.toml release"
+release-r = "pixi run --manifest-path r/pixi.toml release"
+
+package-all = { depends-on = [
+  "package-rs",
+  "release-py",
+  "release-ts",
+  "release-cpp",
+  "release-c",
+  "release-csharp",
+  "release-go",
+  "release-java",
+  "release-r",
+] }
+
+release = { depends-on = ["release-rs"] }
+release-all = { depends-on = ["package-all"] }

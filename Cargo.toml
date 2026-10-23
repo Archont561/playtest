@@ -1,0 +1,40 @@
+[workspace]
+members = ["crates/playtest", "crates/playtest-macros"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Archont561"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Archont561/playtest"
+homepage = "https://github.com/Archont561/playtest"
+readme = "README.md"
+description = "A Playwright-style testing framework for Rust with dependency-injected fixtures, strict LIFO teardown, property-based testing, and fluent BDD scenarios"
+keywords = ["testing", "bdd", "fixtures", "playwright", "test-framework"]
+categories = ["development-tools::testing"]
+
+[workspace.dependencies]
+# Internal workspace crates
+playtest = { path = "crates/playtest", version = "0.1.0" }
+playtest-macros = { path = "crates/playtest-macros", version = "0.1.0" }
+
+# Automation & CLI
+anyhow = "1.0"
+clap = { version = "4", features = ["derive"] }
+
+# Async & Futures
+futures = "0.3"
+tokio = { version = "1.40", features = ["full", "test-util"] }
+
+# Testing & Isolation
+insta = { version = "1.41", features = ["filters", "json", "yaml"] }
+proptest = "1.5"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tempfile = "3.13"
+
+# Macro development
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2.0", features = ["extra-traits", "full"] }

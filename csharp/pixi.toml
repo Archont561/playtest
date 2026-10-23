@@ -14,7 +14,7 @@ coverage = "rm -rf coverage && dotnet test --collect:'XPlat Code Coverage;Format
 lint = "dotnet format --verify-no-changes"
 fmt = "dotnet format"
 fmt-check = "dotnet format --verify-no-changes"
-release = { cmd = "mkdir -p dist && dotnet pack src/Playtest/Playtest.csproj -c Release -o dist/ && ls -lh dist/", depends-on = [
+release = { cmd = "mkdir -p dist && dotnet pack src/Playtest/Playtest.csproj -c Release -o dist/ -p:Version=${PLAYTEST_VERSION:-0.1.0} && ls -lh dist/", depends-on = [
   "build",
   "lint",
   "test",

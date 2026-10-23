@@ -5,13 +5,13 @@ channels = ["conda-forge"]
 platforms = ["linux-64"]
 
 [tasks]
-build = "mkdir -p /home/user/tmp && TMPDIR=/home/user/tmp R CMD build ."
-test = { cmd = "Rscript test-version.R", cwd = "tests/testthat" }
-coverage = { cmd = "Rscript test-version.R", cwd = "tests/testthat" }
+build = "R CMD build ."
+test = { cmd = "Rscript -e 'source(\"../../R/version.R\"); source(\"test-version.R\")'", cwd = "tests/testthat" }
+coverage = { cmd = "Rscript -e 'source(\"../../R/version.R\"); source(\"test-version.R\")'", cwd = "tests/testthat" }
 lint = "test -f DESCRIPTION && test -f NAMESPACE"
 fmt = "echo 'R code formatting verified'"
 fmt-check = "echo 'R code format check passed'"
-release = { cmd = "mkdir -p /home/user/tmp && TMPDIR=/home/user/tmp R CMD build . && mkdir -p dist && mv playtest_*.tar.gz dist/ && ls -lh dist/", depends-on = [
+release = { cmd = "mkdir -p dist && mv playtest_*.tar.gz dist/ && ls -lh dist/", depends-on = [
   "build",
   "lint",
   "test",

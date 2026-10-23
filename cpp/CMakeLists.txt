@@ -14,3 +14,7 @@ enable_testing()
 add_executable(test_version tests/test_version.cpp)
 target_link_libraries(test_version PRIVATE playtest)
 add_test(NAME test_version COMMAND test_version)
+
+include(GNUInstallDirs)
+install(TARGETS playtest)
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})

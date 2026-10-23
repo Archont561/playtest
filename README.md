@@ -11,12 +11,14 @@ A polyglot testing framework targeting consistent core testing behavior across n
 | **Rust** | Cargo / crates.io | `crates/playtest`, `crates/playtest-macros` | `playtest`, `playtest-macros` |
 | **Python** | PyPI / pytest | `python/` | `playtest-py` (wheel & sdist) |
 | **TypeScript** | npm / bun | `typescript/` | `@archont561/playtest` |
-| **C++** | CMake / Conan | `cpp/` | `playtest-cpp` |
-| **C** | CMake / C11 | `c/` | `playtest-c` |
-| **C#** | .NET / NuGet | `csharp/` | `Playtest` (.nupkg) |
-| **Go** | Go Modules / `pkg.go.dev` | `go/` | `github.com/Archont561/playtest/go` |
-| **Java** | Maven Central | `java/` | `io.github.archont561:playtest` |
-| **R** | CRAN / R-universe | `r/` | `playtest` |
+| **C++** | CMake / Conan 2 | `cpp/` | `playtest-cpp` (configured Conan remote; GitHub Release fallback) |
+| **C** | CMake / Conan 2 | `c/` | `playtest-c` (configured Conan remote; GitHub Release fallback) |
+| **C#** | .NET / NuGet | `csharp/` | `Playtest` (.nupkg; NuGet publish when configured) |
+| **Go** | Go Modules / `pkg.go.dev` | `go/` | `github.com/Archont561/playtest/go` (tag-indexed) |
+| **Java** | Maven Central | `java/` | `io.github.archont561:playtest` (publish when configured) |
+| **R** | CRAN / R-universe | `r/` | `playtest` (CRAN submission is manually confirmed; R-universe tracks GitHub releases) |
+
+Release tags build the selected packages and attach the artifacts to GitHub Releases. Conan, NuGet, and Maven Central publishing is enabled by registry credentials in the documented GitHub environments; without those credentials, registry publishing is skipped. CRAN submission is a separately confirmed workflow dispatch; R-universe builds from the tagged Git source after its registry and GitHub app are configured. Ensure `r/DESCRIPTION` in the tagged source already has the tag's version—CI-only version stamping does not change the Git tag. See [AGENTS.md](AGENTS.md#registry-configuration) for setup details.
 
 ## Core Feature Parity
 

@@ -36,7 +36,7 @@ tasks:
 
   - id: task_003
     title: Polyglot package manifests and environment orchestration
-    description: "Scaffold dummy packages in Python, TypeScript, C++, Go, Java, and R exposing VERSION 0.1.0."
+    description: "Scaffold the nine language targets with synchronized VERSION 0.1.0 exports and test coverage."
     status: done
     priority: P0
     milestone: M1-v0.1.0
@@ -44,7 +44,7 @@ tasks:
     labels: [polyglot, scaffold, M1]
     repo_targets: [playtest]
     acceptance_criteria:
-      - All 7 language targets export VERSION 0.1.0 with passing tests
+      - All 9 language targets export VERSION 0.1.0 with passing tests
       - Subproject pixi.toml manifests define local build, test, lint, and release tasks
       - Root compound tasks (test-all, lint-all, release-all) orchestrate all targets
     dependencies: [task_001, task_002]
@@ -279,7 +279,7 @@ tasks:
   # ============================================================================
   - id: task_019
     title: C++ GoogleTest fixture facade and RapidCheck bridge
-    description: "Implement C++ fixture RAII wrappers and RapidCheck property testing bridge."
+    description: "Implement the C++ target's Spec 0005 core feature contract with a native fixture/BDD facade and RapidCheck property testing."
     status: backlog
     priority: P1
     milestone: M5-v0.5.0
@@ -287,13 +287,16 @@ tasks:
     labels: [M5, cpp]
     repo_targets: [playtest]
     acceptance_criteria:
-      - RAII cleanup handles GoogleTest fixture destruction
-      - RapidCheck properties execute with fixture state
-    dependencies: [task_013, task_016]
+      - Requested fixtures use documented scopes and execute cleanup in strict LIFO order after test and cleanup failures
+      - BDD steps pass state explicitly; skip and parameterized cases report clear outcomes
+      - RapidCheck samples receive fresh per-test fixtures, shrink failures, and expose a reproducible case
+      - C++ mappings for Spec 0004 isolation helpers are documented and verified
+      - Shared conformance cases pass for every C++ capability delivered by this task
+    dependencies: [task_012, task_013, task_014, task_015, task_016, task_017, task_018]
 
   - id: task_020
     title: Go t.Cleanup fixture facade and rapid bridge
-    description: "Implement Go testing helper wrapping t.Cleanup and rapid property tests."
+    description: "Implement the Go target's Spec 0005 core feature contract with native testing/t.Cleanup integration and rapid property testing."
     status: backlog
     priority: P1
     milestone: M5-v0.5.0
@@ -301,13 +304,16 @@ tasks:
     labels: [M5, go]
     repo_targets: [playtest]
     acceptance_criteria:
-      - LIFO teardown via t.Cleanup verified
-      - rapid integration provides shrinking
-    dependencies: [task_013, task_016]
+      - Requested fixtures use documented scopes and execute cleanup in strict LIFO order after test and cleanup failures
+      - BDD steps pass state explicitly; skip and parameterized cases report clear outcomes
+      - rapid samples receive fresh per-test fixtures, shrink failures, and expose reproducible seeds/cases
+      - Go mappings for Spec 0004 isolation helpers are documented and verified
+      - Shared conformance cases pass for every Go capability delivered by this task
+    dependencies: [task_012, task_013, task_014, task_015, task_016, task_017, task_018]
 
   - id: task_021
     title: Java JUnit 5 extension and jqwik bridge
-    description: "Implement JUnit 5 Extension with CloseableResource and jqwik property bridge."
+    description: "Implement the Java target's Spec 0005 core feature contract with JUnit 5 extensions and jqwik property testing."
     status: backlog
     priority: P1
     milestone: M5-v0.5.0
@@ -315,13 +321,16 @@ tasks:
     labels: [M5, java]
     repo_targets: [playtest]
     acceptance_criteria:
-      - JUnit 5 extension injects fixtures into test methods
-      - jqwik property testing supported with fixture life cycles
-    dependencies: [task_013, task_016]
+      - Requested fixtures use documented scopes and execute cleanup in strict LIFO order after test and cleanup failures
+      - BDD steps pass state explicitly; skip and parameterized cases report clear outcomes
+      - jqwik samples receive fresh per-test fixtures, shrink failures, and expose reproducible seeds/cases
+      - Java mappings for Spec 0004 isolation helpers are documented and verified
+      - Shared conformance cases pass for every Java capability delivered by this task
+    dependencies: [task_012, task_013, task_014, task_015, task_016, task_017, task_018]
 
   - id: task_022
     title: R testthat fixture facade and hedgehog bridge
-    description: "Implement R testthat helper wrapping on.exit and hedgehog property bridge."
+    description: "Implement the R target's Spec 0005 core feature contract with testthat fixtures and hedgehog property testing."
     status: backlog
     priority: P1
     milestone: M5-v0.5.0
@@ -329,9 +338,12 @@ tasks:
     labels: [M5, r]
     repo_targets: [playtest]
     acceptance_criteria:
-      - on.exit(..., add = TRUE) verified for LIFO teardown
-      - hedgehog generator integration verified
-    dependencies: [task_013, task_016]
+      - Requested fixtures use documented scopes and execute cleanup in strict LIFO order after test and cleanup failures
+      - BDD steps pass state explicitly; skip and parameterized cases report clear outcomes
+      - hedgehog samples receive fresh per-test fixtures, shrink failures, and expose reproducible seeds/cases
+      - R mappings for Spec 0004 isolation helpers are documented and verified
+      - Shared conformance cases pass for every R capability delivered by this task
+    dependencies: [task_012, task_013, task_014, task_015, task_016, task_017, task_018]
 
   - id: task_023
     title: Cross-language conformance test runner
@@ -343,8 +355,32 @@ tasks:
     labels: [M5, conformance]
     repo_targets: [playtest]
     acceptance_criteria:
-      - Golden test vectors verified identically across Rust, Python, TypeScript, C++, Go, Java, R
-    dependencies: [task_019, task_020, task_021, task_022]
+      - Golden test vectors verify every required Spec 0005 capability across Rust, Python, TypeScript, C++, C, C#, Go, Java, and R
+      - Results are reported per target and capability; no language is marked conformant with missing or unverified coverage
+    dependencies:
+      - task_004
+      - task_005
+      - task_006
+      - task_007
+      - task_008
+      - task_009
+      - task_010
+      - task_011
+      - task_012
+      - task_013
+      - task_014
+      - task_015
+      - task_016
+      - task_017
+      - task_018
+      - task_019
+      - task_020
+      - task_021
+      - task_022
+      - task_031
+      - task_032
+      - task_033
+      - task_034
 
   - id: task_024
     title: Cross-language workspace project and runner auto-detection
@@ -356,8 +392,9 @@ tasks:
     labels: [M5, cli, detection]
     repo_targets: [playtest]
     acceptance_criteria:
-      - "Identifies Cargo.toml, pyproject.toml, package.json, CMakeLists.txt, go.mod, pom.xml, and DESCRIPTION"
+      - "Identifies Cargo.toml, pyproject.toml, package.json, C/C++ CMake targets, C# project/solution files, go.mod, pom.xml, and DESCRIPTION"
       - Resolves relative subproject paths and language test runners automatically
+      - Distinguishes C and C++ projects when they share CMake, or requests an explicit target override
     dependencies: [task_023]
 
   - id: task_025
@@ -370,8 +407,8 @@ tasks:
     labels: [M5, cli, compatibility]
     repo_targets: [playtest]
     acceptance_criteria:
-      - Checks toolchain versions against compatibility bounds (MSRV 1.80+, Python 3.10+, Node 18+, Go 1.21+, OpenJDK 11+, C++20, R 4.1+)
-      - Emits actionable warnings and guidance for missing or misconfigured toolchains
+      - Checks compatibility bounds for Rust, Python, TypeScript, C, C++, C#, Go, Java, and R toolchains
+      - Emits actionable warnings and guidance for missing or misconfigured tools, distinguishing required from optional components
     dependencies: [task_024]
 
   - id: task_026
@@ -401,7 +438,8 @@ tasks:
     labels: [M6, docs]
     repo_targets: [playtest]
     acceptance_criteria:
-      - Comprehensive guides for fixtures, BDD, and PBT across all 7 languages
+      - Comprehensive guides for fixtures, BDD, PBT, and supported isolation helpers across all 9 language targets
+      - Documentation clearly distinguishes target parity from currently implemented and verified features
       - Verified code snippets with CI doc tests
     dependencies: [task_026]
 
@@ -428,7 +466,7 @@ tasks:
     labels: [M6, ci, msrv, compatibility]
     repo_targets: [playtest]
     acceptance_criteria:
-      - CI matrix verifies Linux, macOS, Windows compatibility across all 7 toolchains
+      - CI matrix verifies compatibility for all 9 language targets on each declared supported OS/toolchain combination
     dependencies: [task_026]
 
   - id: task_030
@@ -441,5 +479,76 @@ tasks:
     labels: [M6, release]
     repo_targets: [playtest]
     acceptance_criteria:
-      - All 7 packages published at v1.0.0 with full documentation and provenance
+      - All 9 language targets have their supported release artifacts published at v1.0.0 with documentation and provenance where supported
     dependencies: [task_027, task_028, task_029]
+
+  # M5 parity additions: C and C# were missing from the original seven-target plan.
+  - id: task_031
+    title: C core fixture and property-testing conformance
+    description: "Implement C support for the shared fixture, BDD, property-testing, test-control, and isolation contracts in Spec 0005."
+    status: backlog
+    priority: P1
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, c, conformance]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - Select and document the C test harness and property-testing approach
+      - Requested fixtures use documented scopes and a cleanup stack that runs in reverse order after recoverable test failures
+      - BDD state is passed explicitly; skips and parameterized cases have clear outcomes
+      - Property samples use fresh per-test fixtures, shrink failing inputs, and provide reproducible seeds/cases
+      - C mappings for Spec 0004 isolation helpers are implemented and verified
+      - Shared conformance cases pass for every C capability delivered by this task
+    dependencies: [task_012, task_013, task_014, task_015, task_016, task_017, task_018]
+
+  - id: task_032
+    title: C# core fixture and property-testing conformance
+    description: "Implement C# support for the shared fixture, BDD, property-testing, test-control, and isolation contracts in Spec 0005."
+    status: backlog
+    priority: P1
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, csharp, conformance]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - Select and document the .NET property-testing integration
+      - Requested fixtures use documented scopes and dispose in strict reverse creation order after test and disposal failures
+      - BDD state is passed explicitly; skips and parameterized cases have clear outcomes
+      - Property samples use fresh per-test fixtures, shrink failures, and provide reproducible seeds/cases
+      - C# mappings for Spec 0004 isolation helpers are implemented and verified
+      - Shared conformance cases pass for every C# capability delivered by this task
+    dependencies: [task_012, task_013, task_014, task_015, task_016, task_017, task_018]
+
+  - id: task_033
+    title: Python core feature parity and conformance
+    description: "Complete and verify Python support for the shared fixture, BDD, property-testing, test-control, and isolation contracts in Spec 0005."
+    status: backlog
+    priority: P1
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, python, conformance]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - Fixture scopes, requested-only resolution, LIFO teardown, and failure cleanup satisfy Spec 0005
+      - BDD state flow, skip/conditional skip, and parameterized outcomes pass shared cases
+      - Hypothesis samples use fresh per-test fixtures, shrinking, and reproducible failures
+      - Python mappings for all Spec 0004 isolation helpers are implemented and verified
+      - Shared conformance cases pass for every Python capability delivered by this task
+    dependencies: [task_007, task_009, task_010, task_011, task_012, task_014, task_015, task_016, task_017, task_018]
+
+  - id: task_034
+    title: TypeScript core feature parity and conformance
+    description: "Complete and verify TypeScript support for the shared fixture, BDD, property-testing, test-control, and isolation contracts in Spec 0005."
+    status: backlog
+    priority: P1
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, ts, conformance]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - Fixture scopes, requested-only resolution, LIFO teardown, and failure cleanup satisfy Spec 0005
+      - BDD state flow, skip/conditional skip, and parameterized outcomes pass shared cases
+      - fast-check samples use fresh per-test fixtures, shrinking, and reproducible failures
+      - TypeScript mappings for all Spec 0004 isolation helpers are implemented and verified
+      - Shared conformance cases pass for every TypeScript capability delivered by this task
+    dependencies: [task_008, task_009, task_010, task_011, task_012, task_014, task_015, task_016, task_017, task_018]

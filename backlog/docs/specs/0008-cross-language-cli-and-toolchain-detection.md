@@ -1,71 +1,69 @@
 # Specification 0008: Cross-Language CLI & Toolchain Detection
 
 ## Overview
-Specifies the workspace discovery protocol, manifest signature detection, toolchain compatibility bounds, and diagnostic reporting engine implemented in the `playtest` unified CLI under **Milestone M5 (`v0.5.0`)**.
+
+Specifies the workspace discovery protocol, manifest signatures, toolchain compatibility checks, and diagnostic/reporting behavior for the shared `playtest` CLI under **Milestone M5 (`v0.5.0`)**. The CLI is one shared Rust tool that orchestrates all nine language targets; it does not replace their native test frameworks or implement their framework APIs.
 
 ## 1. Workspace Project Auto-Detection
 
-The CLI inspects the active repository or directory tree and detects language subprojects by matching manifest files:
+The CLI inspects the active repository or requested directory and identifies the following targets:
 
-| Target Language | Manifest Signatures | Default Test Framework | Primary Command Probed |
-| :--- | :--- | :--- | :--- |
-| **Rust** | `Cargo.toml` | `cargo-nextest` / `cargo test` | `cargo nextest run --all-features` |
-| **Python** | `pyproject.toml`, `pytest.ini`, `setup.cfg` | `pytest` | `pytest` |
-| **TypeScript** | `package.json` (`bun.lockb` / `package-lock.json`) | `bun test` / Playwright | `bun test` |
-| **C++** | `CMakeLists.txt`, `conanfile.py` | GoogleTest / CTest | `ctest` |
-| **Go** | `go.mod` | `go test` | `go test ./...` |
-| **Java** | `pom.xml`, `build.gradle`, `build.gradle.kts` | JUnit 5 | `mvn test` / `gradle test` |
-| **R** | `DESCRIPTION` | `testthat` | `Rscript -e "testthat::test_dir('tests')"` |
+| Target | Manifest signatures | Default test framework / command |
+| :--- | :--- | :--- |
+| **Rust** | `Cargo.toml` | `cargo nextest run --all-features` (fallback: `cargo test`) |
+| **Python** | `pyproject.toml`, `pytest.ini`, `setup.cfg` | `pytest` |
+| **TypeScript** | `package.json` with a supported Bun/Node lockfile | `bun test` / configured runner |
+| **C++** | CMake/C++ sources or documented C++ manifest | CTest / configured C++ runner |
+| **C** | CMake/C sources or documented C manifest | configured C test executable / CTest |
+| **C#** | `*.csproj`, `*.sln`, or `*.slnx` | `dotnet test` |
+| **Go** | `go.mod` | `go test ./...` |
+| **Java** | `pom.xml`, `build.gradle`, `build.gradle.kts` | Maven or Gradle test task |
+| **R** | `DESCRIPTION` | `Rscript` with the configured testthat suite |
 
-## 2. Toolchain Compatibility Matrix (`playtest doctor`)
+C and C++ can share CMake files, so detection must inspect declared project languages/targets or require an explicit override; it must not guess solely from the presence of `CMakeLists.txt`. When several supported runners exist, selection and override behavior must be deterministic and visible in `playtest list`/diagnostics.
 
-The diagnostic engine probes host executables and enforces minimum supported versions:
+## 2. Toolchain Compatibility (`playtest doctor`)
 
-```
-[playtest doctor]
-Checking toolchain compatibility...
-✔ Rust       : 1.84.0 (>= 1.80.0) [cargo-nextest 0.9.89]
-✔ Python     : 3.12.3 (>= 3.10.0) [pytest 8.2.0, pytest-cov 5.0.0]
-✔ TypeScript : Bun 1.1.20 (>= 1.0.0) [Node 22.4.0]
-✔ C++        : GCC 13.2.0 (>= 11.0.0, C++20 compliant)
-✔ Go         : 1.22.4 (>= 1.21.0)
-✔ Java       : OpenJDK 21.0.3 (>= 11.0.0) [JUnit 5.10.2]
-✔ R          : 4.3.3 (>= 4.1.0) [testthat 3.2.1]
-All 7 language toolchains meet compatibility requirements.
-```
+The diagnostic engine probes the configured tools and compares them to the compatibility matrix. Initial minimums are:
 
-If a toolchain is absent or below minimum bounds:
-- Marks status as `FAIL` or `WARN` (if optional).
-- Provides exact Pixi installation command (e.g. `pixi add go` or `pixi add r-base`).
+| Target | Minimum toolchain |
+| :--- | :--- |
+| Rust | Rust 1.80+ and Cargo; Nextest when configured as the runner |
+| Python | Python 3.10+ and pytest; pytest-cov for coverage |
+| TypeScript | Node 18+ or Bun 1.0+; the project selects its runner |
+| C++ | GCC 11+ or Clang 14+ with C++20 support |
+| C | C11-capable compiler supported by the target manifest |
+| C# | .NET SDK 10+ (the current projects target `net10.0`) |
+| Go | Go 1.21+ |
+| Java | OpenJDK 11+ |
+| R | R 4.1+ |
+
+The exact matrix must remain synchronized with CI, Pixi manifests, and published target support. Diagnostics must distinguish required from optional tools, identify missing/incompatible versions, and give actionable remediation without claiming that the framework's features are fully conformant merely because a runtime is present.
 
 ## 3. CLI Command Grammar
 
-```bash
+```text
 playtest [COMMAND] [OPTIONS]
 
 Commands:
   test             Execute tests across detected subprojects
-  list             List all detected projects, runtimes, and test targets
-  doctor           Run toolchain compatibility and health diagnostics
-  version          Print playtest CLI version and target versions
+  list             List detected projects, runtimes, and test targets
+  doctor           Check toolchain compatibility and environment health
+  version          Print the CLI and target package versions
 
 Options:
-  --lang <TARGET>  Filter execution by language (rust, python, ts, cpp, go, java, r)
-  --filter <PAT>   Regex filter matching test titles or file paths
-  --format <FMT>   Output reporter: pretty (default), json, junit
-  --fail-fast      Halt suite execution on first subproject failure
+  --lang <TARGET>  Select one or more targets: rust, python, ts, cpp, c, csharp, go, java, r
+  --filter <PAT>   Filter tests using the native runner's supported filter mapping
+  --format <FMT>   Output: pretty (default), json, junit
+  --fail-fast      Stop after the first failing target
+```
+
+Unsupported filter semantics must be reported rather than silently ignored. Reports identify each target's command, exit status, test counts when available, and diagnostics.
 
 ## 4. Decentralized LCOV Coverage Contract
 
-To maintain loose coupling across polyglot tooling, the cross-language CLI does not implement format-specific parsers for Go's `coverage.out`, JaCoCo XML, or proprietary outputs. Instead, each language package provides its own native format conversion tool that emits standard LCOV:
+Each target's native runner or a target-specific converter emits an LCOV file at its documented location. The shared CLI/automation layer collects these files, normalizes `SF:` paths relative to the repository root, and merges them into the unified `coverage/lcov.info` report. The orchestrator should not parse every language's proprietary coverage format itself.
 
-- **Go**: Implements `go/cmd/cover2lcov` which reads `coverage/cover.out` and produces `go/coverage/lcov.info`.
-- **Java**: Implements `io.github.archont561.playtest.Cover2Lcov` which produces `java/coverage/lcov.info`.
-- **Rust / Python / TS / C++**: Emit native LCOV directly via their respective runners (`llvm-cov`, `pytest-cov`, `bun test`, `lcov`).
+## 5. Conformance Boundary
 
-The cross-language orchestrator (`scripts/merge_lcov.py` / `playtest coverage`) simply:
-1. Calls each subproject's `coverage` task polymorphically.
-2. Collects the standard `coverage/lcov.info` generated by each package.
-3. Normalizes `SF:` paths relative to the repository root.
-4. Emits the unified `coverage/lcov.info` report for Codecov.
-```
+CLI conformance is separate from framework feature parity in [Spec 0005](./0005-polyglot-1-to-1-fixture-and-bdd-parity.md). At minimum, CLI tests must verify detection/override behavior for all nine targets, target selection, failure/skip reporting, fail-fast behavior, and normalized coverage paths. A target without an implemented framework feature can still be detected, but the CLI must not label that target fully conformant.

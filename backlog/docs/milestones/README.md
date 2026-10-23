@@ -6,12 +6,12 @@ This directory tracks the evolutionary milestones of the **Playtest** polyglot t
 
 | Milestone | Target SemVer | Scope | Focus Area | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| [**M1: Foundation & Package Reservation**](./M1-v0.1.0-foundation.md) | `v0.1.0` | Polyglot (All 7 targets) | Monorepo scaffolding, package reservations, two-phase CI/CD, VERSION exports | **Completed** |
+| [**M1: Foundation & Package Reservation**](./M1-v0.1.0-foundation.md) | `v0.1.0` | Polyglot (all 9 language targets) | Monorepo scaffolding, package reservations, two-phase CI/CD, VERSION exports | **Completed** |
 | [**M2: Core Fixture Engine & Macros**](./M2-v0.2.0-core-fixtures-and-macros.md) | `v0.2.0` | Rust, Python, TypeScript | AsyncFixture trait, LIFO teardown, declarative `test!` macro, pytest bridge | **Ready** |
 | [**M3: Fluent BDD & PBT Integration**](./M3-v0.3.0-fluent-bdd-and-pbt.md) | `v0.3.0` | Rust, Python, TypeScript | Method chaining `.given().when().then()`, `#[prop]`, Hypothesis / proptest | **Backlog** |
 | [**M4: Isolation, Snapshots & VCR Cassettes**](./M4-v0.4.0-isolation-and-vcr-cassettes.md) | `v0.4.0` | Rust, Python, TypeScript | `tmpdir` sandboxes, `snap` auto-redactions, `cassette` HTTP VCR | **Backlog** |
-| [**M5: Polyglot Conformance & Cross-Lang CLI**](./M5-v0.5.0-polyglot-conformance.md) | `v0.5.0` | C++, Go, Java, R & CLI | GoogleTest, `t.Cleanup`, JUnit 5, `testthat`, workspace auto-detection, `playtest doctor` | **Backlog** |
-| [**M6: Universal Stable Production Release**](./M6-v1.0.0-universal-stable-release.md) | `v1.0.0` | Polyglot (All 7 targets) | API stability, documentation portal, performance benchmarks, universal `v1.0.0` | **Backlog** |
+| [**M5: Polyglot Core Conformance & Cross-Lang CLI**](./M5-v0.5.0-polyglot-conformance.md) | `v0.5.0` | All 9 language targets & shared CLI | Core fixture/BDD/PBT parity, conformance suite, workspace auto-detection, `playtest doctor` | **Backlog** |
+| [**M6: Universal Stable Production Release**](./M6-v1.0.0-universal-stable-release.md) | `v1.0.0` | Polyglot (all 9 language targets) | Stable APIs, documented core parity, performance benchmarks, coordinated `v1.0.0` | **Backlog** |
 
 ---
 

@@ -1,6 +1,15 @@
 # AGENTS.md — Playtest Autonomous Agent Directives
 
-Welcome to **Playtest**. This document defines the mandatory operating guidelines, architectural constraints, toolchain protocols, and release workflows for all AI agents contributing to this repository.
+Welcome to **Playtest**. This document defines the mandatory operating guidelines, architectural constraints, toolchain protocols, and release workflows for all AI agents contributing to this repository. These instructions are authoritative; the focused skills below add procedures without overriding them.
+
+## Agent skills
+
+- `.agents/skills/arena-agent/SKILL.md` — Arena-oriented operating guide and repository boundaries.
+- `.agents/skills/session/SKILL.md` — session orientation, task selection, verification, and hand-off; use the templates in the same directory where helpful.
+- `.agents/skills/audit/SKILL.md` — evidence-based, read-only code-quality audits and validated backlog follow-ups.
+- `.agents/skills/tdd/SKILL.md` and `.agents/skills/refactor/SKILL.md` — implementation and behavior-preserving cleanup workflows.
+- `.agents/skills/grill-me/SKILL.md` — resolve material ambiguity or conflicting requirements.
+- `.agents/skills/clean-code-principles/SKILL.md` — design principles and implemented rules.
 
 ---
 
@@ -112,17 +121,11 @@ backlog/
 
 ## 4. Polyglot Architecture & Parity Requirements
 
-Playtest maintains a unified 1:1 capability parity across its supported languages:
+Playtest's parity target covers all nine language targets: Rust, Python, TypeScript, C++, C, C#, Go, Java, and R. **This is the required behavioral contract, not a claim that every target is already implemented or verified.** Use `backlog/docs/specs/0005-polyglot-1-to-1-fixture-and-bdd-parity.md` as the source of truth and check the milestone/task status before asserting support.
 
-| Capability | Rust (`playtest`) | Python (`playtest-py`) | TypeScript (`@archont561/playtest`) |
-| :--- | :--- | :--- | :--- |
-| **Fixture Injection** | `test!("title", { f1, f2 } => ...)` | Pytest fixture yield bridge | Playwright-style `{ f1, f2 }` injection |
-| **Teardown Order** | Strict LIFO (reverse creation) | Post-`yield` LIFO cleanup | Callback LIFO teardown |
-| **Failure Safety** | RAII Drop guard + `catch_unwind` | Generator context manager | Promise `finally` block |
-| **Fluent BDD** | `test_scenario!` method chaining | `test.scenario.given().when().then()` | `scenario.given().when().then()` |
-| **Property Testing** | `proptest` via `#[prop]` | `hypothesis` via `test.scenario.prop` | `fast-check` generator integration |
-| **Sandboxing** | `tmpdir` with traversal guards | `tmp_path` wrapper | Tempdir isolation fixture |
-| **Browser Support** | **Excluded** (pure systems testing) | Optional / extra plugin | Native Playwright support |
+Across targets, the contract requires fixture injection and documented scopes, requested-only resolution, failure-safe LIFO teardown, explicit-state Given/When/Then/And scenarios, property testing with fresh per-sample fixtures and reproducible shrinking, skip/parameterized cases, and equivalent isolation/determinism helpers from Spec 0004. Public APIs and test libraries may be idiomatic; observable behavior must match and pass the shared conformance suite.
+
+The cross-language `playtest` CLI is one shared orchestrator, not a separate CLI requirement for each language. It must detect and run all nine targets and report test/coverage outcomes consistently. Do not treat toolchain availability or a successful aggregate command as proof of feature parity.
 
 ---
 

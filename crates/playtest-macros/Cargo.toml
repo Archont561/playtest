@@ -1,0 +1,14 @@
+[package]
+name = "playtest-macros"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+description = "Procedural macros and attributes for the playtest testing framework"
+keywords = ["playtest", "macros", "testing", "fixtures", "bdd"]
+categories.workspace = true
+
+[dependencies]

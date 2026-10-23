@@ -1,0 +1,15 @@
+[package]
+name = "playtest"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+description = "A Playwright-style testing framework for Rust with dependency-injected fixtures, strict LIFO teardown, property-based testing, and fluent BDD scenarios"
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+playtest-macros = { workspace = true }

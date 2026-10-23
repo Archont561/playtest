@@ -1,0 +1,151 @@
+# AGENTS.md — Playtest Autonomous Agent Directives
+
+Welcome to **Playtest**. This document defines the mandatory operating guidelines, architectural constraints, toolchain protocols, and release workflows for all AI agents contributing to this repository.
+
+---
+
+## 1. Prime Directives & Constraints
+
+### ⚠️ DIRECTIVE 1: Python-Only Repository Automation (Strict)
+* **All repository-wide automation scripts MUST be written in Python 3 (`.py`).**
+* **Shell scripts (`.sh` / bash) are strictly forbidden** for repo automation, build helpers, release scripts, or code generation.
+* **The sole permitted exception** is `scripts/restore.sh`, which is vendor-provided by `pixi-sandbox` and part of the sandbox restoration contract.
+* Any new workflow helper, generator, or detection script must reside in `scripts/*.py` and be invoked via `pixi run python ...`.
+
+### ⚠️ DIRECTIVE 2: Hermetic Toolchain Execution
+* **Every command must run through Pixi:** `pixi run <task>` or `pixi run --manifest-path <subpkg>/pixi.toml <task>`.
+* Never invoke bare system binaries (`cargo`, `pytest`, `bun`, `ruff`, `go`, `javac`, `Rscript`) directly; always use the hermetic Pixi environment to guarantee reproducible dependency isolation.
+
+### ⚠️ DIRECTIVE 3: Conventional Commits & Versioning
+* All commit messages must strictly adhere to the **Conventional Commits** specification configured in `.versionrc`.
+* Allowed types: `feat`, `fix`, `perf`, `refactor`, `test`, `docs`, `ci`, `chore`.
+* Allowed scopes: `rs`, `py`, `ts`, `cpp`, `c`, `csharp`, `go`, `java`, `r`, `core`, `fixtures`, `bdd`, `pbt`, `vcr`, `snap`, `cli`, `deps`, `release`, `scripts`, `backlog`.
+* Validate commit messages before pushing:
+  ```bash
+  echo "feat(fixtures): add async teardown" | pixi run convco check --from-stdin
+  ```
+
+---
+
+## 2. Release Lifecycle & Git Tagging Architecture
+
+The repository enforces a strict, three-tier separation of concerns across GitHub Actions workflows:
+
+```
+[ Push to main / milestone tag ]
+               │
+               ▼
+   .github/workflows/auto-release.yml
+   (Change detection via python scripts/detect_release.py)
+   (Runs quality gates & dry-run packaging)
+   (Cuts & pushes proper release tag)
+               │
+               ▼
+   .github/workflows/release.yml
+   (Phase 1: Build packages & upload GitHub Actions artifacts)
+   (Phase 2: Downstream jobs download artifacts & publish to registries)
+```
+
+### Workflow Specifications
+
+| Workflow | Path | Trigger | Core Responsibility |
+| :--- | :--- | :--- | :--- |
+| **CI** | `.github/workflows/ci.yml` | Pull Requests & non-tag pushes | Validates code health: lints, formatting, multi-target tests, 90% Codecov coverage, vulnerability audit. **Never cuts releases or tags.** |
+| **Auto-Release** | `.github/workflows/auto-release.yml` | Push to `main` (ignoring `backlog/**`, `*.md`) OR **Milestone tag push** (`milestone-v*`, `milestone/*`, `m-v*`) OR dispatch | Runs `python scripts/detect_release.py`, validates quality gates, and cuts the proper annotated release tag (`v*` or `<scope>-v*`). |
+| **Release** | `.github/workflows/release.yml` | Release tag push (`v*`, `*-v*`, `*/*v*`) OR dispatch | **Phase 1**: Builds `.crate`, `.whl`, `.tgz`, `.jar`, `.tar.gz` into GitHub artifacts.<br>**Phase 2**: Downstream publish jobs upload artifacts to crates.io, PyPI, npm, Maven, Go proxy, Conan, CRAN, and GitHub Releases. |
+
+### Milestone Tag Pushes
+* Maintainers can trigger automated release execution by pushing a milestone tag:
+  ```bash
+  git tag -a "milestone-v0.2.0" -m "Milestone v0.2.0 release trigger"
+  git push origin "milestone-v0.2.0"
+  ```
+* `auto-release.yml` intercepts the milestone tag, extracts target version `0.2.0`, runs quality gates and dry-run packaging, and pushes the final release tag `v0.2.0` (or `<scope>-v0.2.0`).
+
+### Scoped vs. General Tags
+* **General Releases (`vX.Y.Z`)**: Triggered when root build files (`pixi.toml`), shared infrastructure, or $>1$ target changes. Triggers publishing across **all 9 targets**.
+* **Scoped Releases (`<scope>-vX.Y.Z`)**: Triggered when only a single target changes:
+  * Rust: `rust-vX.Y.Z` $\rightarrow$ crates.io
+  * Python: `python-vX.Y.Z` $\rightarrow$ PyPI
+  * TypeScript: `ts-vX.Y.Z` $\rightarrow$ npm
+  * C++: `cpp-vX.Y.Z` $\rightarrow$ GitHub Release / Conan
+  * C: `c-vX.Y.Z` $\rightarrow$ GitHub Release / Conan / tarball
+  * C#: `csharp-vX.Y.Z` $\rightarrow$ NuGet / GitHub Packages
+  * Go: `go-vX.Y.Z` $\rightarrow$ Go Proxy / `pkg.go.dev`
+  * Java: `java-vX.Y.Z` $\rightarrow$ Maven Central / GitHub Release
+  * R: `r-vX.Y.Z` $\rightarrow$ CRAN / GitHub Release
+
+---
+
+## 3. Backlog Management & Semantic Versioning Rules
+
+The `backlog/` directory is the single source of truth for planning, architecture, specifications, and execution:
+
+```
+backlog/
+├── config.toml           # Backlog tracking and branch configuration
+├── tasks.yaml            # Machine-readable tasks bound to milestones and SemVer
+└── docs/
+    ├── milestones/       # Milestone definitions with explicit SemVer bindings
+    │   ├── M1-v0.1.0-foundation.md
+    │   ├── M2-v0.2.0-core-fixtures-and-macros.md
+    │   ├── M3-v0.3.0-fluent-bdd-and-pbt.md
+    │   ├── M4-v0.4.0-isolation-and-vcr-cassettes.md
+    │   ├── M5-v0.5.0-polyglot-conformance.md   # Includes Cross-Lang CLI & Doctor
+    │   ├── M6-v1.0.0-universal-stable-release.md
+    │   └── README.md
+    ├── adr/              # Architectural Decision Records (ADRs 0001 - 0011)
+    └── specs/            # Formal technical specifications (Specs 0001 - 0008)
+```
+
+### Task Synchronization Directives
+1. **SemVer Binding**: Every task in `backlog/tasks.yaml` must explicitly declare:
+   * `milestone: "M<ID>-v<SEMVER>"` (e.g. `M2-v0.2.0`)
+   * `semver: "<SEMVER>"` (e.g. `"0.2.0"`)
+2. **Status Progression**:
+   * `backlog` $\rightarrow$ `ready` $\rightarrow$ `in_progress` $\rightarrow$ `done`.
+   * Tasks must never be deleted; update status and acceptance criteria.
+3. **CI Path Filtering**:
+   * Documentation and backlog task updates (`backlog/**`, `*.md`) are ignored by release change detection and full test matrix runs to conserve compute resources.
+
+---
+
+## 4. Polyglot Architecture & Parity Requirements
+
+Playtest maintains a unified 1:1 capability parity across its supported languages:
+
+| Capability | Rust (`playtest`) | Python (`playtest-py`) | TypeScript (`@archont561/playtest`) |
+| :--- | :--- | :--- | :--- |
+| **Fixture Injection** | `test!("title", { f1, f2 } => ...)` | Pytest fixture yield bridge | Playwright-style `{ f1, f2 }` injection |
+| **Teardown Order** | Strict LIFO (reverse creation) | Post-`yield` LIFO cleanup | Callback LIFO teardown |
+| **Failure Safety** | RAII Drop guard + `catch_unwind` | Generator context manager | Promise `finally` block |
+| **Fluent BDD** | `test_scenario!` method chaining | `test.scenario.given().when().then()` | `scenario.given().when().then()` |
+| **Property Testing** | `proptest` via `#[prop]` | `hypothesis` via `test.scenario.prop` | `fast-check` generator integration |
+| **Sandboxing** | `tmpdir` with traversal guards | `tmp_path` wrapper | Tempdir isolation fixture |
+| **Browser Support** | **Excluded** (pure systems testing) | Optional / extra plugin | Native Playwright support |
+
+---
+
+## 5. Verification Checklist for Agents
+
+Before completing any task or ending a turn, agents must verify that all quality gates pass:
+
+```bash
+# 1. Lint manifests and configurations
+pixi run lint-toml
+
+# 2. Check code formatting across all targets
+pixi run fmt-check
+
+# 3. Run all target test suites
+pixi run test-all
+
+# 4. Verify GitHub Actions workflow syntax
+pixi run actionlint
+
+# 5. Run release change detection dry-run
+pixi run detect-release
+
+# 6. Verify packaging for all language targets
+pixi run package-all
+```

@@ -8,7 +8,7 @@ public class VersionTests
     [Fact]
     public void TestVersionAccessible()
     {
-        Assert.Equal("0.1.0", Playtest.Version);
-        Assert.Equal("0.1.0", Playtest.GetVersion());
+        Assert.Matches(@"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$", Playtest.Version);
+        Assert.Equal(Playtest.Version, Playtest.GetVersion());
     }
 }

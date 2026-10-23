@@ -15,7 +15,7 @@ coverage = { cmd = "mkdir -p coverage && java -cp target/classes io.github.archo
 lint = "javac -Xlint:all -d target/classes src/main/java/io/github/archont561/playtest/Playtest.java"
 fmt = "echo 'Java files formatted'"
 fmt-check = "echo 'Java format check passed'"
-release = { cmd = "mkdir -p dist && PATH=\"/usr/lib/jvm/jdk-11/bin:$PATH\" jar cf dist/playtest-0.1.0.jar -C target/classes io && ls -lh dist/", depends-on = [
+release = { cmd = "mkdir -p dist && PATH=\"/usr/lib/jvm/jdk-11/bin:$PATH\" jar cf dist/playtest-${PLAYTEST_VERSION:-0.1.0}.jar -C target/classes io && ls -lh dist/", depends-on = [
   "build",
   "lint",
   "test",

@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       scope:
-        description: "Force target scope (leave blank for automatic detection: all, rust, python, typescript, go, java, cpp, r)"
+        description: "Force target scope (leave blank for automatic detection: all, rust, python, typescript, go, java, cpp, c, csharp, r)"
         required: false
         default: ""
         type: string

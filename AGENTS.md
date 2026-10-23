@@ -61,7 +61,8 @@ The repository enforces a strict, three-tier separation of concerns across GitHu
 | :--- | :--- | :--- | :--- |
 | **CI** | `.github/workflows/ci.yml` | Pull Requests & non-tag pushes | Validates code health: lints, formatting, multi-target tests, 90% Codecov coverage, vulnerability audit. **Never cuts releases or tags.** |
 | **Auto-Release** | `.github/workflows/auto-release.yml` | Push to `main` (ignoring `backlog/**`, `*.md`) OR **Milestone tag push** (`milestone-v*`, `milestone/*`, `m-v*`) OR dispatch | Runs `python scripts/detect_release.py`, validates quality gates, and cuts the proper annotated release tag (`v*` or `<scope>-v*`). |
-| **Release** | `.github/workflows/release.yml` | Release tag push (`v*`, `*-v*`, `*/*v*`) OR dispatch | **Phase 1**: Builds `.crate`, `.whl`, `.tgz`, `.jar`, `.tar.gz` into GitHub artifacts.<br>**Phase 2**: Downstream publish jobs upload artifacts to crates.io, PyPI, npm, Maven, Go proxy, Conan, CRAN, and GitHub Releases. |
+| **Release** | `.github/workflows/release.yml` | Release tag push (`v*`, `*-v*`, `*/*v*`) OR dispatch | **Phase 1**: Builds package artifacts for the selected targets.<br>**Phase 2**: Publishes Rust/Python/TypeScript to crates.io/PyPI/npm; Go is indexed from the Git tag; C/C++ can publish to a configured Conan remote; C# can publish to NuGet; Java can publish signed artifacts to Maven Central. R gets a CRAN-style check; an optional post-release job verifies R-universe auto-publication. All build artifacts are attached to the GitHub Release. |
+| **CRAN Submission** | `.github/workflows/cran-publish.yml` | Manual dispatch | Select an R release tag and enter `CONFIRM`; checks and submits only the R package, then CRAN emails the maintainer for final confirmation. |
 
 ### Milestone Tag Pushes
 * Maintainers can trigger automated release execution by pushing a milestone tag:
@@ -77,12 +78,20 @@ The repository enforces a strict, three-tier separation of concerns across GitHu
   * Rust: `rust-vX.Y.Z` $\rightarrow$ crates.io
   * Python: `python-vX.Y.Z` $\rightarrow$ PyPI
   * TypeScript: `ts-vX.Y.Z` $\rightarrow$ npm
-  * C++: `cpp-vX.Y.Z` $\rightarrow$ GitHub Release / Conan
-  * C: `c-vX.Y.Z` $\rightarrow$ GitHub Release / Conan / tarball
-  * C#: `csharp-vX.Y.Z` $\rightarrow$ NuGet / GitHub Packages
-  * Go: `go-vX.Y.Z` $\rightarrow$ Go Proxy / `pkg.go.dev`
-  * Java: `java-vX.Y.Z` $\rightarrow$ Maven Central / GitHub Release
-  * R: `r-vX.Y.Z` $\rightarrow$ CRAN / GitHub Release
+  * C++: `cpp-vX.Y.Z` $\rightarrow$ GitHub Release; optionally a configured Conan remote
+  * C: `c-vX.Y.Z` $\rightarrow$ GitHub Release; optionally a configured Conan remote
+  * C#: `csharp-vX.Y.Z` $\rightarrow$ GitHub Release and, when configured, NuGet
+  * Go: `go-vX.Y.Z` $\rightarrow$ Go Proxy / `pkg.go.dev` indexing from the Git tag
+  * Java: `java-vX.Y.Z` $\rightarrow$ GitHub Release and, when configured, Maven Central
+  * R: `r-vX.Y.Z` $\rightarrow$ GitHub Release plus CRAN-style validation; optional CRAN submit requires manual confirmation, and R-universe auto-indexing can be verified
+
+### Registry Configuration
+* Registry publishing is skipped with a warning when its credentials are not configured; GitHub Release artifacts remain the fallback.
+* The `conan` GitHub environment must define `CONAN_REMOTE_URL`, `CONAN_USERNAME`, and `CONAN_PASSWORD`. The workflow publishes the `playtest-c` and/or `playtest-cpp` recipes to that Conan 2 remote.
+* The `nuget` environment must define `NUGET_API_KEY` for NuGet.org publishing.
+* The `maven` environment must define `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`, `MAVEN_GPG_PRIVATE_KEY`, and `MAVEN_GPG_PASSPHRASE`. Maven Central publishing requires an approved namespace and signing key.
+* The `cran` environment must define `AUTHOR_EMAIL` as a variable or secret. The release workflow stamps it into the R package metadata and runs `R CMD check --as-cran`. To submit, manually dispatch `.github/workflows/cran-publish.yml` with the release `tag` and `confirmation=CONFIRM`; CRAN still emails the maintainer address for final confirmation.
+* R-universe is an automatic source-based deployment, not an artifact upload. To enable the optional post-release verification job, set repository variable `RUNIVERSE_ENABLED=true` (and optionally `RUNIVERSE_OWNER`). Create `<owner>.r-universe.dev` with a `packages.json` entry for `playtest` tracking `branch: "*release"`, and install the R-universe GitHub app on that owner. The job waits for the public package API to report the released version. R-universe builds from the source at the GitHub release tag, so that tagged source must already contain the matching `DESCRIPTION` version (the CI-time version stamp is not committed back to the tag).
 
 ---
 

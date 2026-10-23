@@ -28,4 +28,4 @@ Milestone releases in Playtest are driven by git tag pushes and Conventional Com
 3. **Two-Phase Publication**:
    * The release tag triggers `.github/workflows/release.yml`.
    * **Phase 1**: Builds distribution packages into isolated GitHub Actions artifacts.
-   * **Phase 2**: Downstream jobs download artifacts and publish them to remote registries (crates.io, PyPI, npm, Maven, pkg.go.dev, Conan, CRAN) with OIDC trusted provenance.
+   * **Phase 2**: Downstream jobs publish to registries where automated publishing is supported and configured: crates.io, PyPI, npm, Go proxy indexing, Conan remotes, NuGet, and Maven Central. R packages receive a CRAN-style check; CRAN submission is manually confirmed, while R-universe tracks GitHub releases once its registry and app are configured. GitHub Releases retain the built artifacts as the fallback distribution channel.

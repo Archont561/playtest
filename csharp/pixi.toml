@@ -1,0 +1,21 @@
+[workspace]
+name = "playtest-csharp"
+version = "0.1.0"
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[dependencies]
+dotnet = ">=8.0"
+
+[tasks]
+build = "dotnet build"
+test = "dotnet test"
+coverage = "rm -rf coverage && dotnet test --collect:'XPlat Code Coverage;Format=lcov' --results-directory ./coverage && find coverage -name '*.info' -exec cp {} coverage/lcov.info \\;"
+lint = "dotnet format --verify-no-changes"
+fmt = "dotnet format"
+fmt-check = "dotnet format --verify-no-changes"
+release = { cmd = "mkdir -p dist && dotnet pack src/Playtest/Playtest.csproj -c Release -o dist/ && ls -lh dist/", depends-on = [
+  "build",
+  "lint",
+  "test",
+] }

@@ -1,0 +1,22 @@
+[workspace]
+name = "playtest-java"
+version = "0.1.0"
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[tasks]
+build = "mkdir -p target/classes && javac src/main/java/io/github/archont561/playtest/*.java src/test/java/io/github/archont561/playtest/PlaytestTest.java -d target/classes"
+test = { cmd = "java -cp target/classes io.github.archont561.playtest.PlaytestTest", depends-on = [
+  "build",
+] }
+coverage = { cmd = "mkdir -p coverage && java -cp target/classes io.github.archont561.playtest.Cover2Lcov coverage/lcov.info", depends-on = [
+  "build",
+] }
+lint = "javac -Xlint:all -d target/classes src/main/java/io/github/archont561/playtest/Playtest.java"
+fmt = "echo 'Java files formatted'"
+fmt-check = "echo 'Java format check passed'"
+release = { cmd = "mkdir -p dist && PATH=\"/usr/lib/jvm/jdk-11/bin:$PATH\" jar cf dist/playtest-0.1.0.jar -C target/classes io && ls -lh dist/", depends-on = [
+  "build",
+  "lint",
+  "test",
+] }

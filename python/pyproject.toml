@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "playtest-py"
+version = "0.1.0"
+description = "A Playwright-inspired async testing framework for Python with dependency injection, code-first BDD, and isolation fixtures"
+readme = "README.md"
+authors = [{ name = "Archont561" }]
+license = "MIT OR Apache-2.0"
+requires-python = ">=3.10"
+keywords = ["testing", "bdd", "fixtures", "playwright", "test-framework"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: Pytest",
+    "Topic :: Software Development :: Testing",
+    "Programming Language :: Python :: 3",
+]
+
+dependencies = [
+    "pytest>=8.0.0",
+    "typer>=0.12.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Archont561/playtest"
+Repository = "https://github.com/Archont561/playtest"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

@@ -1,0 +1,29 @@
+[workspace]
+name = "playtest-py"
+version = "0.1.0"
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[dependencies]
+python = ">=3.11"
+pytest = ">=8.0.0"
+pytest-cov = ">=5.0.0"
+python-build = ">=1.0.0"
+ruff = ">=0.6.0"
+twine = ">=7.0.0,<8"
+typer = ">=0.27.3,<0.28"
+
+[tasks]
+build = "pyproject-build --outdir dist/ ."
+test = { cmd = "pytest tests", env = { PYTHONPATH = "src" } }
+coverage = { cmd = "mkdir -p coverage && pytest --cov=src --cov-report=term --cov-report=lcov:coverage/lcov-py.info tests", env = { PYTHONPATH = "src" } }
+lint = "ruff check src/ tests/"
+fmt = "ruff format src/ tests/ && ruff check --fix src/ tests/"
+fmt-check = "ruff format --check src/ tests/ && ruff check src/ tests/"
+check-dist = "twine check dist/*"
+release = { cmd = "twine check dist/* && ls -lh dist/", depends-on = [
+  "fmt-check",
+  "lint",
+  "test",
+  "build",
+] }

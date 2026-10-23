@@ -1,0 +1,7 @@
+^\.pixi$
+^pixi\.toml$
+^pixi\.lock$
+^dist$
+^coverage$
+^\.git$
+^\.gitignore$

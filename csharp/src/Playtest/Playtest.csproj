@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Version>0.1.0</Version>
+    <PackageId>Playtest</PackageId>
+    <Authors>Archont561</Authors>
+    <Description>Playwright-style testing framework for .NET with dependency-injected fixtures, strict LIFO teardown, property-based testing, and fluent BDD scenarios.</Description>
+    <PackageLicenseExpression>MIT OR Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/Archont561/playtest</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Archont561/playtest.git</RepositoryUrl>
+    <PackageTags>testing;fixtures;bdd;pbt;playwright</PackageTags>
+  </PropertyGroup>
+
+</Project>

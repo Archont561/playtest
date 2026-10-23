@@ -1,0 +1,12 @@
+Package: playtest
+Title: Playwright-Style Testing Framework for R
+Version: 0.1.0
+Authors@R: person("Archont561", role = c("aut", "cre"), email = "archont561@users.noreply.github.com")
+Description: Dependency-injected fixtures with LIFO teardown, BDD scenarios, and property-based testing for R.
+License: MIT + file LICENSE
+Encoding: UTF-8
+RoxygenNote: 7.3.1
+Suggests:
+    testthat (>= 3.0.0)
+URL: https://github.com/Archont561/playtest
+BugReports: https://github.com/Archont561/playtest/issues

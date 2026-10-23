@@ -1,0 +1,24 @@
+[workspace]
+name = "playtest-cpp"
+version = "0.1.0"
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[tasks]
+build = "mkdir -p target && g++ -std=c++20 tests/test_version.cpp -I include -o target/test_cpp"
+test = { cmd = "./target/test_cpp", depends-on = ["build"] }
+coverage = "mkdir -p target coverage && g++ -std=c++20 --coverage tests/test_version.cpp -I include -o target/test_cpp_cov && ./target/test_cpp_cov && lcov --capture --directory target/ --output-file coverage/lcov-cpp.info --ignore-errors mismatch,gcov,negative && lcov --remove coverage/lcov-cpp.info '/usr/include/*' --output-file coverage/lcov-cpp.info --ignore-errors unused"
+lint = "clang-format --dry-run --Werror include/playtest/playtest.hpp tests/test_version.cpp && g++ -std=c++20 -Wall -Wextra -Wpedantic -fsyntax-only -I include tests/test_version.cpp"
+fmt = "clang-format -i include/playtest/playtest.hpp tests/test_version.cpp"
+fmt-check = "clang-format --dry-run --Werror include/playtest/playtest.hpp tests/test_version.cpp"
+release = { cmd = "mkdir -p dist && tar -czf dist/playtest-cpp-0.1.0.tar.gz include/ CMakeLists.txt && ls -lh dist/", depends-on = [
+  "build",
+  "lint",
+  "test",
+] }
+
+[dependencies]
+clang-format = ">=23.1.4,<24"
+clang-tools = ">=23.1.4,<24"
+lcov = ">=2.5,<3"
+cli11 = ">=2.7.2,<3"

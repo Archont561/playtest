@@ -1,0 +1,22 @@
+version = 1
+project_name = "playtest"
+project_mode = "embedded"
+project_location = "in_repo"
+default_branch = "main"
+autonomy_mode = "assist"
+
+[claims]
+ttl_minutes = 60
+enforce_on_commit = true
+auto_claim_on_commit = true
+
+[git]
+merge_strategy = "fast_forward"
+branch_strategy = "direct"
+
+[[repos]]
+id = "playtest"
+path = "."
+default_branch = "main"
+enabled = true
+location = "local"

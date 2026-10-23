@@ -1,0 +1,445 @@
+version: 1
+tasks:
+  # ============================================================================
+  # Milestone M1: Foundation & Package Reservation (v0.1.0) - COMPLETED
+  # ============================================================================
+  - id: task_001
+    title: Initial monorepo scaffolding with VERSION constants
+    description: "Scaffold playtest workspace with crates/playtest, crates/playtest-macros, and Python automation scripts."
+    status: done
+    priority: P0
+    milestone: M1-v0.1.0
+    semver: "0.1.0"
+    labels: [scaffold, core, M1]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - All crates export VERSION constant
+      - Mirrored tests in tests/ verify VERSION accessibility
+      - Toolchain configured with Pixi, Lefthook, convco, actionlint
+    dependencies: []
+
+  - id: task_002
+    title: Package name reservations and trusted publishing workflows
+    description: "Reserve playtest on crates.io, PyPI, and npm at v0.0.0; configure OIDC trusted publishing in release.yml."
+    status: done
+    priority: P0
+    milestone: M1-v0.1.0
+    semver: "0.1.0"
+    labels: [release, infrastructure, M1]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - playtest and playtest-macros reserved on crates.io at v0.0.0
+      - playtest-py reserved on PyPI at v0.0.0
+      - "@archont561/playtest reserved on npm at v0.0.0"
+      - release.yml configured with id-token write and environments
+    dependencies: [task_001]
+
+  - id: task_003
+    title: Polyglot package manifests and environment orchestration
+    description: "Scaffold dummy packages in Python, TypeScript, C++, Go, Java, and R exposing VERSION 0.1.0."
+    status: done
+    priority: P0
+    milestone: M1-v0.1.0
+    semver: "0.1.0"
+    labels: [polyglot, scaffold, M1]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - All 7 language targets export VERSION 0.1.0 with passing tests
+      - Subproject pixi.toml manifests define local build, test, lint, and release tasks
+      - Root compound tasks (test-all, lint-all, release-all) orchestrate all targets
+    dependencies: [task_001, task_002]
+
+  # ============================================================================
+  # Milestone M2: Core Fixture Engine & Macro Architecture (v0.2.0)
+  # ============================================================================
+  - id: task_004
+    title: Core AsyncFixture trait and FixtureHandle lifecycle
+    description: "Implement the foundation fixture engine with async setup and teardown futures in Rust."
+    status: ready
+    priority: P0
+    milestone: M2-v0.2.0
+    semver: "0.2.0"
+    labels: [M2, fixtures, core]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - AsyncFixture trait defined returning output and async teardown future
+      - FixtureHandle implements Deref, DerefMut, and async teardown execution
+      - Panic-safe teardown verified under catch_unwind
+    dependencies: [task_003]
+
+  - id: task_005
+    title: Declarative test! macro with strict LIFO teardown
+    description: "Implement test! macro with destructured fixture resolution and reverse teardown."
+    status: ready
+    priority: P0
+    milestone: M2-v0.2.0
+    semver: "0.2.0"
+    labels: [M2, macros, core]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "test!(title, { f1, f2 } => async { ... }) syntax operational"
+      - Resolves only requested fixtures
+      - Unwinds fixtures in reverse LIFO order
+    dependencies: [task_004]
+
+  - id: task_006
+    title: Declarative test_skip! and skip_if! macros
+    description: "Implement unconditional and runtime conditional test skipping."
+    status: ready
+    priority: P1
+    milestone: M2-v0.2.0
+    semver: "0.2.0"
+    labels: [M2, macros]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - test_skip! skips test cleanly
+      - skip_if! evaluates runtime conditions and skips execution
+    dependencies: [task_005]
+
+  - id: task_007
+    title: Python TestFacade and pytest fixture yield bridge
+    description: "Deliver Python TestFacade wrapping pytest yield fixtures with LIFO teardown parity."
+    status: backlog
+    priority: P0
+    milestone: M2-v0.2.0
+    semver: "0.2.0"
+    labels: [M2, python, fixtures]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - TestFacade class provides test() and skip() helpers
+      - Pytest fixtures integrated via generator yield context managers
+      - LIFO teardown parity verified under pytest-cov
+    dependencies: [task_005]
+
+  - id: task_008
+    title: TypeScript Playwright fixture runner wrapper
+    description: "Provide TypeScript test runner wrapper with destructured fixture dependency injection."
+    status: backlog
+    priority: P0
+    milestone: M2-v0.2.0
+    semver: "0.2.0"
+    labels: [M2, typescript, fixtures]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "test('title', async ({ f1, f2 }) => { ... }) runner functional in bun test"
+      - Clean teardown lifecycle matching Playwright ergonomics
+    dependencies: [task_005]
+
+  # ============================================================================
+  # Milestone M3: Fluent BDD & Property-Based Testing Integration (v0.3.0)
+  # ============================================================================
+  - id: task_009
+    title: ScenarioBuilder typed pipeline state machine
+    description: "Implement code-first BDD step execution engine."
+    status: backlog
+    priority: P0
+    milestone: M3-v0.3.0
+    semver: "0.3.0"
+    labels: [M3, bdd]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - Type-safe Given -> When -> Then transitions
+      - Mutable fixture access passed across all steps
+    dependencies: [task_005]
+
+  - id: task_010
+    title: test_scenario! macro with method chaining
+    description: "Surface the BDD pipeline via test_scenario! macro without .feature files."
+    status: backlog
+    priority: P0
+    milestone: M3-v0.3.0
+    semver: "0.3.0"
+    labels: [M3, bdd, macros]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "test_scenario! { title, { fixtures } .given(...).when(...).then(...) } operational"
+      - 100% type-checked at compile time
+    dependencies: [task_009]
+
+  - id: task_011
+    title: Procedural #[prop(...)] attribute macro for proptest
+    description: "Wrap test! macro in proptest engine with fresh per-sample fixture lifecycles."
+    status: backlog
+    priority: P0
+    milestone: M3-v0.3.0
+    semver: "0.3.0"
+    labels: [M3, pbt, macros]
+    repo_targets: [playtest-macros]
+    acceptance_criteria:
+      - Parses strategy bindings (e.g. x in 0..100)
+      - Rebuilds and tears down fixtures for each generated permutation
+      - Triggers proptest failure shrinking on panic
+    dependencies: [task_005]
+
+  - id: task_012
+    title: Table-driven #[cases(...)] parameterization
+    description: "Implement parameterized table tests executing across multiple inputs."
+    status: backlog
+    priority: P1
+    milestone: M3-v0.3.0
+    semver: "0.3.0"
+    labels: [M3, macros]
+    repo_targets: [playtest-macros]
+    acceptance_criteria:
+      - "#[cases(...)] executes test body sequentially for each tuple"
+      - Reports failing case parameters clearly
+    dependencies: [task_011]
+
+  - id: task_013
+    title: Combine #[prop] with test_scenario! for property BDD
+    description: "Enable property-driven BDD scenario permutations."
+    status: backlog
+    priority: P0
+    milestone: M3-v0.3.0
+    semver: "0.3.0"
+    labels: [M3, bdd, pbt]
+    repo_targets: [playtest, playtest-macros]
+    acceptance_criteria:
+      - "#[prop(...)] decorates test_scenario!"
+      - BDD pipeline runs across generated arbitrary inputs with shrinking
+    dependencies: [task_010, task_011]
+
+  # ============================================================================
+  # Milestone M4: Isolation, Snapshots & VCR Cassettes (v0.4.0)
+  # ============================================================================
+  - id: task_014
+    title: tmpdir filesystem sandbox fixture with traversal guards
+    description: "Provide temporary directory fixture with path traversal guards."
+    status: backlog
+    priority: P0
+    milestone: M4-v0.4.0
+    semver: "0.4.0"
+    labels: [M4, fixtures]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - Allocates isolated tempdir per test
+      - Guards against escaping sandbox directory
+      - Automatic RAII cleanup
+    dependencies: [task_004]
+
+  - id: task_015
+    title: snap auto-masked snapshot fixture
+    description: "Wrap snapshot engine with automatic UUID and timestamp redactions."
+    status: backlog
+    priority: P0
+    milestone: M4-v0.4.0
+    semver: "0.4.0"
+    labels: [M4, fixtures, snapshots]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - Suffixes snapshots by test title
+      - Auto-masks UUIDs and ISO timestamps
+    dependencies: [task_004]
+
+  - id: task_016
+    title: cassette VCR record/replay engine with CI replay enforcement
+    description: "Implement HTTP and callback caching with Auto, Record, and Replay modes."
+    status: backlog
+    priority: P0
+    milestone: M4-v0.4.0
+    semver: "0.4.0"
+    labels: [M4, fixtures, vcr]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - Stores responses in tests/cassettes/
+      - Auto-saves dirty cassettes on teardown
+      - Strict Replay mode in CI
+    dependencies: [task_004]
+
+  - id: task_017
+    title: network_guard outbound socket interceptor
+    description: "Prevent accidental internet egress during tests."
+    status: backlog
+    priority: P1
+    milestone: M4-v0.4.0
+    semver: "0.4.0"
+    labels: [M4, fixtures, network]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - Blocks unexpected outbound TCP calls
+      - Explicit allowlist method network_guard.allow(...)
+    dependencies: [task_004]
+
+  - id: task_018
+    title: clock and seed determinism fixtures
+    description: "Provide time travel and deterministic PRNG with crash-replay seeds."
+    status: backlog
+    priority: P1
+    milestone: M4-v0.4.0
+    semver: "0.4.0"
+    labels: [M4, fixtures]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - clock freezes and advances time
+      - seed prints replay seed on test assertion failure
+    dependencies: [task_004]
+
+  # ============================================================================
+  # Milestone M5: Polyglot Extended Conformance & Cross-Lang CLI (v0.5.0)
+  # ============================================================================
+  - id: task_019
+    title: C++ GoogleTest fixture facade and RapidCheck bridge
+    description: "Implement C++ fixture RAII wrappers and RapidCheck property testing bridge."
+    status: backlog
+    priority: P1
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, cpp]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - RAII cleanup handles GoogleTest fixture destruction
+      - RapidCheck properties execute with fixture state
+    dependencies: [task_013, task_016]
+
+  - id: task_020
+    title: Go t.Cleanup fixture facade and rapid bridge
+    description: "Implement Go testing helper wrapping t.Cleanup and rapid property tests."
+    status: backlog
+    priority: P1
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, go]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - LIFO teardown via t.Cleanup verified
+      - rapid integration provides shrinking
+    dependencies: [task_013, task_016]
+
+  - id: task_021
+    title: Java JUnit 5 extension and jqwik bridge
+    description: "Implement JUnit 5 Extension with CloseableResource and jqwik property bridge."
+    status: backlog
+    priority: P1
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, java]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - JUnit 5 extension injects fixtures into test methods
+      - jqwik property testing supported with fixture life cycles
+    dependencies: [task_013, task_016]
+
+  - id: task_022
+    title: R testthat fixture facade and hedgehog bridge
+    description: "Implement R testthat helper wrapping on.exit and hedgehog property bridge."
+    status: backlog
+    priority: P1
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, r]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - on.exit(..., add = TRUE) verified for LIFO teardown
+      - hedgehog generator integration verified
+    dependencies: [task_013, task_016]
+
+  - id: task_023
+    title: Cross-language conformance test runner
+    description: "Build automated conformance test harness verifying identical fixture semantics."
+    status: backlog
+    priority: P0
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, conformance]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - Golden test vectors verified identically across Rust, Python, TypeScript, C++, Go, Java, R
+    dependencies: [task_019, task_020, task_021, task_022]
+
+  - id: task_024
+    title: Cross-language workspace project and runner auto-detection
+    description: "Detect all language subprojects and available testing frameworks by inspecting manifest signatures."
+    status: backlog
+    priority: P0
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, cli, detection]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "Identifies Cargo.toml, pyproject.toml, package.json, CMakeLists.txt, go.mod, pom.xml, and DESCRIPTION"
+      - Resolves relative subproject paths and language test runners automatically
+    dependencies: [task_023]
+
+  - id: task_025
+    title: Toolchain compatibility diagnostic engine (playtest doctor)
+    description: "Probe host environment for compiler/interpreter versions and verify against MSRV/compatibility matrix."
+    status: backlog
+    priority: P0
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, cli, compatibility]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - Checks toolchain versions against compatibility bounds (MSRV 1.80+, Python 3.10+, Node 18+, Go 1.21+, OpenJDK 11+, C++20, R 4.1+)
+      - Emits actionable warnings and guidance for missing or misconfigured toolchains
+    dependencies: [task_024]
+
+  - id: task_026
+    title: Unified cross-language test execution and reporting CLI
+    description: "Provide playtest CLI orchestrating multi-language test suites with unified terminal, JSON, and JUnit XML outputs."
+    status: backlog
+    priority: P0
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, cli, runner]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "playtest test executes all detected projects or filters via --lang and --filter"
+      - Formats multi-language test summaries into cohesive reports
+    dependencies: [task_024, task_025]
+
+  # ============================================================================
+  # Milestone M6: Universal Stable Production Release (v1.0.0)
+  # ============================================================================
+  - id: task_027
+    title: Production documentation portal with polyglot code examples
+    description: "Deploy Starlight/Astro documentation site with interactive guides."
+    status: backlog
+    priority: P1
+    milestone: M6-v1.0.0
+    semver: "1.0.0"
+    labels: [M6, docs]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - Comprehensive guides for fixtures, BDD, and PBT across all 7 languages
+      - Verified code snippets with CI doc tests
+    dependencies: [task_026]
+
+  - id: task_028
+    title: Performance benchmarks and fixture teardown latency validation
+    description: "Validate zero overhead and microsecond-level fixture teardown performance."
+    status: backlog
+    priority: P1
+    milestone: M6-v1.0.0
+    semver: "1.0.0"
+    labels: [M6, perf]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - Benchmark suite confirms negligible fixture setup/teardown overhead
+    dependencies: [task_026]
+
+  - id: task_029
+    title: Multi-compiler and multi-OS compatibility verification matrix
+    description: "Verify minimum supported toolchain versions across operating systems and compilers."
+    status: backlog
+    priority: P0
+    milestone: M6-v1.0.0
+    semver: "1.0.0"
+    labels: [M6, ci, msrv, compatibility]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - CI matrix verifies Linux, macOS, Windows compatibility across all 7 toolchains
+    dependencies: [task_026]
+
+  - id: task_030
+    title: v1.0.0 universal coordinated production release
+    description: "Publish v1.0.0 production release across all registries."
+    status: backlog
+    priority: P0
+    milestone: M6-v1.0.0
+    semver: "1.0.0"
+    labels: [M6, release]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - All 7 packages published at v1.0.0 with full documentation and provenance
+    dependencies: [task_027, task_028, task_029]

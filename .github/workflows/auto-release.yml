@@ -1,0 +1,146 @@
+name: Auto-Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "milestone-v*"
+      - "milestone/*"
+      - "m-v*"
+    paths-ignore:
+      - "backlog/**"
+      - ".agents/**"
+      - ".devcontainer/**"
+      - "*.md"
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "Force target scope (leave blank for automatic detection: all, rust, python, typescript, go, java, cpp, r)"
+        required: false
+        default: ""
+        type: string
+      bump:
+        description: "Force version bump (leave blank for convco auto-calculation: patch, minor, major, or explicit X.Y.Z)"
+        required: false
+        default: ""
+        type: string
+      dry-run:
+        description: "Dry run: detect changes and verify quality gates without pushing tags"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  detect-and-tag:
+    name: Detect Changes & Cut Release Tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Pixi environment
+        uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          pixi-version: v0.83.0
+          cache: true
+          frozen: true
+
+      - name: Detect Changes and Calculate Version
+        id: detect
+        run: |
+          ARGS=()
+          INPUT_SCOPE="${{ inputs.scope }}"
+          INPUT_BUMP="${{ inputs.bump }}"
+          REF_NAME="${{ github.ref_name }}"
+
+          [ -n "$INPUT_SCOPE" ] && ARGS+=(--scope "$INPUT_SCOPE")
+          [ -n "$INPUT_BUMP" ] && ARGS+=(--bump "$INPUT_BUMP")
+
+          # Check if triggered by milestone tag push
+          if [[ "$REF_NAME" =~ ^(milestone[-/]|m-)v[0-9]+\.[0-9]+\.[0-9]+.* ]]; then
+            echo "Triggered by milestone tag: $REF_NAME"
+            ARGS+=(--milestone-tag "$REF_NAME")
+          fi
+
+          ARGS+=(--github-output "$GITHUB_OUTPUT")
+
+          python3 scripts/detect_release.py "${ARGS[@]}"
+
+      - name: Skip if No Release Needed
+        if: steps.detect.outputs.release_needed != 'true'
+        run: |
+          echo "No release-worthy changes detected. Skipping tag creation."
+
+      - name: Run Quality Gate
+        if: steps.detect.outputs.release_needed == 'true'
+        run: |
+          SCOPE="${{ steps.detect.outputs.scope }}"
+          echo "Executing quality gates for scope: $SCOPE"
+          pixi run fmt-check
+          if [ "$SCOPE" = "all" ]; then
+            pixi run lint-all
+            pixi run test-all
+          else
+            case "$SCOPE" in
+              rust)       pixi run lint-rs && pixi run test-rs ;;
+              python)     pixi run lint-py && pixi run test-py ;;
+              typescript) pixi run lint-ts && pixi run test-ts ;;
+              cpp)        pixi run lint-cpp && pixi run test-cpp ;;
+              c)          pixi run lint-c && pixi run test-c ;;
+              csharp)     pixi run lint-csharp && pixi run test-csharp ;;
+              go)         pixi run lint-go && pixi run test-go ;;
+              java)       pixi run lint-java && pixi run test-java ;;
+              r)          pixi run lint-r && pixi run test-r ;;
+            esac
+          fi
+
+      - name: Dry-Run Packaging Check
+        if: steps.detect.outputs.release_needed == 'true'
+        run: |
+          SCOPE="${{ steps.detect.outputs.scope }}"
+          echo "Verifying local package creation for scope: $SCOPE"
+          if [ "$SCOPE" = "all" ]; then
+            pixi run package-all
+          else
+            case "$SCOPE" in
+              rust)       pixi run package-rs ;;
+              python)     pixi run release-py ;;
+              typescript) pixi run release-ts ;;
+              cpp)        pixi run release-cpp ;;
+              c)          pixi run release-c ;;
+              csharp)     pixi run release-csharp ;;
+              go)         pixi run release-go ;;
+              java)       pixi run release-java ;;
+              r)          pixi run release-r ;;
+            esac
+          fi
+
+      - name: Create and Push Release Tag
+        if: steps.detect.outputs.release_needed == 'true' && !inputs.dry-run
+        env:
+          TAG: ${{ steps.detect.outputs.tag }}
+          SCOPE: ${{ steps.detect.outputs.scope }}
+          VERSION: ${{ steps.detect.outputs.version }}
+        run: |
+          echo "Creating annotated release tag: $TAG"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Avoid recreating if already points to HEAD
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists."
+          else
+            git tag -a "$TAG" -m "Release $TAG (scope: $SCOPE, version: $VERSION)"
+            git push origin "$TAG"
+            echo "Tag $TAG pushed successfully. This triggers release.yml."
+          fi

@@ -1,0 +1,532 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "*-v*"
+      - "*/*v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish (e.g. v0.1.0 or python-v0.1.0)"
+        required: false
+        type: string
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  # ============================================================================
+  # 1. Inspect Tag & Plan Targets
+  # ============================================================================
+  plan:
+    name: Inspect Tag & Target Planning
+    runs-on: ubuntu-latest
+    outputs:
+      valid: ${{ steps.parse.outputs.valid }}
+      tag_name: ${{ steps.parse.outputs.tag_name }}
+      rust: ${{ steps.parse.outputs.rust }}
+      python: ${{ steps.parse.outputs.python }}
+      typescript: ${{ steps.parse.outputs.typescript }}
+      go: ${{ steps.parse.outputs.go }}
+      java: ${{ steps.parse.outputs.java }}
+      cpp: ${{ steps.parse.outputs.cpp }}
+      c: ${{ steps.parse.outputs.c }}
+      csharp: ${{ steps.parse.outputs.csharp }}
+      r: ${{ steps.parse.outputs.r }}
+    steps:
+      - name: Parse and Validate Release Tag
+        id: parse
+        run: |
+          RAW_TAG="${{ inputs.tag || github.ref_name }}"
+          VALID="false"
+          RUST="false"
+          PYTHON="false"
+          TYPESCRIPT="false"
+          GO="false"
+          JAVA="false"
+          CPP="false"
+          C="false"
+          CSHARP="false"
+          R="false"
+
+          echo "Inspecting release tag: $RAW_TAG"
+
+          # 1. General SemVer tag: vX.Y.Z (triggers all targets)
+          if [[ "$RAW_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+.* ]]; then
+            VALID="true"
+            RUST="true"
+            PYTHON="true"
+            TYPESCRIPT="true"
+            GO="true"
+            JAVA="true"
+            CPP="true"
+            C="true"
+            CSHARP="true"
+            R="true"
+            echo "Detected general release tag: triggering all polyglot targets."
+
+          # 2. Scoped release tag: <scope>-vX.Y.Z or <scope>/vX.Y.Z
+          elif [[ "$RAW_TAG" =~ ^([a-zA-Z0-9_\+-]+)[/-]v[0-9]+\.[0-9]+\.[0-9]+.* ]]; then
+            SCOPE="${BASH_REMATCH[1]}"
+            VALID="true"
+
+            [[ "$SCOPE" =~ ^(rust|crates|rs|playtest-rs|playtest-macros)$ ]] && RUST="true"
+            [[ "$SCOPE" =~ ^(python|py|playtest-py)$ ]] && PYTHON="true"
+            [[ "$SCOPE" =~ ^(typescript|ts|playtest-ts|bun)$ ]] && TYPESCRIPT="true"
+            [[ "$SCOPE" =~ ^(go|playtest-go)$ ]] && GO="true"
+            [[ "$SCOPE" =~ ^(java|maven|mvn|playtest-java)$ ]] && JAVA="true"
+            [[ "$SCOPE" =~ ^(cpp|conan|playtest-cpp)$ ]] && CPP="true"
+            [[ "$SCOPE" =~ ^(c|playtest-c)$ ]] && C="true"
+            [[ "$SCOPE" =~ ^(csharp|dotnet|cs|playtest-csharp)$ ]] && CSHARP="true"
+            [[ "$SCOPE" =~ ^(r|cran|playtest-r)$ ]] && R="true"
+
+            # Check if at least one valid scope matched
+            if [ "$RUST" = "false" ] && [ "$PYTHON" = "false" ] && [ "$TYPESCRIPT" = "false" ] && \
+               [ "$GO" = "false" ] && [ "$JAVA" = "false" ] && [ "$CPP" = "false" ] && \
+               [ "$C" = "false" ] && [ "$CSHARP" = "false" ] && [ "$R" = "false" ]; then
+              VALID="false"
+              echo "::error:: Unknown scope '$SCOPE' in tag '$RAW_TAG'."
+            else
+              echo "Detected scoped tag for target: $SCOPE"
+            fi
+          fi
+
+          if [ "$VALID" != "true" ]; then
+            echo "::error:: Invalid tag format '$RAW_TAG'."
+            echo "Supported formats:"
+            echo "  - General: 'vX.Y.Z' (e.g. v0.1.0)"
+            echo "  - Scoped:  '<scope>-vX.Y.Z' (e.g. python-v0.1.0, ts-v0.1.0, rust-v0.1.0, c-v0.1.0, csharp-v0.1.0)"
+            exit 1
+          fi
+
+          {
+            echo "valid=$VALID"
+            echo "tag_name=$RAW_TAG"
+            echo "rust=$RUST"
+            echo "python=$PYTHON"
+            echo "typescript=$TYPESCRIPT"
+            echo "go=$GO"
+            echo "java=$JAVA"
+            echo "cpp=$CPP"
+            echo "c=$C"
+            echo "csharp=$CSHARP"
+            echo "r=$R"
+          } >> "$GITHUB_OUTPUT"
+
+  # ============================================================================
+  # 2. Monorepo Quality Gate
+  # ============================================================================
+  gate:
+    name: Monorepo Quality Gate
+    needs: [plan]
+    if: needs.plan.outputs.valid == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.tag_name }}
+
+      - name: Setup Pixi environment
+        uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          pixi-version: v0.83.0
+          cache: true
+          frozen: true
+
+      - name: Check Formatting & Linters
+        run: pixi run lint-all
+
+      - name: Run Polyglot Tests
+        run: pixi run test-all
+
+  # ============================================================================
+  # 3. Build & Package Phase (Produces GitHub Artifacts)
+  # ============================================================================
+  build-rust:
+    name: Build & Package (Rust)
+    needs: [plan, gate]
+    if: needs.plan.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.tag_name }}
+      - uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          pixi-version: v0.83.0
+          cache: true
+          frozen: true
+      - name: Package Rust Crates
+        run: pixi run package-rs
+      - name: Upload Rust Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-rust
+          path: target/package/*.crate
+          if-no-files-found: error
+
+  build-python:
+    name: Build & Package (Python)
+    needs: [plan, gate]
+    if: needs.plan.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.tag_name }}
+      - uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          pixi-version: v0.83.0
+          cache: true
+          frozen: true
+      - name: Build Python Distribution (.whl & .tar.gz)
+        run: pixi run release-py
+      - name: Upload Python Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-python
+          path: python/dist/*
+          if-no-files-found: error
+
+  build-typescript:
+    name: Build & Package (TypeScript)
+    needs: [plan, gate]
+    if: needs.plan.outputs.typescript == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.tag_name }}
+      - uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          pixi-version: v0.83.0
+          cache: true
+          frozen: true
+      - name: Build TypeScript Tarball (.tgz)
+        run: pixi run release-ts
+      - name: Upload TypeScript Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-typescript
+          path: typescript/*.tgz
+          if-no-files-found: error
+
+  build-cpp:
+    name: Build & Package (C++)
+    needs: [plan, gate]
+    if: needs.plan.outputs.cpp == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.tag_name }}
+      - uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          pixi-version: v0.83.0
+          cache: true
+          frozen: true
+      - name: Package C++ Header Archive
+        run: pixi run release-cpp
+      - name: Upload C++ Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-cpp
+          path: cpp/dist/*
+          if-no-files-found: error
+
+  build-go:
+    name: Build & Package (Go)
+    needs: [plan, gate]
+    if: needs.plan.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.tag_name }}
+      - uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          pixi-version: v0.83.0
+          cache: true
+          frozen: true
+      - name: Package Go Module Archive
+        run: pixi run release-go
+      - name: Upload Go Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-go
+          path: go/dist/*
+          if-no-files-found: error
+
+  build-java:
+    name: Build & Package (Java)
+    needs: [plan, gate]
+    if: needs.plan.outputs.java == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.tag_name }}
+      - uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          pixi-version: v0.83.0
+          cache: true
+          frozen: true
+      - name: Build Java Distribution (.jar)
+        run: pixi run release-java
+      - name: Upload Java Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-java
+          path: java/dist/*
+          if-no-files-found: error
+
+  build-r:
+    name: Build & Package (R)
+    needs: [plan, gate]
+    if: needs.plan.outputs.r == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.tag_name }}
+      - uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          pixi-version: v0.83.0
+          cache: true
+          frozen: true
+      - name: Package R Source Tarball
+        run: pixi run release-r
+      - name: Upload R Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-r
+          path: r/dist/*
+          if-no-files-found: error
+
+  build-c:
+    name: Build & Package (C)
+    needs: [plan, gate]
+    if: needs.plan.outputs.c == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.tag_name }}
+      - uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          pixi-version: v0.83.0
+          cache: true
+          frozen: true
+      - name: Package C Source Tarball
+        run: pixi run release-c
+      - name: Upload C Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-c
+          path: c/dist/*
+          if-no-files-found: error
+
+  build-csharp:
+    name: Build & Package (C#)
+    needs: [plan, gate]
+    if: needs.plan.outputs.csharp == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.tag_name }}
+      - uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          pixi-version: v0.83.0
+          cache: true
+          frozen: true
+      - name: Package C# NuGet Package (.nupkg)
+        run: pixi run release-csharp
+      - name: Upload C# Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-csharp
+          path: csharp/dist/*
+          if-no-files-found: error
+
+  # ============================================================================
+  # 4. Publish Phase (Independent Jobs Downloading Specific Artifacts)
+  # ============================================================================
+  publish-crates:
+    name: Publish to crates.io (Rust)
+    needs: [plan, build-rust]
+    if: needs.plan.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    environment: crates
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.tag_name }}
+      - uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          pixi-version: v0.83.0
+          cache: true
+          frozen: true
+      - name: Download Rust Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: package-rust
+          path: target/package/
+      - name: Authenticate with crates.io via OIDC
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish Rust Crates to crates.io
+        run: pixi run release-rs
+
+  publish-pypi:
+    name: Publish to PyPI (Python)
+    needs: [plan, build-python]
+    if: needs.plan.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Download Python Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: package-python
+          path: python/dist/
+      - name: Publish to PyPI via OIDC
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: python/dist/
+
+  publish-npm:
+    name: Publish to npm (TypeScript)
+    needs: [plan, build-typescript]
+    if: needs.plan.outputs.typescript == 'true'
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.tag_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download TypeScript Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: package-typescript
+          path: typescript/
+      - name: Publish Tarball to npm with Provenance
+        run: |
+          cd typescript
+          for pkg in ./*.tgz; do
+            [ -f "$pkg" ] || continue
+            npm publish "$pkg" --provenance --access public
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-go:
+    name: Register Go Module (pkg.go.dev)
+    needs: [plan, build-go]
+    if: needs.plan.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Trigger Go Proxy Indexing
+        run: |
+          TAG="${{ needs.plan.outputs.tag_name }}"
+          MODULE="github.com/Archont561/playtest/go"
+          echo "Pinging proxy.golang.org for ${MODULE}@${TAG}..."
+          curl -s -i "https://proxy.golang.org/${MODULE}/@v/${TAG}.info" || true
+
+  publish-java:
+    name: Stage Java Artifacts
+    needs: [plan, build-java]
+    if: needs.plan.outputs.java == 'true'
+    runs-on: ubuntu-latest
+    environment: maven
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download Java Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: package-java
+          path: java/dist/
+      - name: Verify Staged Java Package
+        run: ls -la java/dist/
+
+  # ============================================================================
+  # 5. GitHub Release (Collects All Artifacts & Convco Changelog)
+  # ============================================================================
+  github-release:
+    name: Create GitHub Release
+    needs:
+      - plan
+      - build-rust
+      - build-python
+      - build-typescript
+      - build-cpp
+      - build-c
+      - build-csharp
+      - build-go
+      - build-java
+      - build-r
+      - publish-crates
+      - publish-pypi
+      - publish-npm
+      - publish-go
+      - publish-java
+    if: |
+      always() &&
+      needs.plan.outputs.valid == 'true' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.plan.outputs.tag_name }}
+
+      - uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          pixi-version: v0.83.0
+          cache: true
+          frozen: true
+
+      - name: Download All Built Package Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - name: Generate Changelog via convco
+        run: |
+          pixi run changelog > RELEASE_NOTES.md || echo "Release ${{ needs.plan.outputs.tag_name }}" > RELEASE_NOTES.md
+
+      - name: Create GitHub Release with Attached Artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.plan.outputs.tag_name }}
+          body_path: RELEASE_NOTES.md
+          generate_release_notes: true
+          files: dist/*

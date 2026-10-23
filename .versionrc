@@ -1,0 +1,29 @@
+{
+  "header": "# Changelog\n\nAll notable changes to the Playtest project will be documented in this file.\n",
+  "types": [
+    { "type": "feat", "section": "Features", "hidden": false },
+    { "type": "fix", "section": "Bug Fixes", "hidden": false },
+    { "type": "perf", "section": "Performance", "hidden": false },
+    { "type": "refactor", "section": "Refactoring", "hidden": false },
+    { "type": "test", "section": "Testing", "hidden": false },
+    { "type": "docs", "section": "Documentation", "hidden": false },
+    { "type": "ci", "section": "CI/CD", "hidden": false },
+    { "type": "chore", "section": "Maintenance", "hidden": false }
+  ],
+  "scopeRegex": "^(rs|py|ts|cpp|c|csharp|go|java|r|core|fixtures|bdd|pbt|browser|vcr|snap|cli|deps|release|scripts|backlog|ci)(?:-(rs|py|ts|cpp|c|csharp|go|java|r))?$",
+  "lineLength": 100,
+  "wrapDisabled": false,
+  "preMajor": false,
+  "commitUrlFormat": "https://github.com/Archont561/playtest/commit/{{hash}}",
+  "compareUrlFormat": "https://github.com/Archont561/playtest/compare/{{previousTag}}...{{currentTag}}",
+  "issueUrlFormat": "https://github.com/Archont561/playtest/issues/{{issue}}",
+  "userUrlFormat": "https://github.com/{{user}}",
+  "releaseCommitMessageFormat": "chore(release): prepare {{currentTag}}",
+  "issuePrefixes": ["#"],
+  "description": {
+    "length": {
+      "min": 5,
+      "max": 80
+    }
+  }
+}

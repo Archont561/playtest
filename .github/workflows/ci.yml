@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "backlog/**"
+      - "docs/**"
+      - "**.md"
+      - "LICENSE*"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "backlog/**"
+      - "docs/**"
+      - "**.md"
+      - "LICENSE*"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Lint, Test & Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Pixi environment
+        uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          pixi-version: v0.83.0
+          cache: true
+          frozen: true
+
+      - name: Lint Workflow Files (actionlint)
+        run: pixi run actionlint
+
+      - name: Check Formatting (fmt-check)
+        run: pixi run fmt-check
+
+      - name: Monorepo Quality Gate (lint-all)
+        run: pixi run lint-all
+
+      - name: Run Polyglot Test Suite (test-all)
+        run: pixi run test-all
+
+      - name: Build All Targets (build-all)
+        run: pixi run build-all
+
+      - name: Generate Polyglot Coverage (coverage-all)
+        run: pixi run coverage-all
+
+      - name: Security Audit (cargo-audit)
+        run: pixi run audit
+
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: |
+            coverage/lcov.info
+            python/coverage.xml
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}

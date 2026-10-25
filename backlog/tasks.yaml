@@ -641,8 +641,8 @@ tasks:
   # Milestone M7: Ecosystem Integration Fixtures (v1.1.0)
   # ============================================================================
   - id: task_040
-    title: Python Qt application fixtures (offscreen-capable)
-    description: "Implement Spec 0009 §2.1: qt_app host fixture with process-singleton QApplication management, per-test top-level windows, clock-driven event pumping, and failure-safe LIFO teardown."
+    title: Python Qt application fixtures (playtest-qt)
+    description: "Ship the separate playtest-qt package (Spec 0009 §2.1): qt_app fixture built on the Spec 0010 extension API with process-singleton QApplication management, per-test top-level windows, clock-driven event pumping, and failure-safe LIFO teardown."
     status: backlog
     priority: P0
     milestone: M7-v1.1.0
@@ -656,11 +656,12 @@ tasks:
       - "Event-pumping helpers take timeout budgets from the injected clock fixture; any wall-clock toolkit fallback is documented and bounded"
       - "An explicitly requested run without a usable Qt platform exits 3 with remediation (Spec 0008 §6) instead of skipping green"
       - "Pure setup/report helpers are unit-testable without a display, and Qt remains absent from core installs"
-    dependencies: [task_033]
+      - "Ships as its own PyPI artifact using only the Spec 0010 surface; the core playtest-py package manifest stays unchanged"
+    dependencies: [task_033, task_047]
 
   - id: task_041
-    title: Python tkinter application fixtures
-    description: "Implement Spec 0009 §2.2: tk_app fixture with a fresh withdrawn Tk root per test, after-based clock-driven pumping, and failure-safe LIFO teardown mirroring the Qt fixture ergonomics."
+    title: Python tkinter application fixtures (playtest-tk)
+    description: "Ship the separate playtest-tk package (Spec 0009 §2.2): tk_app fixture built on the Spec 0010 extension API with a fresh withdrawn Tk root per test, after-based clock-driven pumping, and failure-safe LIFO teardown mirroring the Qt fixture ergonomics."
     status: backlog
     priority: P1
     milestone: M7-v1.1.0
@@ -672,12 +673,12 @@ tasks:
       - "Event pumping uses after-based scheduling with timeout budgets from the injected clock, mirroring the Qt helper semantics"
       - "Interaction and reporting shapes mirror the Qt fixture so the toolkits are ergonomically interchangeable"
       - "An interpreter without Tk support that receives an explicit tk_app request fails with remediation instead of skipping green"
-      - "tkinter remains a stdlib-only capability with no new package dependencies"
-    dependencies: [task_033]
+      - "Ships as its own PyPI artifact using only the Spec 0010 surface; the core playtest-py package manifest stays unchanged"
+    dependencies: [task_033, task_047]
 
   - id: task_042
-    title: TypeScript browser integration fixture
-    description: "Implement Spec 0009 §3: opt-in browser fixture using Playwright as an optional peer dependency, with context-per-test isolation and failure-safe LIFO teardown for client-side JavaScript."
+    title: TypeScript browser integration fixture (@archont561/playtest-browser)
+    description: "Ship the separate @archont561/playtest-browser package (Spec 0009 §3): browser fixture built on the Spec 0010 extension-object mapping with Playwright as an optional peer dependency, context-per-test isolation, and failure-safe LIFO teardown for client-side JavaScript."
     status: backlog
     priority: P0
     milestone: M7-v1.1.0
@@ -690,11 +691,12 @@ tasks:
       - "Playwright is an optional peer dependency and core installs of @archont561/playtest download no browser binaries (ADR 0013)"
       - "An explicitly selected run with a missing or unlaunchable browser exits 3 with remediation (Spec 0008 §6/§8) instead of skipping green"
       - "Playwright request interception is mapped to cassette record/replay and network_guard semantics, with conformance coverage or documented gaps"
-    dependencies: [task_034]
+      - "Ships as its own npm artifact using only the Spec 0010 surface; the core package manifest stays unchanged"
+    dependencies: [task_034, task_047]
 
   - id: task_043
     title: Integration-tier qualification and documentation
-    description: "Declare and verify the gui/browser/mobile integration tiers end to end: tier mappings visible in playtest list, doctor probes for GUI, browser, webview, and mobile runtimes, and documentation/skill updates with results reported separately from core parity."
+    description: "Declare and verify the gui/browser/mobile integration tiers end to end: tier mappings visible in playtest list, doctor probes for GUI, browser, webview, and mobile runtimes, release slots and docs for every provider package, with results reported separately from core parity."
     status: backlog
     priority: P1
     milestone: M7-v1.1.0
@@ -705,12 +707,13 @@ tasks:
       - "gui, browser, and mobile tiers are declared, mapped per target, and visible in playtest list alongside unit and smoke"
       - "Doctor probes cover Qt platform availability, tkinter presence, Playwright browser binaries, Tauri webview runtimes, and mobile emulator availability, each with remediation"
       - "Documentation portal pages cover Spec 0009 fixtures with verified examples, and the consumer agent skill is updated"
+      - "Release-pipeline slots and docs-portal sections exist for each provider package, and core package releases remain fixes-only (ADR 0014)"
       - "Integration conformance results for every integration kind (Python GUI, TypeScript browser, Rust CLI/TUI/Tauri) are reported separately from Spec 0005 core parity claims (Spec 0009 §5)"
     dependencies: [task_037, task_040, task_041, task_042, task_044, task_045, task_046]
 
   - id: task_044
-    title: Rust clap CLI application fixtures
-    description: "Implement Spec 0009 §4.1: cli_app fixture running a clap CommandFactory definition in-process with per-test argv, injected fixtures in handlers, captured output and exit status, snapshot-friendly goldens, and a failure-safe spawned-binary mode."
+    title: Rust clap CLI application fixtures (playtest-clap)
+    description: "Graduate the M6 canary (task_048) into the separate playtest-clap package (Spec 0009 §4.1): cli_app built on the Spec 0010 extension API with in-process CommandFactory runs, captured output and exit status, snapshot-friendly goldens, and a failure-safe spawned-binary mode."
     status: backlog
     priority: P0
     milestone: M7-v1.1.0
@@ -722,12 +725,12 @@ tasks:
       - "Command handlers receive fixtures through the same dependency-injection contract as test! tests"
       - "Help, usage, and error text assert through the snap fixture with documented normalization for clap version and terminal width"
       - "Optional spawned-binary mode kills and reaps children in failure-safe LIFO teardown; an explicitly requested missing binary fails with remediation (Spec 0008 §6) instead of skipping green"
-      - "Core installs gain no new heavyweight dependencies and unrequested cli_app tests start no subprocess"
-    dependencies: [task_030]
+      - "Unrequested cli_app tests start no subprocess; the package ships as its own crate with core playtest manifests unchanged"
+    dependencies: [task_030, task_047, task_048]
 
   - id: task_045
-    title: Rust ratatui TUI application fixtures
-    description: "Implement Spec 0009 §4.2: tui_app fixture with headless TestBackend rendering, injected key/mouse/paste events, clock-driven frame stepping, and buffer snapshots."
+    title: Rust ratatui TUI application fixtures (playtest-tui)
+    description: "Ship the separate playtest-tui package (Spec 0009 §4.2): tui_app fixture built on the Spec 0010 extension API with headless TestBackend rendering, injected key/mouse/paste events, clock-driven frame stepping, and buffer snapshots."
     status: backlog
     priority: P1
     milestone: M7-v1.1.0
@@ -739,11 +742,12 @@ tasks:
       - "Key, mouse, and paste input inject through fixture helpers, and the draw/tick loop steps on the injected clock without wall-clock sleeps"
       - "Application state and terminal buffers are per-test and dropped failure-safe in strict LIFO order, including after panics"
       - "An explicitly requested real-terminal run without a usable tty fails with remediation instead of skipping green"
-    dependencies: [task_030]
+      - "Ships as its own crate using only the Spec 0010 surface; core playtest manifests stay unchanged"
+    dependencies: [task_030, task_047]
 
   - id: task_046
-    title: Rust tauri desktop and mobile application fixtures
-    description: "Implement Spec 0009 §4.3: tauri_app fixture with an always-runnable in-process host for commands, state, and plugins, plus an opt-in real-host mode for desktop webviews and mobile emulator sessions."
+    title: Rust tauri desktop and mobile application fixtures (playtest-tauri)
+    description: "Ship the separate playtest-tauri package (Spec 0009 §4.3): tauri_app fixture built on the Spec 0010 extension API with an always-runnable in-process host for commands, state, and plugins, plus an opt-in real-host mode for desktop webviews and mobile emulator sessions."
     status: backlog
     priority: P1
     milestone: M7-v1.1.0
@@ -755,4 +759,40 @@ tasks:
       - "The fixture owns the app handle and windows per test with strict failure-safe LIFO teardown, including after panics; clock and seed drive application timing and network_guard applies to app-originated traffic"
       - "Real-host mode follows the qualification-harness pattern: throwaway profile, probed environment, machine-readable report, selection fail-loud (Spec 0008 §6)"
       - "Doctor probes report webview runtime and mobile emulator availability (Spec 0008 §8); nothing heavyweight ships in core installs (ADR 0013)"
-    dependencies: [task_030, task_037]
+      - "Ships as its own crate using only the Spec 0010 surface; core playtest manifests stay unchanged"
+    dependencies: [task_030, task_037, task_047]
+
+  # ============================================================================
+  # Milestone M6 Addendum: Fixture Extension API Freeze (v1.0.0)
+  # ============================================================================
+  - id: task_047
+    title: Fixture extension API across Rust, Python, and TypeScript
+    description: "Implement Spec 0010: fixture-provider extension points (registration, scopes, requested-only resolution, composition, failure-safe LIFO participation, structured diagnostics, CLI discovery) for the three ecosystem-package hosts, frozen for v1.0.0."
+    status: backlog
+    priority: P0
+    milestone: M6-v1.0.0
+    semver: "1.0.0"
+    labels: [M6, core, fixtures, api]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "Providers declare fixtures with Spec 0001 scopes, compose them from core and provider fixtures, and participate in strict failure-safe LIFO teardown"
+      - "Requested-only resolution holds for provider fixtures: unrequested provider fixtures are never constructed"
+      - "Registration uses each ecosystem's native mechanism (Rust crates/macros, pytest entry points, TS extension object), and registered providers are reported by playtest list --format json"
+      - "Provider runtime-unavailability diagnostics feed Spec 0008 §6 selection failures and Spec 0008 §8 doctor probes"
+      - "The API level is reported by playtest version --format json, and post-1.0 evolution of the surface is documented as SemVer-additive only"
+    dependencies: [task_005, task_033, task_034]
+
+  - id: task_048
+    title: "Extension-API canary: in-repo clap fixture validation"
+    description: "Validate Spec 0010 before the v1.0.0 freeze with a dependency-free clap CLI fixture built exclusively against the public extension surface, covering the provider conformance profile without private-API access."
+    status: backlog
+    priority: P0
+    milestone: M6-v1.0.0
+    semver: "1.0.0"
+    labels: [M6, rs, fixtures, conformance]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "A clap fixture provider is implemented using only the Spec 0010 public surface; any canary need for core-internal APIs blocks the freeze until the API accommodates it"
+      - "The canary passes the provider conformance profile: registration, requested-only, composition, LIFO-after-failure, diagnostics, discovery"
+      - "The canary runs in-repo as validation only and is not published; task_044 graduates it into the playtest-clap package after v1.0.0"
+    dependencies: [task_047]

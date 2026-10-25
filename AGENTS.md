@@ -113,8 +113,8 @@ backlog/
     │   ├── M6-v1.0.0-universal-stable-release.md
     │   ├── M7-v1.1.0-ecosystem-integration-fixtures.md
     │   └── README.md
-    ├── adr/              # Architectural Decision Records (ADRs 0001 - 0013)
-    └── specs/            # Formal technical specifications (Specs 0001 - 0009)
+    ├── adr/              # Architectural Decision Records (ADRs 0001 - 0014)
+    └── specs/            # Formal technical specifications (Specs 0001 - 0010)
 ```
 
 ### Task Synchronization Directives

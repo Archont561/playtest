@@ -17,3 +17,4 @@ This directory documents key architectural decisions made for the Playtest ecosy
 | [0011](./0011-cross-language-cli-and-compatibility-architecture.md) | Cross-Language CLI & Toolchain Compatibility Architecture | Accepted | 2026-10-23 |
 | [0012](./0012-machine-consumable-and-extensible-cli-contract.md) | Machine-Consumable and Extensible CLI Contract | Proposed | 2026-10-25 |
 | [0013](./0013-scoped-browser-drop-and-ecosystem-integration-fixtures.md) | Scoped Browser Drop and Ecosystem Integration Fixtures | Proposed | 2026-10-25 |
+| [0014](./0014-v1-stability-boundary-and-fixture-extension-model.md) | v1 Stability Boundary and Fixture Extension Model | Proposed | 2026-10-25 |

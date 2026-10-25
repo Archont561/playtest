@@ -656,6 +656,7 @@ tasks:
       - "Event-pumping helpers take timeout budgets from the injected clock fixture; any wall-clock toolkit fallback is documented and bounded"
       - "An explicitly requested run without a usable Qt platform exits 3 with remediation (Spec 0008 §6) instead of skipping green"
       - "Pure setup/report helpers are unit-testable without a display, and Qt remains absent from core installs"
+      - "Opt-in visual golden snapshots capture window/widget renders through snap as image goldens, with documented nondeterminism caveats (fonts, antialiasing) and masking for dynamic content"
       - "Ships as its own PyPI artifact using only the Spec 0010 surface; the core playtest-py package manifest stays unchanged"
     dependencies: [task_033, task_047]
 
@@ -691,6 +692,7 @@ tasks:
       - "Playwright is an optional peer dependency and core installs of @archont561/playtest download no browser binaries (ADR 0013)"
       - "An explicitly selected run with a missing or unlaunchable browser exits 3 with remediation (Spec 0008 §6/§8) instead of skipping green"
       - "Playwright request interception is mapped to cassette record/replay and network_guard semantics, with conformance coverage or documented gaps"
+      - "Opt-in visual golden snapshots capture page screenshots through snap, with documented stability guidance (animations, fonts, async content) and masking for dynamic regions"
       - "Ships as its own npm artifact using only the Spec 0010 surface; the core package manifest stays unchanged"
     dependencies: [task_034, task_047]
 
@@ -796,3 +798,24 @@ tasks:
       - "The canary passes the provider conformance profile: registration, requested-only, composition, LIFO-after-failure, diagnostics, discovery"
       - "The canary runs in-repo as validation only and is not published; task_044 graduates it into the playtest-clap package after v1.0.0"
     dependencies: [task_047]
+
+  # ============================================================================
+  # Milestone M5 Addendum: Delegated Mutation Quality Gate (v0.5.0)
+  # ============================================================================
+  - id: task_049
+    title: Delegated mutation testing orchestration and reporting
+    description: "Implement Spec 0011: playtest mutation runs each selected target's documented native mutator and aggregates normalized, schema-versioned mutation scores with threshold gating, without implementing mutation engines."
+    status: backlog
+    priority: P1
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, cli, mutation, quality]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "playtest mutation executes the documented native mutator mapping for selected targets (reference mappings for Rust, Python, and TypeScript); an explicitly requested missing engine exits 3 with remediation, and a selection matching no target exits 2"
+      - "Normalized per-target records report mutants_total, killed, survived, timeout, excluded, score, engine and version, and surviving-mutant locations, aggregated into one schema_version JSON document per Spec 0008 §7"
+      - "--min-score enforces a threshold: falling below it exits 1 with a per-target breakdown naming the surviving mutants"
+      - "Excluded mutants (generated code, configured skips) are counted and reported per target, never silently dropped from view"
+      - "Determinism preconditions for meaningful scores (fixed seeds, hermetic network, no wall-clock flakiness) are documented with guidance, and doctor reports configured mutators as optional tools"
+      - "Mutation results never appear as conformance or parity evidence (Spec 0011 §5)"
+    dependencies: [task_026]

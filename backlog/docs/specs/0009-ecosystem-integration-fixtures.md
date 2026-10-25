@@ -33,6 +33,7 @@ Specifies the first-party ecosystem fixture packages that go beyond the shared c
 - Per-test top-level windows/widgets are created through fixture factories and closed in strict LIFO order, including after assertion failures.
 - Event-loop pumping helpers process events and wait for conditions with timeout budgets taken from the injected `clock` fixture; where a toolkit only supports wall-clock waits, the fallback is documented and bounded.
 - Teardown closes windows, drains pending events, and releases the application at its owning scope end — failure-safe in every case.
+- Opt-in visual golden snapshots: window and widget renders captured through `snap` as image goldens, with documented nondeterminism caveats (fonts, antialiasing) and masking hooks for dynamic content.
 - Interaction helpers stay minimal and scriptable: locate widgets by object name/role, activate, type, and assert signal emission. A full page-object framework is out of scope.
 
 ### 2.2 `tk_app` — tkinter application host
@@ -55,6 +56,7 @@ Specifies the first-party ecosystem fixture packages that go beyond the shared c
 - Isolation defaults to a fresh browser context per test; contexts, pages, and the shared browser close in strict LIFO order after test failures. Browser/session scope reuse is documented when opted into.
 - Client-side JavaScript runs in the page; fixtures expose navigation, evaluation, and console/network capture with deterministic waiting (no wall-clock sleeps outside Playwright's own auto-waiting).
 - Network interplay is documented and mapped: Playwright request interception corresponds to `cassette` record/replay phases and `network_guard` default-deny semantics, with conformance coverage where the mapping is total and documented gaps where it is not.
+- Opt-in visual golden snapshots: page screenshots captured through `snap`, with documented stability guidance (animations, fonts, async content) and masking for dynamic regions.
 - A missing or unlaunchable browser under explicit selection fails with remediation, surfaced through Spec 0008 §6/§8 (a doctor probe reports the installed browser and channel).
 
 ## 4. Rust Application Fixtures

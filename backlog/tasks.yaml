@@ -636,3 +636,74 @@ tasks:
       - "playtest version and command help point to the shipped guidance so the contract is reachable from the tool itself"
       - "The skill follows the .agents/skills conventions of this repository and is versioned with releases"
     dependencies: [task_035, task_036]
+
+  # ============================================================================
+  # Milestone M7: Ecosystem Integration Fixtures (v1.1.0)
+  # ============================================================================
+  - id: task_040
+    title: Python Qt application fixtures (offscreen-capable)
+    description: "Implement Spec 0009 §2.1: qt_app host fixture with process-singleton QApplication management, per-test top-level windows, clock-driven event pumping, and failure-safe LIFO teardown."
+    status: backlog
+    priority: P0
+    milestone: M7-v1.1.0
+    semver: "1.1.0"
+    labels: [M7, py, fixtures, gui]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "qt_app supports PyQt6 and PySide6 with automatic binding selection and a documented override, created only when requested"
+      - "A single QApplication is created at session scope per process and never duplicated; teardown releases it failure-safe in LIFO order"
+      - "Per-test top-level windows are created and closed in strict LIFO order, including after assertion failures"
+      - "Event-pumping helpers take timeout budgets from the injected clock fixture; any wall-clock toolkit fallback is documented and bounded"
+      - "An explicitly requested run without a usable Qt platform exits 3 with remediation (Spec 0008 §6) instead of skipping green"
+      - "Pure setup/report helpers are unit-testable without a display, and Qt remains absent from core installs"
+    dependencies: [task_033]
+
+  - id: task_041
+    title: Python tkinter application fixtures
+    description: "Implement Spec 0009 §2.2: tk_app fixture with a fresh withdrawn Tk root per test, after-based clock-driven pumping, and failure-safe LIFO teardown mirroring the Qt fixture ergonomics."
+    status: backlog
+    priority: P1
+    milestone: M7-v1.1.0
+    semver: "1.1.0"
+    labels: [M7, py, fixtures, gui]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "tk_app creates a fresh withdrawn Tk root per test by default and destroys it in strict LIFO order, including after failures"
+      - "Event pumping uses after-based scheduling with timeout budgets from the injected clock, mirroring the Qt helper semantics"
+      - "Interaction and reporting shapes mirror the Qt fixture so the toolkits are ergonomically interchangeable"
+      - "An interpreter without Tk support that receives an explicit tk_app request fails with remediation instead of skipping green"
+      - "tkinter remains a stdlib-only capability with no new package dependencies"
+    dependencies: [task_033]
+
+  - id: task_042
+    title: TypeScript browser integration fixture
+    description: "Implement Spec 0009 §3: opt-in browser fixture using Playwright as an optional peer dependency, with context-per-test isolation and failure-safe LIFO teardown for client-side JavaScript."
+    status: backlog
+    priority: P0
+    milestone: M7-v1.1.0
+    semver: "1.1.0"
+    labels: [M7, ts, fixtures, browser]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "browser/context/page fixtures follow the destructured fixture DI of the TypeScript runner wrapper and are never created when unrequested"
+      - "Each test receives a fresh browser context by default; contexts, pages, and the browser close in strict LIFO order after test failures"
+      - "Playwright is an optional peer dependency and core installs of @archont561/playtest download no browser binaries (ADR 0013)"
+      - "An explicitly selected run with a missing or unlaunchable browser exits 3 with remediation (Spec 0008 §6/§8) instead of skipping green"
+      - "Playwright request interception is mapped to cassette record/replay and network_guard semantics, with conformance coverage or documented gaps"
+    dependencies: [task_034]
+
+  - id: task_043
+    title: Integration-tier qualification and documentation
+    description: "Declare and verify the gui/browser integration tiers end to end: tier mappings visible in playtest list, doctor probes for GUI platform and browser runtimes, and documentation/skill updates with results reported separately from core parity."
+    status: backlog
+    priority: P1
+    milestone: M7-v1.1.0
+    semver: "1.1.0"
+    labels: [M7, cli, docs, conformance]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "gui and browser tiers are declared, mapped per target, and visible in playtest list alongside unit and smoke"
+      - "Doctor probes cover Qt platform availability, tkinter presence, and Playwright browser binaries, each with remediation"
+      - "Documentation portal pages cover Spec 0009 fixtures with verified examples, and the consumer agent skill is updated"
+      - "Integration conformance results are reported separately from Spec 0005 core parity claims (Spec 0009 §4)"
+    dependencies: [task_037, task_040, task_041, task_042]

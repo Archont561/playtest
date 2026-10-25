@@ -12,6 +12,7 @@ This directory tracks the evolutionary milestones of the **Playtest** polyglot t
 | [**M4: Isolation, Snapshots & VCR Cassettes**](./M4-v0.4.0-isolation-and-vcr-cassettes.md) | `v0.4.0` | Rust, Python, TypeScript | `tmpdir` sandboxes, `snap` auto-redactions, `cassette` HTTP VCR | **Backlog** |
 | [**M5: Polyglot Core Conformance & Cross-Lang CLI**](./M5-v0.5.0-polyglot-conformance.md) | `v0.5.0` | All 9 language targets & shared CLI | Core fixture/BDD/PBT parity, conformance suite, workspace auto-detection, `playtest doctor` | **Backlog** |
 | [**M6: Universal Stable Production Release**](./M6-v1.0.0-universal-stable-release.md) | `v1.0.0` | Polyglot (all 9 language targets) | Stable APIs, documented core parity, performance benchmarks, coordinated `v1.0.0` | **Backlog** |
+| [**M7: Ecosystem Integration Fixtures**](./M7-v1.1.0-ecosystem-integration-fixtures.md) | `v1.1.0` | Python & TypeScript | Qt/tkinter desktop GUI fixtures, browser integration for client-side JavaScript (Spec 0009) | **Backlog** |
 
 ---
 

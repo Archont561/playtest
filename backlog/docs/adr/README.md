@@ -15,3 +15,4 @@ This directory documents key architectural decisions made for the Playtest ecosy
 | [0009](./0009-python-only-repo-automation.md) | Python-Only Rule for Repository Automation | Accepted | 2026-10-23 |
 | [0010](./0010-milestone-driven-autorelease-lifecycle.md) | Milestone-Driven Auto-Release Lifecycle | Accepted | 2026-10-23 |
 | [0011](./0011-cross-language-cli-and-compatibility-architecture.md) | Cross-Language CLI & Toolchain Compatibility Architecture | Accepted | 2026-10-23 |
+| [0012](./0012-machine-consumable-and-extensible-cli-contract.md) | Machine-Consumable and Extensible CLI Contract | Proposed | 2026-10-25 |

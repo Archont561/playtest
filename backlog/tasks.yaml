@@ -552,3 +552,87 @@ tasks:
       - TypeScript mappings for all Spec 0004 isolation helpers are implemented and verified
       - Shared conformance cases pass for every TypeScript capability delivered by this task
     dependencies: [task_008, task_009, task_010, task_011, task_012, task_014, task_015, task_016, task_017, task_018]
+
+  # ============================================================================
+  # Milestone M5 Addendum: CLI Machine Contract & Consumer Integration (v0.5.0)
+  # ============================================================================
+  - id: task_035
+    title: Machine-consumable CLI output and exit-status contract
+    description: "Stabilize the CLI as a programmable interface per Spec 0008 §7: semantic exit statuses, versioned JSON documents, and non-interactive stream discipline."
+    status: backlog
+    priority: P0
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, cli, contract]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "Exit statuses are implemented and documented as Spec 0008 §7: 0 pass, 1 test failure, 2 usage/selection error, 3 environment failure"
+      - "Every --format json document carries schema_version, and the schema is documented in Spec 0008"
+      - "Machine modes write report data to stdout only, diagnostics to stderr, never prompt, and emit no ANSI color; pretty mode honors NO_COLOR"
+      - "Failing property-test entries include the seed or replay command needed to reproduce the case"
+      - "CLI tests assert exit statuses and schema_version for pass, test-failure, usage-error, and missing-toolchain scenarios"
+    dependencies: [task_026]
+
+  - id: task_036
+    title: Explicit tier selection and fail-instead-of-skip semantics
+    description: "Implement Spec 0008 §6: --tier selection mapped to native marker/filter mechanisms, and hard failure with remediation when an explicitly selected target cannot run."
+    status: backlog
+    priority: P0
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, cli, selection]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "--tier supports at least unit and smoke, each mapped to the target's native mechanism, with mappings visible in playtest list"
+      - "An unknown tier or a selection matching no target exits 2 instead of running green and empty"
+      - "An explicitly selected target with a missing or unqualified toolchain exits 3 with doctor-style remediation; --skip-unavailable restores visible skip reporting"
+      - "Excluded targets are reported as excluded and never affect the exit status"
+      - "Playtest-provided native runner integrations fail an explicitly requested tier whose host prerequisites are missing instead of skipping green (Spec 0005 §4 cross-reference), covered by conformance cases"
+    dependencies: [task_026]
+
+  - id: task_037
+    title: Extensible playtest doctor probe registry
+    description: "Implement Spec 0008 §8: consumer-registered compatibility probes that fold into doctor's unified pretty and JSON reports under the built-in required/optional/remediation rules."
+    status: backlog
+    priority: P1
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, cli, doctor]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "A documented, versioned workspace configuration lets a consumer register probes emitting id, description, observed, ok, required, and remediation"
+      - "Doctor discovers workspace probes and reports them beside built-in checks in pretty and JSON output"
+      - "Probe failures obey the same exit-status and required/optional rules as built-in checks"
+      - "A passing probe can never mark a target framework-conformant (Spec 0008 §5 boundary), and tests assert that boundary"
+    dependencies: [task_025]
+
+  - id: task_038
+    title: Dogfood the CLI contract on a consumer-shaped qualification workflow
+    description: "Validate tasks 035-037 against a polyglot checkout shaped like consumer qualification harnesses (pyproject.toml plus package.json smoke tiers, custom prefix probes) and record the workflow as a Spec 0008 acceptance example."
+    status: backlog
+    priority: P1
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, cli, dogfood]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "playtest list and playtest test run against an external polyglot checkout with Python and TypeScript targets and emit one normalized JSON report covering both"
+      - "Smoke-tier selection exits 3 with remediation on an unqualified host and passes green on a qualified one"
+      - "Doctor output for the consumer workspace includes at least one registered custom probe in pretty and JSON modes"
+      - "The reference workflow, including its evidence-shaped output, is recorded in backlog docs without claiming adoption by any external repository"
+    dependencies: [task_035, task_036, task_037]
+
+  - id: task_039
+    title: Ship consumer-facing playtest agent skill
+    description: "Publish a playtest skill for agent-driven consumer repositories covering the CLI grammar, exit statuses, tier selection, JSON schema, and doctor probe registration."
+    status: backlog
+    priority: P1
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, cli, agents, docs]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "The skill documents command grammar, the exit-status table, schema_version policy, selection semantics, and probe registration with worked examples"
+      - "playtest version and command help point to the shipped guidance so the contract is reachable from the tool itself"
+      - "The skill follows the .agents/skills conventions of this repository and is versioned with releases"
+    dependencies: [task_035, task_036]

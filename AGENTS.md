@@ -112,7 +112,7 @@ backlog/
     │   ├── M5-v0.5.0-polyglot-conformance.md   # Includes Cross-Lang CLI & Doctor
     │   ├── M6-v1.0.0-universal-stable-release.md
     │   └── README.md
-    ├── adr/              # Architectural Decision Records (ADRs 0001 - 0011)
+    ├── adr/              # Architectural Decision Records (ADRs 0001 - 0012)
     └── specs/            # Formal technical specifications (Specs 0001 - 0008)
 ```
 

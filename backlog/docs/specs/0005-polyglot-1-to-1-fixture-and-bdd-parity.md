@@ -78,7 +78,7 @@ The suite must report results per language and per capability. Full parity is ac
 
 ## 4. Shared CLI boundary
 
-The cross-language CLI is one shared tool, not nine independent CLI implementations. It must detect every supported target, run its configured native test command, support target selection, and normalize process status, test summaries, and LCOV coverage. CLI orchestration does not substitute for the framework features in §§1–3.
+The cross-language CLI is one shared tool, not nine independent CLI implementations. It must detect every supported target, run its configured native test command, support target selection, and normalize process status, test summaries, and LCOV coverage. Selection semantics follow [Spec 0008 §6](./0008-cross-language-cli-and-toolchain-detection.md): an explicitly requested target or tier that cannot run is a reported failure with remediation, not a green skip. CLI orchestration does not substitute for the framework features in §§1–3.
 
 ## 5. Compatibility and evolution
 

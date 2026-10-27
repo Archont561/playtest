@@ -12,3 +12,6 @@ This directory contains formal technical specifications defining APIs, protocols
 | [0006](./0006-two-phase-release-and-trusted-publishing.md) | Two-Phase Release and Trusted Publishing | M1 (`v0.1.0`) | Approved |
 | [0007](./0007-autorelease-change-detection-and-milestone-dispatch.md) | Auto-Release Change Detection and Milestone Dispatch | M1 (`v0.1.0`) | Approved |
 | [0008](./0008-cross-language-cli-and-toolchain-detection.md) | Cross-Language CLI & Toolchain Detection | M5 (`v0.5.0`) | Approved |
+| [0009](./0009-ecosystem-integration-fixtures.md) | Ecosystem Integration Fixtures (CLI, TUI, GUI & Browser) | M7 (`v1.1.0`) | Target contract |
+| [0010](./0010-fixture-extension-api.md) | Fixture Extension API | M6 (`v1.0.0`) | Target contract |
+| [0011](./0011-delegated-mutation-testing.md) | Delegated Mutation Testing | M5 (`v0.5.0`) | Target contract |

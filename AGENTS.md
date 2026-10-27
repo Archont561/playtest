@@ -111,9 +111,10 @@ backlog/
     │   ├── M4-v0.4.0-isolation-and-vcr-cassettes.md
     │   ├── M5-v0.5.0-polyglot-conformance.md   # Includes Cross-Lang CLI & Doctor
     │   ├── M6-v1.0.0-universal-stable-release.md
+    │   ├── M7-v1.1.0-ecosystem-integration-fixtures.md
     │   └── README.md
-    ├── adr/              # Architectural Decision Records (ADRs 0001 - 0011)
-    └── specs/            # Formal technical specifications (Specs 0001 - 0008)
+    ├── adr/              # Architectural Decision Records (ADRs 0001 - 0014)
+    └── specs/            # Formal technical specifications (Specs 0001 - 0011)
 ```
 
 ### Task Synchronization Directives

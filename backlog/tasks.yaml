@@ -552,3 +552,270 @@ tasks:
       - TypeScript mappings for all Spec 0004 isolation helpers are implemented and verified
       - Shared conformance cases pass for every TypeScript capability delivered by this task
     dependencies: [task_008, task_009, task_010, task_011, task_012, task_014, task_015, task_016, task_017, task_018]
+
+  # ============================================================================
+  # Milestone M5 Addendum: CLI Machine Contract & Consumer Integration (v0.5.0)
+  # ============================================================================
+  - id: task_035
+    title: Machine-consumable CLI output and exit-status contract
+    description: "Stabilize the CLI as a programmable interface per Spec 0008 §7: semantic exit statuses, versioned JSON documents, and non-interactive stream discipline."
+    status: backlog
+    priority: P0
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, cli, contract]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "Exit statuses are implemented and documented as Spec 0008 §7: 0 pass, 1 test failure, 2 usage/selection error, 3 environment failure"
+      - "Every --format json document carries schema_version, and the schema is documented in Spec 0008"
+      - "Machine modes write report data to stdout only, diagnostics to stderr, never prompt, and emit no ANSI color; pretty mode honors NO_COLOR"
+      - "Failing property-test entries include the seed or replay command needed to reproduce the case"
+      - "CLI tests assert exit statuses and schema_version for pass, test-failure, usage-error, and missing-toolchain scenarios"
+    dependencies: [task_026]
+
+  - id: task_036
+    title: Explicit tier selection and fail-instead-of-skip semantics
+    description: "Implement Spec 0008 §6: --tier selection mapped to native marker/filter mechanisms, and hard failure with remediation when an explicitly selected target cannot run."
+    status: backlog
+    priority: P0
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, cli, selection]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "--tier supports at least unit and smoke, each mapped to the target's native mechanism, with mappings visible in playtest list"
+      - "An unknown tier or a selection matching no target exits 2 instead of running green and empty"
+      - "An explicitly selected target with a missing or unqualified toolchain exits 3 with doctor-style remediation; --skip-unavailable restores visible skip reporting"
+      - "Excluded targets are reported as excluded and never affect the exit status"
+      - "Playtest-provided native runner integrations fail an explicitly requested tier whose host prerequisites are missing instead of skipping green (Spec 0005 §4 cross-reference), covered by conformance cases"
+    dependencies: [task_026]
+
+  - id: task_037
+    title: Extensible playtest doctor probe registry
+    description: "Implement Spec 0008 §8: consumer-registered compatibility probes that fold into doctor's unified pretty and JSON reports under the built-in required/optional/remediation rules."
+    status: backlog
+    priority: P1
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, cli, doctor]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "A documented, versioned workspace configuration lets a consumer register probes emitting id, description, observed, ok, required, and remediation"
+      - "Doctor discovers workspace probes and reports them beside built-in checks in pretty and JSON output"
+      - "Probe failures obey the same exit-status and required/optional rules as built-in checks"
+      - "A passing probe can never mark a target framework-conformant (Spec 0008 §5 boundary), and tests assert that boundary"
+    dependencies: [task_025]
+
+  - id: task_038
+    title: Dogfood the CLI contract on a consumer-shaped qualification workflow
+    description: "Validate tasks 035-037 against a polyglot checkout shaped like consumer qualification harnesses (pyproject.toml plus package.json smoke tiers, custom prefix probes) and record the workflow as a Spec 0008 acceptance example."
+    status: backlog
+    priority: P1
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, cli, dogfood]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "playtest list and playtest test run against an external polyglot checkout with Python and TypeScript targets and emit one normalized JSON report covering both"
+      - "Smoke-tier selection exits 3 with remediation on an unqualified host and passes green on a qualified one"
+      - "Doctor output for the consumer workspace includes at least one registered custom probe in pretty and JSON modes"
+      - "The reference workflow, including its evidence-shaped output, is recorded in backlog docs without claiming adoption by any external repository"
+    dependencies: [task_035, task_036, task_037]
+
+  - id: task_039
+    title: Ship consumer-facing playtest agent skill
+    description: "Publish a playtest skill for agent-driven consumer repositories covering the CLI grammar, exit statuses, tier selection, JSON schema, and doctor probe registration."
+    status: backlog
+    priority: P1
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, cli, agents, docs]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "The skill documents command grammar, the exit-status table, schema_version policy, selection semantics, and probe registration with worked examples"
+      - "playtest version and command help point to the shipped guidance so the contract is reachable from the tool itself"
+      - "The skill follows the .agents/skills conventions of this repository and is versioned with releases"
+    dependencies: [task_035, task_036]
+
+  # ============================================================================
+  # Milestone M7: Ecosystem Integration Fixtures (v1.1.0)
+  # ============================================================================
+  - id: task_040
+    title: Python Qt application fixtures (playtest-qt)
+    description: "Ship the separate playtest-qt package (Spec 0009 §2.1): qt_app fixture built on the Spec 0010 extension API with process-singleton QApplication management, per-test top-level windows, clock-driven event pumping, and failure-safe LIFO teardown."
+    status: backlog
+    priority: P0
+    milestone: M7-v1.1.0
+    semver: "1.1.0"
+    labels: [M7, py, fixtures, gui]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "qt_app supports PyQt6 and PySide6 with automatic binding selection and a documented override, created only when requested"
+      - "A single QApplication is created at session scope per process and never duplicated; teardown releases it failure-safe in LIFO order"
+      - "Per-test top-level windows are created and closed in strict LIFO order, including after assertion failures"
+      - "Event-pumping helpers take timeout budgets from the injected clock fixture; any wall-clock toolkit fallback is documented and bounded"
+      - "An explicitly requested run without a usable Qt platform exits 3 with remediation (Spec 0008 §6) instead of skipping green"
+      - "Pure setup/report helpers are unit-testable without a display, and Qt remains absent from core installs"
+      - "Opt-in visual golden snapshots capture window/widget renders through snap as image goldens, with documented nondeterminism caveats (fonts, antialiasing) and masking for dynamic content"
+      - "Ships as its own PyPI artifact using only the Spec 0010 surface; the core playtest-py package manifest stays unchanged"
+    dependencies: [task_033, task_047]
+
+  - id: task_041
+    title: Python tkinter application fixtures (playtest-tk)
+    description: "Ship the separate playtest-tk package (Spec 0009 §2.2): tk_app fixture built on the Spec 0010 extension API with a fresh withdrawn Tk root per test, after-based clock-driven pumping, and failure-safe LIFO teardown mirroring the Qt fixture ergonomics."
+    status: backlog
+    priority: P1
+    milestone: M7-v1.1.0
+    semver: "1.1.0"
+    labels: [M7, py, fixtures, gui]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "tk_app creates a fresh withdrawn Tk root per test by default and destroys it in strict LIFO order, including after failures"
+      - "Event pumping uses after-based scheduling with timeout budgets from the injected clock, mirroring the Qt helper semantics"
+      - "Interaction and reporting shapes mirror the Qt fixture so the toolkits are ergonomically interchangeable"
+      - "An interpreter without Tk support that receives an explicit tk_app request fails with remediation instead of skipping green"
+      - "Ships as its own PyPI artifact using only the Spec 0010 surface; the core playtest-py package manifest stays unchanged"
+    dependencies: [task_033, task_047]
+
+  - id: task_042
+    title: TypeScript browser integration fixture (@archont561/playtest-browser)
+    description: "Ship the separate @archont561/playtest-browser package (Spec 0009 §3): browser fixture built on the Spec 0010 extension-object mapping with Playwright as an optional peer dependency, context-per-test isolation, and failure-safe LIFO teardown for client-side JavaScript."
+    status: backlog
+    priority: P0
+    milestone: M7-v1.1.0
+    semver: "1.1.0"
+    labels: [M7, ts, fixtures, browser]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "browser/context/page fixtures follow the destructured fixture DI of the TypeScript runner wrapper and are never created when unrequested"
+      - "Each test receives a fresh browser context by default; contexts, pages, and the browser close in strict LIFO order after test failures"
+      - "Playwright is an optional peer dependency and core installs of @archont561/playtest download no browser binaries (ADR 0013)"
+      - "An explicitly selected run with a missing or unlaunchable browser exits 3 with remediation (Spec 0008 §6/§8) instead of skipping green"
+      - "Playwright request interception is mapped to cassette record/replay and network_guard semantics, with conformance coverage or documented gaps"
+      - "Opt-in visual golden snapshots capture page screenshots through snap, with documented stability guidance (animations, fonts, async content) and masking for dynamic regions"
+      - "Ships as its own npm artifact using only the Spec 0010 surface; the core package manifest stays unchanged"
+    dependencies: [task_034, task_047]
+
+  - id: task_043
+    title: Integration-tier qualification and documentation
+    description: "Declare and verify the gui/browser/mobile integration tiers end to end: tier mappings visible in playtest list, doctor probes for GUI, browser, webview, and mobile runtimes, release slots and docs for every provider package, with results reported separately from core parity."
+    status: backlog
+    priority: P1
+    milestone: M7-v1.1.0
+    semver: "1.1.0"
+    labels: [M7, cli, docs, conformance]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "gui, browser, and mobile tiers are declared, mapped per target, and visible in playtest list alongside unit and smoke"
+      - "Doctor probes cover Qt platform availability, tkinter presence, Playwright browser binaries, Tauri webview runtimes, and mobile emulator availability, each with remediation"
+      - "Documentation portal pages cover Spec 0009 fixtures with verified examples, and the consumer agent skill is updated"
+      - "Release-pipeline slots and docs-portal sections exist for each provider package, and core package releases remain fixes-only (ADR 0014)"
+      - "Integration conformance results for every integration kind (Python GUI, TypeScript browser, Rust CLI/TUI/Tauri) are reported separately from Spec 0005 core parity claims (Spec 0009 §5)"
+    dependencies: [task_037, task_040, task_041, task_042, task_044, task_045, task_046]
+
+  - id: task_044
+    title: Rust clap CLI application fixtures (playtest-clap)
+    description: "Graduate the M6 canary (task_048) into the separate playtest-clap package (Spec 0009 §4.1): cli_app built on the Spec 0010 extension API with in-process CommandFactory runs, captured output and exit status, snapshot-friendly goldens, and a failure-safe spawned-binary mode."
+    status: backlog
+    priority: P0
+    milestone: M7-v1.1.0
+    semver: "1.1.0"
+    labels: [M7, rs, fixtures, cli]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "cli_app parses per-test argument vectors through the application's CommandFactory in-process and returns captured stdout, stderr, and structured exit status without global process state"
+      - "Command handlers receive fixtures through the same dependency-injection contract as test! tests"
+      - "Help, usage, and error text assert through the snap fixture with documented normalization for clap version and terminal width"
+      - "Optional spawned-binary mode kills and reaps children in failure-safe LIFO teardown; an explicitly requested missing binary fails with remediation (Spec 0008 §6) instead of skipping green"
+      - "Unrequested cli_app tests start no subprocess; the package ships as its own crate with core playtest manifests unchanged"
+    dependencies: [task_030, task_047, task_048]
+
+  - id: task_045
+    title: Rust ratatui TUI application fixtures (playtest-tui)
+    description: "Ship the separate playtest-tui package (Spec 0009 §4.2): tui_app fixture built on the Spec 0010 extension API with headless TestBackend rendering, injected key/mouse/paste events, clock-driven frame stepping, and buffer snapshots."
+    status: backlog
+    priority: P1
+    milestone: M7-v1.1.0
+    semver: "1.1.0"
+    labels: [M7, rs, fixtures, tui]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "tui_app defaults to ratatui TestBackend with no tty requirement; buffers assert directly or through snap"
+      - "Key, mouse, and paste input inject through fixture helpers, and the draw/tick loop steps on the injected clock without wall-clock sleeps"
+      - "Application state and terminal buffers are per-test and dropped failure-safe in strict LIFO order, including after panics"
+      - "An explicitly requested real-terminal run without a usable tty fails with remediation instead of skipping green"
+      - "Ships as its own crate using only the Spec 0010 surface; core playtest manifests stay unchanged"
+    dependencies: [task_030, task_047]
+
+  - id: task_046
+    title: Rust tauri desktop and mobile application fixtures (playtest-tauri)
+    description: "Ship the separate playtest-tauri package (Spec 0009 §4.3): tauri_app fixture built on the Spec 0010 extension API with an always-runnable in-process host for commands, state, and plugins, plus an opt-in real-host mode for desktop webviews and mobile emulator sessions."
+    status: backlog
+    priority: P1
+    milestone: M7-v1.1.0
+    semver: "1.1.0"
+    labels: [M7, rs, fixtures, tauri]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "In-process host mode (Tauri test/mock builder) covers commands, managed state, and plugins without a display, and is the default"
+      - "The fixture owns the app handle and windows per test with strict failure-safe LIFO teardown, including after panics; clock and seed drive application timing and network_guard applies to app-originated traffic"
+      - "Real-host mode follows the qualification-harness pattern: throwaway profile, probed environment, machine-readable report, selection fail-loud (Spec 0008 §6)"
+      - "Doctor probes report webview runtime and mobile emulator availability (Spec 0008 §8); nothing heavyweight ships in core installs (ADR 0013)"
+      - "Ships as its own crate using only the Spec 0010 surface; core playtest manifests stay unchanged"
+    dependencies: [task_030, task_037, task_047]
+
+  # ============================================================================
+  # Milestone M6 Addendum: Fixture Extension API Freeze (v1.0.0)
+  # ============================================================================
+  - id: task_047
+    title: Fixture extension API across Rust, Python, and TypeScript
+    description: "Implement Spec 0010: fixture-provider extension points (registration, scopes, requested-only resolution, composition, failure-safe LIFO participation, structured diagnostics, CLI discovery) for the three ecosystem-package hosts, frozen for v1.0.0."
+    status: backlog
+    priority: P0
+    milestone: M6-v1.0.0
+    semver: "1.0.0"
+    labels: [M6, core, fixtures, api]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "Providers declare fixtures with Spec 0001 scopes, compose them from core and provider fixtures, and participate in strict failure-safe LIFO teardown"
+      - "Requested-only resolution holds for provider fixtures: unrequested provider fixtures are never constructed"
+      - "Registration uses each ecosystem's native mechanism (Rust crates/macros, pytest entry points, TS extension object), and registered providers are reported by playtest list --format json"
+      - "Provider runtime-unavailability diagnostics feed Spec 0008 §6 selection failures and Spec 0008 §8 doctor probes"
+      - "The API level is reported by playtest version --format json, and post-1.0 evolution of the surface is documented as SemVer-additive only"
+    dependencies: [task_005, task_033, task_034]
+
+  - id: task_048
+    title: "Extension-API canary: in-repo clap fixture validation"
+    description: "Validate Spec 0010 before the v1.0.0 freeze with a dependency-free clap CLI fixture built exclusively against the public extension surface, covering the provider conformance profile without private-API access."
+    status: backlog
+    priority: P0
+    milestone: M6-v1.0.0
+    semver: "1.0.0"
+    labels: [M6, rs, fixtures, conformance]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "A clap fixture provider is implemented using only the Spec 0010 public surface; any canary need for core-internal APIs blocks the freeze until the API accommodates it"
+      - "The canary passes the provider conformance profile: registration, requested-only, composition, LIFO-after-failure, diagnostics, discovery"
+      - "The canary runs in-repo as validation only and is not published; task_044 graduates it into the playtest-clap package after v1.0.0"
+    dependencies: [task_047]
+
+  # ============================================================================
+  # Milestone M5 Addendum: Delegated Mutation Quality Gate (v0.5.0)
+  # ============================================================================
+  - id: task_049
+    title: Delegated mutation testing orchestration and reporting
+    description: "Implement Spec 0011: playtest mutation runs each selected target's documented native mutator and aggregates normalized, schema-versioned mutation scores with threshold gating, without implementing mutation engines."
+    status: backlog
+    priority: P1
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, cli, mutation, quality]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "playtest mutation executes the documented native mutator mapping for selected targets (reference mappings for Rust, Python, and TypeScript); an explicitly requested missing engine exits 3 with remediation, and a selection matching no target exits 2"
+      - "Normalized per-target records report mutants_total, killed, survived, timeout, excluded, score, engine and version, and surviving-mutant locations, aggregated into one schema_version JSON document per Spec 0008 §7"
+      - "--min-score enforces a threshold: falling below it exits 1 with a per-target breakdown naming the surviving mutants"
+      - "Excluded mutants (generated code, configured skips) are counted and reported per target, never silently dropped from view"
+      - "Determinism preconditions for meaningful scores (fixed seeds, hermetic network, no wall-clock flakiness) are documented with guidance, and doctor reports configured mutators as optional tools"
+      - "Mutation results never appear as conformance or parity evidence (Spec 0011 §5)"
+    dependencies: [task_026]

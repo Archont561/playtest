@@ -13,7 +13,7 @@ class PlaytestCppConan(ConanFile):
     license = "MIT"
     author = "Archont561"
     url = "https://github.com/Archont561/playtest"
-    description = "Playwright-style testing framework for C++"
+    description = "Polyglot test framework with the batteries included: dependency-injected fixtures, strict LIFO teardown, property-based testing, and code-first BDD for C++"
     topics = ("testing", "bdd", "property-based-testing")
     exports_sources = "CMakeLists.txt", "include/**", "LICENSE*"
 

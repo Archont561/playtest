@@ -10,7 +10,7 @@
     <packaging>jar</packaging>
 
     <name>playtest</name>
-    <description>Playwright-style testing framework for Java with dependency-injected fixtures, BDD, and PBT</description>
+    <description>Polyglot test framework with the batteries included: dependency-injected fixtures, strict LIFO teardown, property-based testing, and code-first BDD for Java</description>
     <url>https://github.com/Archont561/playtest</url>
     <licenses>
         <license>

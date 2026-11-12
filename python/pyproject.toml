@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "playtest-py"
 version = "0.1.0"
-description = "A Playwright-inspired async testing framework for Python with dependency injection, code-first BDD, and isolation fixtures"
+description = "Polyglot test framework with the batteries included: dependency-injected fixtures, strict LIFO teardown, property-based testing, and code-first BDD for Python"
 readme = "README.md"
 authors = [{ name = "Archont561" }]
 license = "MIT"

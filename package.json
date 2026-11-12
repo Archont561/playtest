@@ -2,7 +2,7 @@
   "name": "playtest",
   "version": "0.1.0",
   "private": true,
-  "description": "Universal testing framework targeting consistent fixtures, failure-safe LIFO teardown, code-first BDD, and property-based testing across nine language ecosystems.",
+  "description": "Polyglot test framework with the batteries included: dependency-injected fixtures, strict LIFO teardown, property-based testing, and code-first BDD across nine language ecosystems.",
   "keywords": [
     "testing",
     "fixtures",

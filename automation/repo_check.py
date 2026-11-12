@@ -274,6 +274,42 @@ def _check_manifest_versions_and_autodiscovery(root: Path) -> list[str]:
     return errors
 
 
+CANONICAL_DESCRIPTION_LEAD: str = "Polyglot test framework with the batteries included"
+
+DESCRIPTION_SOURCES: tuple[tuple[str, str], ...] = (
+    ("Cargo.toml", "description = "),
+    ("crates/playtest/Cargo.toml", "description = "),
+    ("package.json", '"description": "'),
+    ("typescript/package.json", '"description": "'),
+    ("python/pyproject.toml", "description = "),
+    ("c/conanfile.py", "description = "),
+    ("cpp/conanfile.py", "description = "),
+    ("java/pom.xml", "<description>"),
+    ("csharp/src/Playtest/Playtest.csproj", "<Description>"),
+)
+
+
+def _check_canonical_description(root: Path) -> list[str]:
+    """Require every ownable package description to start with the canonical positioning line."""
+    errors: list[str] = []
+    for rel, marker in DESCRIPTION_SOURCES:
+        path = root / rel
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        start = text.find(marker)
+        if start == -1:
+            errors.append(f"missing package description in {rel}")
+            continue
+        lead = text[start + len(marker) :].lstrip("\"'")
+        if not lead.startswith(CANONICAL_DESCRIPTION_LEAD):
+            errors.append(
+                f"package description in {rel} must start with "
+                f"{CANONICAL_DESCRIPTION_LEAD!r}, found {lead.splitlines()[0][:80]!r}"
+            )
+    return errors
+
+
 def check_repository(root: Path = REPO_ROOT, *, skip_shellcheck: bool = False) -> list[str]:
     """Return all repository structure, vendor checksum, boundary, and BOM errors."""
     errors = _check_required_and_forbidden(root)
@@ -281,6 +317,7 @@ def check_repository(root: Path = REPO_ROOT, *, skip_shellcheck: bool = False) -
     errors.extend(_check_crate_dependency_boundaries(root))
     errors.extend(_check_assets_manifest(root))
     errors.extend(_check_manifest_versions_and_autodiscovery(root))
+    errors.extend(_check_canonical_description(root))
     errors.extend(_check_utf8_bom(root))
     errors.extend(_check_restore_shell(root, skip_shellcheck=skip_shellcheck))
     return errors

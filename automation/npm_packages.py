@@ -233,6 +233,7 @@ def build_npm_tarballs(
 
 def _verify_one_npm_client(
     manager: str,
+    spec: NpmPlatformSpec,
     platform_tgz: Path,
     wrapper_tgz: Path,
     expected_version: str,
@@ -247,25 +248,36 @@ def _verify_one_npm_client(
         cache = Path(tmp) / "cache"
         proj.mkdir()
         cache.mkdir()
+        plat_ref = f"file:{platform_tgz.as_posix()}"
+        consumer_manifest = {
+            "name": "e2e-consumer",
+            "version": "0.0.1",
+            "private": True,
+            "type": "module",
+            "overrides": {spec.package_name: plat_ref},
+            "pnpm": {"overrides": {spec.package_name: plat_ref}},
+        }
         (proj / "package.json").write_text(
-            '{\n  "name": "e2e-consumer",\n  "version": "0.0.1",\n'
-            '  "private": true,\n  "type": "module"\n}\n',
-            encoding="utf-8",
+            json.dumps(consumer_manifest, indent=2) + "\n", encoding="utf-8"
         )
         add_cmd = _client_install_cmd(manager, mgr_bin, cache, platform_tgz, wrapper_tgz)
-        env = {"npm_config_audit": "false", "npm_config_fund": "false"}
+        env = {
+            "npm_config_audit": "false",
+            "npm_config_fund": "false",
+            "BUN_INSTALL_CACHE_DIR": str(cache),
+        }
         res = run_cmd(add_cmd, cwd=proj, env=env, capture=True)
         if res.returncode != 0:
-            emit_err(f"[npm-packages] ERROR: {manager} install failed:\n{res.stderr}")
+            detail = f"{res.stdout}\n{res.stderr}".strip()
+            emit_err(f"[npm-packages] ERROR: {manager} install failed:\n{detail}")
             return 1
         bin_shim = (
             proj / "node_modules" / ".bin" / ("playtest.cmd" if os.name == "nt" else "playtest")
         )
         ver_res = run_cmd([str(bin_shim), "version"], cwd=proj, capture=True)
         if ver_res.returncode != 0 or f"playtest {expected_version}" not in ver_res.stdout:
-            emit_err(
-                f"[npm-packages] ERROR: {manager} `playtest version` failed:\n{ver_res.stderr}"
-            )
+            detail = f"{ver_res.stdout}\n{ver_res.stderr}".strip()
+            emit_err(f"[npm-packages] ERROR: {manager} `playtest version` failed:\n{detail}")
             return 1
         imp_code = (
             f"import {{ VERSION }} from '@archont561/playtest'; "
@@ -276,8 +288,10 @@ def _verify_one_npm_client(
             if manager == "bun"
             else [runtime_bin, "--input-type=module", "-e", imp_code]
         )
-        if run_cmd(imp_cmd, cwd=proj, capture=True).returncode != 0:
-            emit_err(f"[npm-packages] ERROR: {manager} SDK import check failed")
+        imp_res = run_cmd(imp_cmd, cwd=proj, capture=True)
+        if imp_res.returncode != 0:
+            detail = f"{imp_res.stdout}\n{imp_res.stderr}".strip()
+            emit_err(f"[npm-packages] ERROR: {manager} SDK import check failed:\n{detail}")
             return 1
     emit_line(f"[npm-packages] OK: {manager} clean install verified (CLI + SDK {expected_version})")
     return 0
@@ -330,7 +344,7 @@ def verify_clean_installs(root: Path, cli_bin: Path) -> int:
         )
         platform_tgz, wrapper_tgz = tarballs[0], tarballs[1]
         for manager in ("npm", "pnpm", "bun"):
-            if _verify_one_npm_client(manager, platform_tgz, wrapper_tgz, version) != 0:
+            if _verify_one_npm_client(manager, spec, platform_tgz, wrapper_tgz, version) != 0:
                 return 1
     return 0
 

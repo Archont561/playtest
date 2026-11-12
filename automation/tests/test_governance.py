@@ -11,6 +11,7 @@ from automation import REPO_ROOT
 from automation.advisory_exception import verify_advisory_exceptions
 from automation.merge_lcov import merge_lcov_files
 from automation.repo_check import check_repository
+from automation.rude_clean import WARNING_SUMMARY_RE
 
 
 def test_real_repository_advisory_exceptions_are_valid() -> None:
@@ -69,3 +70,12 @@ def test_automation_modules_obey_doit_print_and_shell_boundaries() -> None:
                 for kw in node.keywords:
                     if kw.arg == "shell" and isinstance(kw.value, ast.Constant):
                         assert kw.value.value is not True, f"{py_file.name} uses shell=True"
+
+
+def test_clean_code_preset_configs_and_rude_warning_detector() -> None:
+    assert (REPO_ROOT / "vendor/clean-code-presets/alint/strict.yml").is_file()
+    assert (REPO_ROOT / "vendor/clean-code-presets/semgrep/pedantic.yml").is_file()
+    assert (REPO_ROOT / "vendor/clean-code-presets/ast-grep/pedantic/sgconfig.yml").is_file()
+    assert (REPO_ROOT / "vendor/clean-code-presets/vale/strict.ini").is_file()
+    assert WARNING_SUMMARY_RE.search("Found 0 error(s) and 1 warning(s)") is not None
+    assert WARNING_SUMMARY_RE.search("Found 0 error(s) and 0 warning(s)") is None

@@ -14,6 +14,7 @@ AST_GREP_TARGETS: tuple[str, ...] = ("crates", "automation", "python", "typescri
 VALE_TARGETS: tuple[str, ...] = ("README.md", "CONTRIBUTING.md", "AGENTS.md", "docs")
 SEMGREP_EXCLUDES: tuple[str, ...] = (
     "vendor/clean-code-presets",
+    ".agents",
     ".pixi",
     ".pixi-sandbox",
     "target",
@@ -27,7 +28,11 @@ def run_alint(root: Path = REPO_ROOT) -> int:
     preset = root / "vendor" / "clean-code-presets" / "alint" / "strict.yml"
     local_cfg = root / ".alint.yml"
     for cfg in (preset, local_cfg):
-        res = run_cmd(["alint", "check", "--config", str(cfg)], cwd=root, timeout=120)
+        res = run_cmd(
+            ["alint", "check", ".", "-c", str(cfg), "--fail-on-warning"],
+            cwd=root,
+            timeout=120,
+        )
         if res.returncode != 0:
             emit_err(f"[clean-code] ERROR: alint failed for {cfg.relative_to(root)}")
             return res.returncode
@@ -38,7 +43,15 @@ def run_alint(root: Path = REPO_ROOT) -> int:
 def run_semgrep(root: Path = REPO_ROOT) -> int:
     """Run vendored Semgrep pedantic rules with telemetry and update checks disabled."""
     preset = root / "vendor" / "clean-code-presets" / "semgrep" / "pedantic.yml"
-    cmd: list[str] = ["semgrep", "scan", "--config", str(preset), "--error", "--quiet"]
+    cmd: list[str] = [
+        "semgrep",
+        "scan",
+        "--config",
+        str(preset),
+        "--error",
+        "--quiet",
+        "--metrics=off",
+    ]
     for pattern in SEMGREP_EXCLUDES:
         cmd.extend(["--exclude", pattern])
     cmd.append(".")
@@ -60,7 +73,7 @@ def run_semgrep(root: Path = REPO_ROOT) -> int:
 
 def run_ast_grep(root: Path = REPO_ROOT) -> int:
     """Run vendored ast-grep pedantic structural rules against source directories."""
-    preset = root / "vendor" / "clean-code-presets" / "ast-grep" / "sgconfig.pedantic.yml"
+    preset = root / "vendor" / "clean-code-presets" / "ast-grep" / "pedantic" / "sgconfig.yml"
     targets = [rel for rel in AST_GREP_TARGETS if (root / rel).exists()]
     res = run_cmd(["ast-grep", "scan", "-c", str(preset), *targets], cwd=root, timeout=180)
     if res.returncode != 0:
@@ -74,7 +87,7 @@ def run_vale(root: Path = REPO_ROOT) -> int:
     """Run vendored Vale strict prose linter against repository governance docs."""
     preset = root / "vendor" / "clean-code-presets" / "vale" / "strict.ini"
     targets = [rel for rel in VALE_TARGETS if (root / rel).exists()]
-    res = run_cmd(["vale", "--config", str(preset), *targets], cwd=root, timeout=120)
+    res = run_cmd(["vale", "--no-global", f"--config={preset}", *targets], cwd=root, timeout=120)
     if res.returncode != 0:
         emit_err("[clean-code] ERROR: Vale strict prose check reported violations.")
         return res.returncode

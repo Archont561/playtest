@@ -42,4 +42,4 @@ jobs:
       - name: Verify advisory exception sync and expiry
         run: pixi run --frozen doit advisory_check
       - name: Run live cargo-deny and RustSec cargo-audit checks
-        run: pixi run --frozen audit-live
+        run: pixi run --frozen python -m automation.audit_local --live

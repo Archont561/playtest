@@ -917,7 +917,7 @@ tasks:
       - "Archives are built in Phase 1 and attached when the release vX.Y.Z is published; no asset is added or replaced afterwards (ADR 0008)"
       - "Immutable releases are enabled for the repository, and the release documentation says how to verify the setting"
       - "A release check fails when a package manifest, VERSION constant, or embedded SDK version differs from the release version"
-      - "The repository root carries the license texts for MIT OR Apache-2.0, and every archive includes them"
+      - "The repository root carries the MIT LICENSE file, and every archive includes it"
       - "On each platform of the matrix, the downloaded archive passes its checksum and playtest version prints the release version"
     dependencies: [task_052]
 

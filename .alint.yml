@@ -3,17 +3,11 @@
 version: 1
 
 rules:
-  - id: require-license-mit
+  - id: require-license
     kind: file_exists
-    paths: LICENSE-MIT
+    paths: LICENSE
     level: error
-    message: Root LICENSE-MIT file is required by Cargo.toml (MIT OR Apache-2.0).
-
-  - id: require-license-apache
-    kind: file_exists
-    paths: LICENSE-APACHE
-    level: error
-    message: Root LICENSE-APACHE file is required by Cargo.toml (MIT OR Apache-2.0).
+    message: Root LICENSE file (MIT) is required.
 
   - id: require-cargo-workspace
     kind: file_exists

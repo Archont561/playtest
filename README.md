@@ -27,8 +27,8 @@
   <a href="https://codecov.io/gh/Archont561/playtest" target="_blank">
     <img alt="Coverage" src="https://img.shields.io/codecov/c/github/Archont561/playtest.svg" />
   </a>
-  <a href="https://github.com/Archont561/playtest/blob/main/LICENSE-MIT" target="_blank">
-    <img alt="License: MIT OR Apache-2.0" src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg" />
+  <a href="https://github.com/Archont561/playtest/blob/main/LICENSE" target="_blank">
+    <img alt="License: MIT" src="https://img.shields.io/github/license/Archont561/playtest" />
   </a>
 </p>
 
@@ -132,7 +132,7 @@ Give a ⭐️ if this project helped you!
 ## 📝 License
 
 Copyright © 2026 [Playtest contributors](https://github.com/Archont561).<br />
-This project is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE).
+This project is [MIT](https://github.com/Archont561/playtest/blob/main/LICENSE) licensed.
 
 ***
 

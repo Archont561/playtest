@@ -29,9 +29,8 @@
     <img alt="Coverage" src="https://img.shields.io/codecov/c/github/<%- authorGithubUsername %>/<%- projectName %>.svg" />
   </a>
 <% if (licenseName) { -%>
-<% const cleanLicense = licenseName.replace(/--/g, '-'); -%>
-  <a href="https://github.com/<%- authorGithubUsername %>/<%- projectName %>/blob/main/LICENSE-MIT" target="_blank">
-    <img alt="License: <%- cleanLicense %>" src="https://img.shields.io/badge/license-<%- encodeURIComponent(licenseName) %>-blue.svg" />
+  <a href="https://github.com/<%- authorGithubUsername %>/<%- projectName %>/blob/main/LICENSE" target="_blank">
+    <img alt="License: <%- licenseName %>" src="https://img.shields.io/<%= isGithubRepos ? `github/license/${authorGithubUsername}/${projectName}` : `badge/License-${licenseName}-yellow.svg` %>" />
   </a>
 <% } -%>
 </p>
@@ -146,7 +145,7 @@ Give a ⭐️ if this project helped you!
 ## 📝 License
 
 Copyright © 2026 <% if (authorName) { %>[<%- authorName %>](<%- authorGithubUsername ? `https://github.com/${authorGithubUsername}` : '#' %>)<% } else { %>the Playtest contributors<% } %>.<br />
-This project is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE).
+This project is [<%- licenseName || 'MIT' %>](https://github.com/<%- authorGithubUsername %>/<%- projectName %>/blob/main/LICENSE) licensed.
 
 ***
 

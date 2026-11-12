@@ -46,4 +46,4 @@ printf '%s\n' "feat(core): describe change" | pixi run --frozen lint-commit
 
 ## License
 
-Contributions are dual-licensed under `MIT OR Apache-2.0` (`LICENSE-MIT` and `LICENSE-APACHE`).
+Contributions are licensed under the MIT license (`LICENSE`).

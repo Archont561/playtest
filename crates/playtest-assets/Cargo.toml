@@ -23,12 +23,12 @@ include = [
 
 [dependencies]
 brotli-decompressor = { workspace = true }
-tar = { workspace = true, default-features = false }
+tar = { workspace = true }
 
 [build-dependencies]
 brotli = { workspace = true }
 serde = { workspace = true }
-tar = { workspace = true, default-features = false }
+tar = { workspace = true }
 toml = { workspace = true }
 
 [dev-dependencies]

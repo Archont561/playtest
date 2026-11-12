@@ -1,8 +1,11 @@
-//! Build script for `playtest-assets` (`Spec 0012 §2`).
+//! Build script for `playtest-assets` (`Spec 0012 §2`, `ADR 0020`).
 //!
-//! Copies the explicit published SDK file list from `<workspace_root>/<lang>/` (or from
-//! `CARGO_MANIFEST_DIR/staged/<lang>/` when building from a packaged `.crate` archive)
-//! into `$OUT_DIR/embedded_sdks/<lang>/` for compile-time embedding via `include_dir`.
+//! Reads the explicit published SDK file list from `<workspace_root>/<lang>/` (or from
+//! `CARGO_MANIFEST_DIR/staged/<lang>/` when building from a packaged `.crate` archive),
+//! normalizes text line endings for cross-OS determinism, packs all files in lexicographic
+//! order into a deterministic POSIX `ustar` tar stream, and compresses that solid stream
+//! with `brotli` (`quality = 11`, `lgwin = 22`, `portable-float`) into
+//! `$OUT_DIR/embedded_sdks.tar.br` for compile-time `include_bytes!` embedding.
 //! Rejects symbolic links on every inspected path component and creates none.
 
 use std::collections::BTreeMap;
@@ -13,6 +16,10 @@ use std::io::{self, Write};
 use std::path::{Component, Path, PathBuf};
 
 use serde::Deserialize;
+
+const BROTLI_BUFFER_SIZE: usize = 4096;
+const BROTLI_QUALITY: u32 = 11;
+const BROTLI_LGWIN: u32 = 22;
 
 #[derive(Debug, Deserialize)]
 struct AssetsManifest {
@@ -115,11 +122,11 @@ fn normalize_asset_bytes(lang: &str, rel_str: &str, raw: Vec<u8>) -> Vec<u8> {
     out.into_bytes()
 }
 
-fn copy_language_files(
+fn append_language_entries(
     lang: &str,
     spec: &LanguageSpec,
     lang_root: &Path,
-    out_root: &Path,
+    tar_builder: &mut tar::Builder<Vec<u8>>,
 ) -> Result<(), Box<dyn Error>> {
     if !lang_root.exists() {
         return Err(format!(
@@ -128,8 +135,12 @@ fn copy_language_files(
         )
         .into());
     }
-    for rel_str in &spec.files {
-        let rel_path = Path::new(rel_str);
+    let mut sorted_files = spec.files.clone();
+    sorted_files.sort();
+
+    for rel_str in &sorted_files {
+        let clean_rel = rel_str.replace('\\', "/");
+        let rel_path = Path::new(&clean_rel);
         if let Err(reason) = ensure_no_symlink_components(lang_root, rel_path) {
             let hint = if spec.generated.iter().any(|item| item == rel_str) {
                 " (generated build artifact: run `pixi run build-ts-dist` before compiling `playtest-assets`)"
@@ -148,15 +159,33 @@ fn copy_language_files(
             .into());
         }
         emit_cargo_directive(&format!("cargo:rerun-if-changed={}", src_file.display()))?;
-        let dst_file = out_root.join(lang).join(rel_path);
-        if let Some(parent) = dst_file.parent() {
-            fs::create_dir_all(parent)?;
-        }
+
         let raw_bytes = fs::read(&src_file)?;
-        let normalized = normalize_asset_bytes(lang, rel_str, raw_bytes);
-        fs::write(&dst_file, normalized)?;
+        let normalized = normalize_asset_bytes(lang, &clean_rel, raw_bytes);
+        let archive_path = format!("{lang}/{}", clean_rel.trim_start_matches('/'));
+
+        let mut header = tar::Header::new_ustar();
+        header.set_entry_type(tar::EntryType::Regular);
+        header.set_size(normalized.len() as u64);
+        header.set_mode(0o644);
+        header.set_uid(0);
+        header.set_gid(0);
+        header.set_mtime(0);
+        header.set_username("")?;
+        header.set_groupname("")?;
+        header.set_device_major(0)?;
+        header.set_device_minor(0)?;
+        tar_builder.append_data(&mut header, &archive_path, normalized.as_slice())?;
     }
     Ok(())
+}
+
+fn compress_tar_brotli(tar_bytes: &[u8]) -> io::Result<Vec<u8>> {
+    let mut writer =
+        brotli::CompressorWriter::new(Vec::new(), BROTLI_BUFFER_SIZE, BROTLI_QUALITY, BROTLI_LGWIN);
+    writer.write_all(tar_bytes)?;
+    writer.flush()?;
+    Ok(writer.into_inner())
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -183,15 +212,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         .into());
     }
 
-    let embedded_root = out_dir.join("embedded_sdks");
-    if embedded_root.exists() {
-        fs::remove_dir_all(&embedded_root)?;
-    }
-    fs::create_dir_all(&embedded_root)?;
-
+    let mut tar_builder = tar::Builder::new(Vec::new());
     for (lang, spec) in &manifest.languages {
         let lang_root = resolve_language_root(&manifest_dir, use_staged, lang, spec)?;
-        copy_language_files(lang, spec, &lang_root, &embedded_root)?;
+        append_language_entries(lang, spec, &lang_root, &mut tar_builder)?;
     }
+    let tar_bytes = tar_builder.into_inner()?;
+    let compressed = compress_tar_brotli(&tar_bytes)?;
+
+    let archive_out = out_dir.join("embedded_sdks.tar.br");
+    fs::write(&archive_out, compressed)?;
     Ok(())
 }

@@ -119,7 +119,7 @@
   arch_lower <- tolower(trimws(machine))
   norm_arch <- if (arch_lower %in% c("x86_64", "x86-64", "amd64")) {
     "x64"
-  } else if arch_lower %in% c("aarch64", "arm64") {
+  } else if (arch_lower %in% c("aarch64", "arm64")) {
     "arm64"
   } else {
     ""
@@ -224,7 +224,10 @@
 #' @export
 install_cli <- function(
   cache_dir = tools::R_user_dir("playtest", which = "cache"),
-  base_url = Sys.getenv("PLAYTEST_RELEASE_BASE_URL", unset = .PLAYTEST_DEFAULT_RELEASE_URL),
+  base_url = Sys.getenv(
+    "PLAYTEST_RELEASE_BASE_URL",
+    unset = "https://github.com/Archont561/playtest/releases/download"
+  ),
   sysname = Sys.info()[["sysname"]],
   machine = Sys.info()[["machine"]],
   downloader = NULL

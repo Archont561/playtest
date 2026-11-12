@@ -1,7 +1,7 @@
 # ADR 0015: CLI-First Distribution with Embedded SDKs and a Five-Crate Workspace
 
 ## Status
-Accepted (2026-11-11). Supersedes [ADR 0001](./0001-two-crate-monorepo-architecture.md). Amends [ADR 0006](./0006-crates-io-trusted-publishing.md), [ADR 0007](./0007-polyglot-monorepo-architecture.md), and [ADR 0011](./0011-cross-language-cli-and-compatibility-architecture.md). Puts the scoped release tags of [ADR 0010](./0010-milestone-driven-autorelease-lifecycle.md) under review (open question 1).
+Accepted (2026-11-11). Amended by [ADR 0020](./0020-solid-brotli-compression-for-embedded-sdk-assets.md) on 2026-11-11; see Amendments below. Supersedes [ADR 0001](./0001-two-crate-monorepo-architecture.md). Amends [ADR 0006](./0006-crates-io-trusted-publishing.md), [ADR 0007](./0007-polyglot-monorepo-architecture.md), and [ADR 0011](./0011-cross-language-cli-and-compatibility-architecture.md). Puts the scoped release tags of [ADR 0010](./0010-milestone-driven-autorelease-lifecycle.md) under review (open question 1).
 
 ## Context
 
@@ -58,3 +58,7 @@ Accepted (2026-11-11). Supersedes [ADR 0001](./0001-two-crate-monorepo-architect
 1. **Scoped release tags.** [Spec 0007](../specs/0007-autorelease-change-detection-and-milestone-dispatch.md) cuts `<scope>-vX.Y.Z` and `go/vX.Y.Z` tags that release one language at its own version. That conflicts with decision 1. `task_059` decides whether scoped tags are retired or kept for a narrower purpose.
 2. **Versions after `v1.0.0`.** [ADR 0014](./0014-v1-stability-boundary-and-fixture-extension-model.md) makes core package releases fixes-only after 1.0. With one version per release, a CLI feature release also raises every SDK's version number. Whether "fixes-only" then describes SDK content rather than SDK version numbers is undecided.
 3. **Minimum Rust version of the library crates (resolved by `task_050`).** Each crate declares `rust-version` explicitly in its own `Cargo.toml`: `playtest` declares `1.88` (set by `proptest` `1.12`), while `playtest-macros`, `playtest-core`, and `playtest-assets` declare `1.85` (the Rust 2024 edition floor), keeping the library crates decoupled from `clifacet`.
+
+## Amendments
+
+**2026-11-11 ([ADR 0020](./0020-solid-brotli-compression-for-embedded-sdk-assets.md)).** Once polyglot SDK sources exceed `brotli-decompressor`'s fixed ~150–200 KB footprint in Milestone M5 (`task_067`), `playtest-assets` switches its internal compile-time storage from uncompressed `include_dir` to a deterministic solid `$OUT_DIR/embedded_sdks.tar.br` stream (`tar` + `brotli` quality `11` with `portable-float` in `[build-dependencies]`) decoded lazily once via `brotli-decompressor` + `OnceLock` in `[dependencies]`, preserving the `'static` `EmbeddedFile` API. `brotli` and `brotli-decompressor` are pre-staged in `Cargo.lock` and the offline sandbox bundle in M1.

@@ -6,6 +6,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
@@ -184,3 +185,39 @@ fn test_manifest_and_embedded_files_match_sources_byte_for_byte() {
         }
     }
 }
+
+#[rstest]
+fn test_brotli_solid_round_trip_is_deterministic_across_embedded_sdks() {
+    let mut raw_stream = Vec::new();
+    for sdk in all_embedded_sdks() {
+        for file in sdk.files {
+            raw_stream.extend_from_slice(sdk.language.as_str().as_bytes());
+            raw_stream.push(b'/');
+            raw_stream.extend_from_slice(file.path.as_bytes());
+            raw_stream.push(0);
+            raw_stream.extend_from_slice(file.contents);
+            raw_stream.push(0);
+        }
+    }
+    assert!(!raw_stream.is_empty());
+
+    let compress_once = |payload: &[u8]| -> Vec<u8> {
+        let mut out = Vec::new();
+        let mut writer = brotli::CompressorWriter::new(&mut out, 4096, 11, 22);
+        writer.write_all(payload).expect("compress payload");
+        writer.flush().expect("flush brotli stream");
+        drop(writer);
+        out
+    };
+
+    let compressed_a = compress_once(&raw_stream);
+    let compressed_b = compress_once(&raw_stream);
+    assert_eq!(compressed_a, compressed_b);
+    assert!(compressed_a.len() < raw_stream.len());
+
+    let mut decompressed = Vec::new();
+    let mut reader = brotli_decompressor::Decompressor::new(compressed_a.as_slice(), 4096);
+    reader.read_to_end(&mut decompressed).expect("decode solid");
+    assert_eq!(decompressed, raw_stream);
+}
+

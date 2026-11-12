@@ -55,7 +55,9 @@ toml_edit = { version = "0.25", default-features = false, features = [
   "serde",
 ] }
 
-# Embedded SDK assets & deterministic mirror archives (Spec 0012 §2, Spec 0013 §4)
+# Embedded SDK assets & deterministic mirror archives (Spec 0012 §2, Spec 0013 §4, ADR 0020)
+brotli = { version = "9.1", features = ["portable-float"] }
+brotli-decompressor = "6.3"
 flate2 = "1.1"
 include_dir = "0.7.4"
 sha2 = "0.11"

@@ -1,7 +1,9 @@
 version: 1
 tasks:
   # ============================================================================
-  # Milestone M1: Foundation & Package Reservation (v0.1.0) - COMPLETED
+  # Milestone M1: Foundation & Package Reservation (v0.1.0)
+  # Foundation tasks 001-003 are done. The milestone was reopened on 2026-11-11
+  # by ADR 0015: see "Milestone M1 Addendum" (task_050 to task_059) below.
   # ============================================================================
   - id: task_001
     title: Initial monorepo scaffolding with VERSION constants
@@ -157,7 +159,7 @@ tasks:
     dependencies: [task_009]
 
   - id: task_011
-    title: Procedural #[prop(...)] attribute macro for proptest
+    title: "Procedural #[prop(...)] attribute macro for proptest"
     description: "Wrap test! macro in proptest engine with fresh per-sample fixture lifecycles."
     status: backlog
     priority: P0
@@ -172,7 +174,7 @@ tasks:
     dependencies: [task_005]
 
   - id: task_012
-    title: Table-driven #[cases(...)] parameterization
+    title: "Table-driven #[cases(...)] parameterization"
     description: "Implement parameterized table tests executing across multiple inputs."
     status: backlog
     priority: P1
@@ -186,7 +188,7 @@ tasks:
     dependencies: [task_011]
 
   - id: task_013
-    title: Combine #[prop] with test_scenario! for property BDD
+    title: "Combine #[prop] with test_scenario! for property BDD"
     description: "Enable property-driven BDD scenario permutations."
     status: backlog
     priority: P0
@@ -395,7 +397,7 @@ tasks:
       - "Identifies Cargo.toml, pyproject.toml, package.json, C/C++ CMake targets, C# project/solution files, go.mod, pom.xml, and DESCRIPTION"
       - Resolves relative subproject paths and language test runners automatically
       - Distinguishes C and C++ projects when they share CMake, or requests an explicit target override
-    dependencies: [task_023]
+    dependencies: [task_023, task_052]
 
   - id: task_025
     title: Toolchain compatibility diagnostic engine (playtest doctor)
@@ -480,7 +482,7 @@ tasks:
     repo_targets: [playtest]
     acceptance_criteria:
       - All 9 language targets have their supported release artifacts published at v1.0.0 with documentation and provenance where supported
-    dependencies: [task_027, task_028, task_029]
+    dependencies: [task_027, task_028, task_029, task_065, task_066]
 
   # M5 parity additions: C and C# were missing from the original seven-target plan.
   - id: task_031
@@ -819,3 +821,319 @@ tasks:
       - "Determinism preconditions for meaningful scores (fixed seeds, hermetic network, no wall-clock flakiness) are documented with guidance, and doctor reports configured mutators as optional tools"
       - "Mutation results never appear as conformance or parity evidence (Spec 0011 §5)"
     dependencies: [task_026]
+
+  # ============================================================================
+  # Milestone M1 Addendum: CLI-First Distribution (v0.1.0)
+  # ADR 0015-0017, Specs 0012-0013. Reopens M1; v0.1.0 was never tagged.
+  # ============================================================================
+  - id: task_050
+    title: Five-crate workspace split
+    description: "Split the Rust workspace into the five crates of Spec 0012 §1 (ADR 0015): add playtest-core, playtest-assets, and playtest-cli beside playtest and playtest-macros."
+    status: ready
+    priority: P0
+    milestone: M1-v0.1.0
+    semver: "0.1.0"
+    labels: [M1, core, scaffold, cli]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "Workspace members are playtest, playtest-macros, playtest-core, playtest-assets, and playtest-cli; each exports VERSION at the workspace version, verified by a mirrored test"
+      - "A test or lint fails when playtest depends on playtest-assets, playtest-cli, or clifacet, directly or transitively (Spec 0012 §1)"
+      - "playtest-cli depends on a pinned clifacet and declares rust-version 1.88; the Rust bound in pixi.toml is raised to match"
+      - "playtest, playtest-macros, and playtest-core declare their minimum Rust version, and Spec 0012 §1 records it"
+      - "Root Pixi tasks that name crates (fmt-toml, lint-toml, package-rs, publish-rs, release-rs) cover all five crates and publish in dependency order"
+      - "playtest-core, playtest-assets, and playtest-cli are reserved on crates.io with Trusted Publishing configured (ADR 0006)"
+      - "The unused clap entry in the workspace dependencies is removed"
+    dependencies: [task_003]
+
+  - id: task_051
+    title: Embed the SDK files in playtest-assets
+    description: "Implement Spec 0012 §2: playtest-assets embeds the published files of every language SDK from the language directories, with no second copy in Git."
+    status: backlog
+    priority: P0
+    milestone: M1-v0.1.0
+    semver: "0.1.0"
+    labels: [M1, core, assets]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "An explicit file list per language names the files that the SDK's own package publishes; tests, lockfiles, caches, and editor files are never listed"
+      - "build.rs copies the listed files into OUT_DIR and include_dir embeds that directory; the crate creates no symbolic link and follows none"
+      - "A Python script under scripts/ stages the listed files for cargo package, and the packaged crate builds outside the repository"
+      - "Build output that a package publishes (the TypeScript dist/) is built before playtest-assets in the release order"
+      - "The crate exposes, per language, the embedded files with their relative paths and the SDK version, equal to the workspace version"
+      - "A test fails when an embedded file differs from its source or a listed file is missing"
+    dependencies: [task_050]
+
+  - id: task_052
+    title: CLI binary with version, init, and the playtest.toml version pin
+    description: "Deliver the first playtest binary on clifacet with the version and init commands and the version pin check of Spec 0013 §§1, 2, and 6 (ADR 0015, ADR 0017)."
+    status: backlog
+    priority: P0
+    milestone: M1-v0.1.0
+    semver: "0.1.0"
+    labels: [M1, cli]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "playtest-cli builds a binary named playtest; clifacet types appear in no documented output (Spec 0012 §1)"
+      - "playtest version prints the CLI version, the path of the running binary, and the version of each embedded SDK"
+      - "playtest init creates playtest.toml pinned to the running version and .playtest/ with a .gitignore that re-includes mirror artifacts; it edits no other file, and a second run changes nothing"
+      - "Inside a workspace, every command except version exits 3 when the running binary differs from the pin, and names both versions, the binary's path, and the two fixes (Spec 0013 §6)"
+      - "Exit statuses follow Spec 0008 §7: 0 success, 2 usage error, 3 environment failure"
+      - "The playtest.toml key names are recorded in Spec 0013 §1"
+      - "Tests cover a first and a repeated init, a matching pin, a mismatched pin, and a missing playtest.toml"
+    dependencies: [task_051]
+
+  - id: task_053
+    title: playtest sync with Python and TypeScript mirrors
+    description: "Implement Spec 0013 §§3-5 (ADR 0017): playtest sync writes committed, installer-native SDK mirrors for Python and TypeScript, and sync --check is the drift gate."
+    status: backlog
+    priority: P0
+    milestone: M1-v0.1.0
+    semver: "0.1.0"
+    labels: [M1, cli, mirrors]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "playtest sync writes a py3-none-any wheel and an npm tarball into .playtest/<lang>/ from the embedded files, with the registry package's name and import path"
+      - "The output is byte-identical across runs and across supported platforms; CI compares the hashes"
+      - "sync replaces the mirror of the previous version, leaves no other file in .playtest/<lang>/, and prints the wiring command when the mirror's path changes"
+      - "sync and init never edit a consumer manifest or lockfile"
+      - "sync --check writes nothing and exits 3 with a list of missing, stale, and modified files and the fix"
+      - "From a fresh clone, without the CLI and without network access, uv installs the Python mirror, and npm, pnpm, and Bun install the TypeScript mirror; third-party dependencies of the SDK may come from a package cache filled beforehand (Spec 0013 §9)"
+      - "An upgrade test replaces each mirror with the next version and shows that repeating the wiring command installs the new SDK with uv, npm, pnpm, and Bun"
+      - "Spec 0013 §8 question 3 is decided and recorded: how a forgotten wiring command is detected before M5, given that npm and Bun installed the old SDK from a warm cache and exited 0"
+    dependencies: [task_052]
+
+  - id: task_054
+    title: Release binaries on GitHub Releases
+    description: "Build the playtest binary for every supported platform and publish archives with checksums on an immutable GitHub Release (Spec 0012 §§3 and 8, ADR 0016)."
+    status: backlog
+    priority: P0
+    milestone: M1-v0.1.0
+    semver: "0.1.0"
+    labels: [M1, release, cli]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "The supported platform matrix is decided and recorded in Spec 0012 §3, and the release workflow builds every platform in it"
+      - "cargo-dist produces one archive per platform, .tar.gz on Unix and .zip on Windows, each with a .sha256 file, plus one combined sha256.sum"
+      - "Archives are built in Phase 1 and attached when the release vX.Y.Z is published; no asset is added or replaced afterwards (ADR 0008)"
+      - "Immutable releases are enabled for the repository, and the release documentation says how to verify the setting"
+      - "A release check fails when a package manifest, VERSION constant, or embedded SDK version differs from the release version"
+      - "The repository root carries the license texts for MIT OR Apache-2.0, and every archive includes them"
+      - "On each platform of the matrix, the downloaded archive passes its checksum and playtest version prints the release version"
+    dependencies: [task_052]
+
+  - id: task_055
+    title: PyPI platform wheels with the binary and the Python SDK
+    description: "Publish playtest-py as maturin platform wheels that hold the playtest binary and the Python SDK (Spec 0012 §4.2)."
+    status: backlog
+    priority: P0
+    milestone: M1-v0.1.0
+    semver: "0.1.0"
+    labels: [M1, release, python]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "maturin builds playtest-py with bin bindings for every platform of the matrix; each wheel holds the playtest binary and the importable playtest package"
+      - "In a clean environment, pip install playtest-py puts playtest on PATH and import playtest works, both at the release version"
+      - "The source distribution builds with Rust 1.88 or newer and fails with a clear message on an older toolchain"
+      - "typer is removed from python/pyproject.toml and python/pixi.toml; the package depends on no CLI framework"
+      - "publish-pypi uploads the wheels and the source distribution from Phase 1 artifacts through Trusted Publishing"
+      - "Spec 0012 §8 records whether the wheel repackages the release binary or maturin compiles its own"
+    dependencies: [task_054]
+
+  - id: task_056
+    title: npm platform packages, wrapper package, and loader
+    description: "Publish the playtest binary to npm as per-platform packages behind the @archont561/playtest wrapper, which also carries the TypeScript SDK and Playtest's own loader (Spec 0012 §4.3)."
+    status: backlog
+    priority: P0
+    milestone: M1-v0.1.0
+    semver: "0.1.0"
+    labels: [M1, release, typescript]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "cargo-npm, pinned to an exact version, generates @archont561/playtest-<platform>-<arch> packages with os and cpu fields from binaries built in Phase 1; Linux packages hold static musl builds"
+      - "@archont561/playtest lists the platform packages as optionalDependencies and carries the built TypeScript SDK and the loader; no package declares a lifecycle script"
+      - "The loader passes tests for a missing platform package, a non-executable binary, a wrapper with type module, termination by signal, and exit-status passthrough"
+      - "publish-npm publishes the platform packages before the wrapper, with provenance"
+      - "In a clean project, installs with npm, pnpm, and Bun at default settings give a working playtest version and a working import of the SDK"
+      - "commander is removed from typescript/package.json"
+      - "The TypeScript packaging task writes the tarballs that the build job uploads; today release-ts runs bun pm pack --dry-run, which writes none"
+    dependencies: [task_054]
+
+  - id: task_057
+    title: conda package and crates.io install path
+    description: "Publish the playtest binary as a conda package built with pixi-build-rust, and verify the cargo install path (Spec 0012 §§4.1 and 4.4)."
+    status: backlog
+    priority: P0
+    milestone: M1-v0.1.0
+    semver: "0.1.0"
+    labels: [M1, release, conda]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "A recipe built with pixi-build-rust produces the conda package playtest for every platform of the matrix"
+      - "The receiving channel is decided and recorded in Spec 0012 §4.4, and the release workflow uploads to it from Phase 1 artifacts"
+      - "In a clean Pixi workspace, adding playtest from that channel gives a working playtest version at the release version"
+      - "cargo install playtest-cli --locked builds and installs the playtest binary with Rust 1.88"
+    dependencies: [task_054]
+
+  - id: task_058
+    title: Go and R download wrappers
+    description: "Give Go and R repositories the binary through download wrappers that fetch only their own version from the GitHub Release (Spec 0012 §5, ADR 0016)."
+    status: backlog
+    priority: P1
+    milestone: M1-v0.1.0
+    semver: "0.1.0"
+    labels: [M1, release, go, r]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "go/cmd/playtest downloads only its own version's archive for the host platform, verifies its SHA-256 against the release's checksum file, caches it per user, and runs it with arguments, streams, and exit status passed through"
+      - "The Go module uses the standard library only; cobra and its indirect requirements are removed from go/go.mod"
+      - "playtest::install_cli() downloads on an explicit call only and stores the binary under tools::R_user_dir(); nothing is downloaded when the package is installed or loaded"
+      - "The R package documents how it verifies the checksum on R older than 4.5, or raises its minimum R version"
+      - "Both wrappers name the URL and the fix on a missing release, an unsupported platform, a checksum mismatch, and a network failure, and never fall back to another version; tests cover each case"
+      - "The release workflow pushes go/vX.Y.Z only after the GitHub Release vX.Y.Z is published with its assets"
+    dependencies: [task_054]
+
+  - id: task_059
+    title: "One version per release: scoped tags and the release chain"
+    description: "Resolve the conflict between package-scoped release tags and the one-version rule of ADR 0015, and make the tag-to-release chain work end to end (Spec 0007, Spec 0012 §8)."
+    status: backlog
+    priority: P0
+    milestone: M1-v0.1.0
+    semver: "0.1.0"
+    labels: [M1, release, scripts]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "A recorded decision states whether scoped tags (<scope>-vX.Y.Z and a Go-only go/vX.Y.Z) are retired or kept for a named purpose; ADR 0010 and Spec 0007 are updated to match"
+      - "scripts/detect_release.py and auto-release.yml implement the decision, with a test for a change confined to one language directory"
+      - "No Go or R version can be published without a binary release of the same version"
+      - "A release tag pushed by auto-release.yml starts release.yml; GitHub starts no workflow for an event caused by the default GITHUB_TOKEN, so a rehearsal verifies the chain"
+      - "A push to main cannot tag the first release by accident: with no v* tag in the repository, detect_release.py requested a release on 2026-10-23 and only the failing quality gate stopped the tag step"
+    dependencies: []
+
+  # ============================================================================
+  # Milestone M5 Addendum: Report Protocol & SDK Mirrors (v0.5.0)
+  # ADR 0018, Spec 0014; Spec 0013 §4 for the remaining mirrors.
+  # ============================================================================
+  - id: task_060
+    title: Report protocol records and shared protocol cases
+    description: "Define the report protocol of Spec 0014 §§2, 3, and 7 (ADR 0018): the record types in playtest-core, the activation variables, and the shared cases every reporter must pass."
+    status: backlog
+    priority: P0
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, cli, protocol]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "playtest-core defines the hello, found, start, fixture, end, and bye records with round-trip tests"
+      - "The environment variable names, field names, required and optional records, and the test id format of each target are fixed and recorded in Spec 0014"
+      - "Shared protocol cases exist as data that every reporter runs: silence without the variables, hello first, one file per process, a flush after every line, fixture phases attached to the right test"
+      - "The version rule of Spec 0014 §7 is implemented: an optional addition keeps the protocol version, any other change increments it"
+    dependencies: [task_050]
+
+  - id: task_061
+    title: SDK reporters for pytest, Bun, Go, and GoogleTest
+    description: "Implement the four reporters that were prototyped (Spec 0014 §4): each SDK observes its native runner and writes protocol records only when the CLI switches it on."
+    status: backlog
+    priority: P0
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, protocol, python, typescript, go, cpp]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "Python: a pytest plugin registered by the package's entry point reports every test and fixture phase, with one file per pytest-xdist worker"
+      - "TypeScript: a Bun preload and the SDK's test wrapper report the tests declared through Playtest; the CLI takes the rest from Bun's JUnit file"
+      - "Go: SDK helpers report the tests that use Playtest; the CLI takes the rest from go test -json"
+      - "C++: a header attaches a GoogleTest listener before main and reports every test"
+      - "Every reporter is silent unless the CLI's variables are set, and a direct run of the native runner behaves as before"
+      - "All four pass the shared protocol cases of task_060"
+    dependencies: [task_060, task_019, task_020, task_033, task_034]
+
+  - id: task_062
+    title: SDK reporters for nextest, JUnit, testthat, .NET, and the C harness
+    description: "Implement the five reporters that exist only as designs (Spec 0014 §4), and confirm or correct each design against the real runner."
+    status: backlog
+    priority: P1
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, protocol, rs, java, r, csharp, c]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "Rust: the test! macro family reports the tests declared through Playtest; the CLI takes the rest from nextest's JUnit output"
+      - "Java: a JUnit TestExecutionListener registered through META-INF/services reports every test"
+      - "R: playtest::run() calls testthat with the Playtest reporter and reports every test; testthat stays the runner"
+      - "C#: the fixture wrapper reports the tests that use Playtest; the CLI takes the rest from the TRX file"
+      - "C: the harness selected by task_031 reports every test"
+      - "Each design in Spec 0014 §4 is confirmed against the real runner or corrected in the spec"
+      - "All five pass the shared protocol cases of task_060"
+    dependencies: [task_060, task_005, task_021, task_022, task_031, task_032]
+
+  - id: task_063
+    title: Runner orchestration and evidence reconciliation in playtest test
+    description: "Implement Spec 0014 §§5-7: playtest test starts every selected native runner at once and combines exit status, protocol records, and the native report into one result."
+    status: backlog
+    priority: P0
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, cli, runner, protocol]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "All selected targets start at once, each in its own process group with its own report directory; cancellation and --fail-fast end the whole group"
+      - "A hello whose protocol or SDK version differs from the CLI's ends the run with exit status 3 and names both versions and the fix"
+      - "A start without an end is reported as a crash of that test, with the runner's exit status"
+      - "Exit status 0 with no protocol records and no native report is an environment failure; a target never passes on its exit status alone"
+      - "Tests found only in the native report are included and marked with their source in JSON output"
+      - "The rule for a target from which no process wrote a hello is decided and recorded in Spec 0014 §6"
+      - "CLI tests use canned record files for each rule, and an end-to-end run covers at least Python and TypeScript"
+    dependencies: [task_026, task_035, task_060, task_061]
+
+  - id: task_064
+    title: SDK mirrors and wiring for Go, C#, Java, R, C, and C++
+    description: "Extend playtest sync beyond Python and TypeScript (Spec 0013 §4): ship the prototyped Go mirror, and design, record, and test a mirror form for each remaining target."
+    status: backlog
+    priority: P1
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, cli, mirrors]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "Go: playtest sync writes a module directory, and go mod edit -replace or a go.work use line installs it without network access"
+      - "C#, Java, R, C, and C++: the mirror form and wiring command of each are recorded in Spec 0013 §§4 and 5 and covered by an offline install test"
+      - "A target without a workable mirror is documented as registry-only, under the exact-version rule of Spec 0013 §5"
+      - "playtest sync --check covers every mirrored language"
+    dependencies: [task_053]
+
+  # ============================================================================
+  # Milestone M6 Addendum: Runner Neutrality & v1 Freeze Questions (v1.0.0)
+  # ADR 0019 (Proposed); open questions of ADR 0015 and ADR 0018.
+  # ============================================================================
+  - id: task_065
+    title: Runner-neutral test declaration and unittest adapter canary
+    description: "Decide ADR 0019 and, if it is accepted, implement it before the v1.0.0 freeze: tests declared through Playtest's own API, a frozen runner-adapter surface, and a Python unittest adapter that validates it."
+    status: backlog
+    priority: P1
+    milestone: M6-v1.0.0
+    semver: "1.0.0"
+    labels: [M6, core, api, conformance]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "The maintainer accepts or rejects ADR 0019 before any code is written; on rejection the decision is recorded and this task is closed without code"
+      - "Every SDK declares tests through Playtest's own API; runner-specific decorators and markers are not part of the public contract"
+      - "A runner-adapter surface is specified and frozen with the core (ADR 0014)"
+      - "Python providers register through a Playtest entry-point group; Spec 0010 §3 and the registration criterion of task_047 are updated"
+      - "A Python unittest adapter built only on the public surface passes the shared conformance cases and writes the same protocol records as the pytest run, apart from the runner name"
+    dependencies: [task_047, task_061]
+
+  - id: task_066
+    title: Settle the v1 freeze list under one version per release
+    description: "Answer the freeze questions that ADR 0015 and ADR 0018 leave open, before v1.0.0 fixes the stability boundary of ADR 0014."
+    status: backlog
+    priority: P0
+    milestone: M6-v1.0.0
+    semver: "1.0.0"
+    labels: [M6, release, docs]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "ADR 0014 states how fixes-only after 1.0 applies when a CLI feature release raises every SDK's version number (ADR 0015, open question 2)"
+      - "ADR 0018 states whether the report protocol is frozen at v1.0.0"
+      - "ADR 0014 is accepted or revised; it is still Proposed"
+      - "The documented versioning guarantees of each target match these answers"
+    dependencies: [task_059]

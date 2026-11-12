@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import shutil
 import tarfile
 import tomllib
@@ -17,6 +18,7 @@ from automation.stage_assets import (
     stage_assets,
     verify_packaged_playtest_assets,
 )
+from automation.stamp_version import CMAKE_VER_RE, POM_VER_RE
 
 
 def _workspace_version(root: Path) -> str:
@@ -49,13 +51,22 @@ def _write_tarball(archive: Path, base_dir: Path, rel_entries: Sequence[str]) ->
             tar.add(base_dir / rel, arcname=rel)
 
 
+def _manifest_regex_version(manifest: Path, pattern: re.Pattern[str]) -> str:
+    match = pattern.search(manifest.read_text(encoding="utf-8"))
+    if match is None:
+        raise RuntimeError(f"missing version declaration in {manifest}")
+    return match.group(1).strip()
+
+
 def _cpp_build_and_test(root: Path) -> int:
     cpp_dir = root / "cpp"
+    ver = _manifest_regex_version(cpp_dir / "CMakeLists.txt", CMAKE_VER_RE)
     (cpp_dir / "target").mkdir(parents=True, exist_ok=True)
     build = run_cmd(
         [
             _cxx_bin(),
             "-std=c++20",
+            f"-DPLAYTEST_CPP_VER={ver}",
             "tests/test_version.cpp",
             "-I",
             "include",
@@ -71,6 +82,7 @@ def _cpp_build_and_test(root: Path) -> int:
 
 def _cpp_lint(root: Path) -> int:
     cpp_dir = root / "cpp"
+    ver = _manifest_regex_version(cpp_dir / "CMakeLists.txt", CMAKE_VER_RE)
     fmt = run_cmd(
         [
             "clang-format",
@@ -91,6 +103,7 @@ def _cpp_lint(root: Path) -> int:
             "-Wextra",
             "-Wpedantic",
             "-fsyntax-only",
+            f"-DPLAYTEST_CPP_VER={ver}",
             "-I",
             "include",
             "tests/test_version.cpp",
@@ -130,6 +143,7 @@ def _capture_lcov(work_dir: Path, out_file: str) -> int:
 
 def _cpp_coverage(root: Path) -> int:
     cpp_dir = root / "cpp"
+    ver = _manifest_regex_version(cpp_dir / "CMakeLists.txt", CMAKE_VER_RE)
     (cpp_dir / "target").mkdir(parents=True, exist_ok=True)
     (cpp_dir / "coverage").mkdir(parents=True, exist_ok=True)
     out_bin = cpp_dir / "target/test_cpp_cov"
@@ -137,6 +151,7 @@ def _cpp_coverage(root: Path) -> int:
         _cxx_bin(),
         "-std=c++20",
         "--coverage",
+        f"-DPLAYTEST_CPP_VER={ver}",
         "tests/test_version.cpp",
         "-I",
         "include",
@@ -160,11 +175,13 @@ def _cpp_package(root: Path) -> int:
 
 def _c_build_and_test(root: Path) -> int:
     c_dir = root / "c"
+    ver = _manifest_regex_version(c_dir / "CMakeLists.txt", CMAKE_VER_RE)
     (c_dir / "target").mkdir(parents=True, exist_ok=True)
     build = run_cmd(
         [
             _cc_bin(),
             "-std=c11",
+            f"-DPLAYTEST_C_VER={ver}",
             "src/playtest.c",
             "tests/test_version.c",
             "-I",
@@ -181,6 +198,7 @@ def _c_build_and_test(root: Path) -> int:
 
 def _c_lint(root: Path) -> int:
     c_dir = root / "c"
+    ver = _manifest_regex_version(c_dir / "CMakeLists.txt", CMAKE_VER_RE)
     fmt = run_cmd(
         [
             "clang-format",
@@ -202,6 +220,7 @@ def _c_lint(root: Path) -> int:
             "-Wextra",
             "-Wpedantic",
             "-fsyntax-only",
+            f"-DPLAYTEST_C_VER={ver}",
             "-I",
             "include",
             "src/playtest.c",
@@ -213,6 +232,7 @@ def _c_lint(root: Path) -> int:
 
 def _c_coverage(root: Path) -> int:
     c_dir = root / "c"
+    ver = _manifest_regex_version(c_dir / "CMakeLists.txt", CMAKE_VER_RE)
     (c_dir / "target").mkdir(parents=True, exist_ok=True)
     (c_dir / "coverage").mkdir(parents=True, exist_ok=True)
     out_bin = c_dir / "target/test_c_cov"
@@ -220,6 +240,7 @@ def _c_coverage(root: Path) -> int:
         _cc_bin(),
         "-std=c11",
         "--coverage",
+        f"-DPLAYTEST_C_VER={ver}",
         "src/playtest.c",
         "tests/test_version.c",
         "-I",
@@ -298,6 +319,7 @@ def _go_package(root: Path) -> int:
     ver = _workspace_version(root)
     go_dir = root / "go"
     entries = [
+        "VERSION",
         "go.mod",
         *[p.name for p in sorted(go_dir.glob("*.go")) if not p.name.endswith("_test.go")],
     ]
@@ -307,12 +329,22 @@ def _go_package(root: Path) -> int:
     return 0
 
 
+def _write_java_filtered_resources(java_dir: Path) -> None:
+    ver = _manifest_regex_version(java_dir / "pom.xml", POM_VER_RE)
+    template = java_dir / "src/main/resources/io/github/archont561/playtest/version.properties"
+    rendered = template.read_text(encoding="utf-8").replace("${project.version}", ver)
+    out_prop = java_dir / "target/classes/io/github/archont561/playtest/version.properties"
+    out_prop.parent.mkdir(parents=True, exist_ok=True)
+    out_prop.write_text(rendered, encoding="utf-8")
+
+
 def _java_compile(root: Path) -> int:
     java_dir = root / "java"
     main_out = java_dir / "target/classes"
     test_out = java_dir / "target/test-classes"
     main_out.mkdir(parents=True, exist_ok=True)
     test_out.mkdir(parents=True, exist_ok=True)
+    _write_java_filtered_resources(java_dir)
     main_srcs = [
         str(p.relative_to(java_dir)) for p in sorted((java_dir / "src/main/java").rglob("*.java"))
     ]

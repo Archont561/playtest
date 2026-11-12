@@ -34,11 +34,15 @@ files = [
 
 [languages.go]
 source_dir = "go"
-files = ["go.mod", "playtest.go"]
+files = ["VERSION", "go.mod", "playtest.go"]
 
 [languages.java]
 source_dir = "java"
-files = ["pom.xml", "src/main/java/io/github/archont561/playtest/Playtest.java"]
+files = [
+  "pom.xml",
+  "src/main/java/io/github/archont561/playtest/Playtest.java",
+  "src/main/resources/io/github/archont561/playtest/version.properties",
+]
 
 [languages.r]
 source_dir = "r"

@@ -32,6 +32,9 @@ def emit_line(message: str = "") -> None:
 def emit_err(message: str) -> None:
     """Write a single diagnostic line to standard error."""
     sys.stderr.write(f"{message}\n")
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        escaped = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+        sys.stderr.write(f"::error::{escaped}\n")
     sys.stderr.flush()
 
 

@@ -179,7 +179,8 @@ def _warm_uv_cache(uv_bin: str, uv_cache: Path, work_dir: Path) -> bool:
         capture=True,
     )
     if res.returncode != 0:
-        emit_err(f"[verify-mirrors] ERROR: failed to warm uv cache:\n{res.stderr}")
+        detail = f"{res.stdout}\n{res.stderr}".strip()
+        emit_err(f"[verify-mirrors] ERROR: failed to warm uv cache:\n{detail}")
         return False
     return True
 
@@ -198,9 +199,8 @@ def _install_and_assert_uv_mirror(
         capture=True,
     )
     if add_res.returncode != 0:
-        emit_err(
-            f"[verify-mirrors] ERROR: offline `uv add` ({expected_ver}) failed:\n{add_res.stderr}"
-        )
+        detail = f"{add_res.stdout}\n{add_res.stderr}".strip()
+        emit_err(f"[verify-mirrors] ERROR: offline `uv add` ({expected_ver}) failed:\n{detail}")
         return False
     chk_res = run_cmd(
         [
@@ -218,7 +218,8 @@ def _install_and_assert_uv_mirror(
         capture=True,
     )
     if chk_res.returncode != 0:
-        emit_err(f"[verify-mirrors] ERROR: uv ({expected_ver}) import failed:\n{chk_res.stderr}")
+        detail = f"{chk_res.stdout}\n{chk_res.stderr}".strip()
+        emit_err(f"[verify-mirrors] ERROR: uv ({expected_ver}) import failed:\n{detail}")
         return False
     return True
 
@@ -314,7 +315,8 @@ def _verify_js_manager(
             _js_add_cmd(manager, bin_path, tgz_v1, cache_dir), cwd=proj, env=env, capture=True
         )
         if add1.returncode != 0:
-            emit_err(f"[verify-mirrors] ERROR: {manager} offline v1 install failed:\n{add1.stderr}")
+            detail = f"{add1.stdout}\n{add1.stderr}".strip()
+            emit_err(f"[verify-mirrors] ERROR: {manager} offline v1 install failed:\n{detail}")
             return 1
         eval_v1 = _check_ts_import(manager, node_or_bun, proj, env, v1)
         if eval_v1 != 0:
@@ -327,7 +329,8 @@ def _verify_js_manager(
             _js_add_cmd(manager, bin_path, tgz_v2, cache_dir), cwd=proj, env=env, capture=True
         )
         if add2.returncode != 0:
-            emit_err(f"[verify-mirrors] ERROR: {manager} offline v2 upgrade failed:\n{add2.stderr}")
+            detail = f"{add2.stdout}\n{add2.stderr}".strip()
+            emit_err(f"[verify-mirrors] ERROR: {manager} offline v2 upgrade failed:\n{detail}")
             return 1
         if _check_ts_import(manager, node_or_bun, proj, env, v2) != 0:
             return 1
@@ -353,7 +356,8 @@ def _check_ts_import(
     )
     res = run_cmd(cmd, cwd=proj, env=env, capture=True)
     if res.returncode != 0:
-        emit_err(f"[verify-mirrors] ERROR: {manager} import expected {expected_ver}:\n{res.stderr}")
+        detail = f"{res.stdout}\n{res.stderr}".strip()
+        emit_err(f"[verify-mirrors] ERROR: {manager} import expected {expected_ver}:\n{detail}")
         return 1
     return 0
 

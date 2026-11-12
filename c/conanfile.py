@@ -9,7 +9,7 @@ class PlaytestCConan(ConanFile):
     version = "0.1.0"
     package_type = "static-library"
     settings = "os", "arch", "compiler", "build_type"
-    license = "MIT OR Apache-2.0"
+    license = "MIT"
     author = "Archont561"
     url = "https://github.com/Archont561/playtest"
     description = "Playwright-style testing framework for C"

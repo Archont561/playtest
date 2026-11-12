@@ -14,8 +14,7 @@ from automation._proc import emit_err, emit_line, run_cmd
 REQUIRED_FILES: tuple[str, ...] = (
     "Cargo.toml",
     "Cargo.lock",
-    "LICENSE-MIT",
-    "LICENSE-APACHE",
+    "LICENSE",
     "README.md",
     "AGENTS.md",
     "CONTRIBUTING.md",

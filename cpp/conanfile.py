@@ -9,7 +9,7 @@ class PlaytestCppConan(ConanFile):
     name = "playtest-cpp"
     version = "0.1.0"
     package_type = "header-library"
-    license = "MIT OR Apache-2.0"
+    license = "MIT"
     author = "Archont561"
     url = "https://github.com/Archont561/playtest"
     description = "Playwright-style testing framework for C++"

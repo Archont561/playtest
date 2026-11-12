@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "A Playwright-inspired async testing framework for Python with dependency injection, code-first BDD, and isolation fixtures"
 readme = "README.md"
 authors = [{ name = "Archont561" }]
-license = "MIT OR Apache-2.0"
+license = "MIT"
 requires-python = ">=3.10"
 keywords = ["testing", "bdd", "fixtures", "playwright", "test-framework"]
 classifiers = [

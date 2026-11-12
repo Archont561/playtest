@@ -1,7 +1,7 @@
 # ADR 0008: Two-Phase Artifact-Driven Release Pipeline
 
 ## Status
-Accepted
+Accepted. Amended by [ADR 0016](./0016-cli-binary-distribution-channels.md) on 2026-11-11; see Amendments below.
 
 ## Context
 Deploying multi-language packages directly from compilation steps within single monolithic CI jobs creates vulnerability to partial failures, network timeouts, and lack of reproducible audit trails. Furthermore, modern package registries (crates.io, PyPI, npm) encourage or require OpenIDC (OIDC) trusted publishing environments where credentials should only be exposed to jobs that upload already-built and validated artifacts.
@@ -24,3 +24,7 @@ We decoupled package generation from registry publishing in `.github/workflows/r
 
 ### Negative
 - Requires GitHub Actions artifact storage and additional job coordination steps.
+
+## Amendments
+
+**2026-11-11.** The two-phase rule stands. [ADR 0016](./0016-cli-binary-distribution-channels.md) adds the CLI binary to it: binaries are built per platform in Phase 1, and the publishing jobs of Phase 2 only upload. The job names in the Decision above are the set that existed when this record was written; [Spec 0006](../specs/0006-two-phase-release-and-trusted-publishing.md) lists the current jobs.

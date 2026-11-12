@@ -1,7 +1,7 @@
 # ADR 0010: Milestone-Driven Auto-Release Lifecycle
 
 ## Status
-Accepted
+Accepted. Amended on 2026-11-11 for the Go tag form. [ADR 0015](./0015-cli-first-distribution-and-five-crate-workspace.md) puts the scoped tags of this record under review (`task_059`). See Amendments below.
 
 ## Context
 Releasing multi-language software requires a predictable mechanism to transition planned development milestones into tagged, published deliverables. Relying solely on manual git tagging or commits directly to release branches risks publishing untested code or misformatting tags. Maintainers need the ability to push a milestone tag or trigger auto-release on push to `main` while guaranteeing strict validation.
@@ -26,3 +26,10 @@ We established a milestone-driven release lifecycle connecting git milestone tag
 
 ### Negative
 - Requires maintaining milestone tags in git alongside release tags.
+
+## Amendments
+
+**2026-11-11.**
+
+- The scoped tag for Go is `go/vX.Y.Z`, not `go-vX.Y.Z` ([Spec 0007](../specs/0007-autorelease-change-detection-and-milestone-dispatch.md)).
+- [ADR 0015](./0015-cli-first-distribution-and-five-crate-workspace.md) gives every release one version across the CLI and all SDKs. Package-scoped tags release one language at its own version, which conflicts with that. `task_059` decides their future. Until then this record describes the implemented behavior.

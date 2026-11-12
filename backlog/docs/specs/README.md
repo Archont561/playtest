@@ -15,3 +15,8 @@ This directory contains formal technical specifications defining APIs, protocols
 | [0009](./0009-ecosystem-integration-fixtures.md) | Ecosystem Integration Fixtures (CLI, TUI, GUI & Browser) | M7 (`v1.1.0`) | Target contract |
 | [0010](./0010-fixture-extension-api.md) | Fixture Extension API | M6 (`v1.0.0`) | Target contract |
 | [0011](./0011-delegated-mutation-testing.md) | Delegated Mutation Testing | M5 (`v0.5.0`) | Target contract |
+| [0012](./0012-workspace-crates-and-cli-distribution.md) | Workspace Crates, Embedded Assets, and CLI Distribution | M1 (`v0.1.0`) | Target contract |
+| [0013](./0013-workspace-configuration-and-sdk-mirrors.md) | Workspace Configuration, SDK Mirrors, and Wiring | M1 (`v0.1.0`), M5 (`v0.5.0`) | Target contract |
+| [0014](./0014-report-protocol-and-runner-orchestration.md) | Report Protocol and Native-Runner Orchestration | M5 (`v0.5.0`) | Target contract |
+
+Specs 0006 and 0007 describe the release workflows as they are implemented. The changes that [ADR 0015](../adr/0015-cli-first-distribution-and-five-crate-workspace.md) and [ADR 0016](../adr/0016-cli-binary-distribution-channels.md) require are listed inside them as planned changes and open questions, and Spec 0012 is the target contract.

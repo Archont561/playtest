@@ -34,3 +34,7 @@ We make the CLI a programmable interface by contract, in five parts:
 - Exit statuses and `schema_version` are forever contracts; loosening them later is a breaking change even where no code exists yet.
 - The probe registry is one more versioned surface, and tier mappings are uneven across nine native runners — unmapped tiers must surface as errors in `playtest list` rather than be silently dropped.
 - Framework-side parity for fail-loud tiers adds a required behavior to every target's runner integration (Spec 0005 §4 cross-reference), growing the conformance matrix.
+
+## Related Decisions
+
+**2026-11-11.** [ADR 0015](./0015-cli-first-distribution-and-five-crate-workspace.md), [ADR 0017](./0017-committed-sdk-mirrors-and-explicit-wiring.md), and [ADR 0018](./0018-sdk-reporters-and-report-protocol.md) use exit status `3` for three more environment failures: a `playtest.toml` version pin that the running binary does not match, an SDK whose version or protocol differs from the CLI's, and SDK mirrors that `playtest sync --check` finds out of date. Spec 0008 §7 lists them. The contract in this record is otherwise unchanged.

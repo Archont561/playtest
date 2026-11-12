@@ -41,7 +41,7 @@ Rules:
 6. The crate exposes, per language, the embedded files with their relative paths, and the SDK version. That version equals the workspace version.
 7. A test fails when an embedded file differs from its source or when a listed file is missing.
 8. The crate embeds files, not installable artifacts. The CLI renders wheels, tarballs, and module directories from them when `playtest sync` runs ([Spec 0013 §3](./0013-workspace-configuration-and-sdk-mirrors.md)).
-9. **Build-time encoder vs runtime decoder ([ADR 0020](../adr/0020-solid-brotli-compression-for-embedded-sdk-assets.md), `task_067`).** `playtest-assets` declares `brotli` (`features = ["portable-float"]`) only in `[build-dependencies]` and links only `brotli-decompressor` and `tar` (`default-features = false`) in `[dependencies]`, lazily decoding `$OUT_DIR/embedded_sdks.tar.br` once via `OnceLock` while preserving `EmbeddedFile { path: &'static str, contents: &'static [u8] }`. `include_dir` is removed.
+9. **Build-time encoder vs runtime decoder ([ADR 0020](../adr/0020-solid-brotli-compression-for-embedded-sdk-assets.md), `task_067`).** `playtest-assets` declares `brotli` (`features = ["portable-float"]`) only in `[build-dependencies]` and links only `brotli-decompressor` and `tar` in `[dependencies]`, lazily decoding `$OUT_DIR/embedded_sdks.tar.br` once via `OnceLock` while preserving `EmbeddedFile { path: &'static str, contents: &'static [u8] }`. `include_dir` is removed.
 
 ## 3. GitHub Release Artifacts
 

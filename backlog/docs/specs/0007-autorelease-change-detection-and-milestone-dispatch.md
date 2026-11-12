@@ -1,7 +1,7 @@
 # Specification 0007: Auto-Release Change Detection and Milestone Dispatch
 
 ## Overview
-Specifies the change detection algorithm, Conventional Commits version resolution, milestone tag processing, and release dispatch workflows implemented across `scripts/detect_release.py` and `.github/workflows/auto-release.yml`.
+Specifies the change detection algorithm, Conventional Commits version resolution, milestone tag processing, and release dispatch workflows implemented across `automation/release.py` and `.github/workflows/auto-release.yml`.
 
 ## Trigger Specifications
 
@@ -15,7 +15,7 @@ The auto-release workflow executes under three conditions:
 3. **Manual Dispatch (`workflow_dispatch`)**:
    - Supports inputs: `scope` (override target), `bump` (override SemVer increment), `dry-run` (validate without pushing tags).
 
-## Detection & Calculation Algorithm (`scripts/detect_release.py`)
+## Detection & Calculation Algorithm (`automation/release.py`)
 
 ```python
 # 1. Base Reference Resolution

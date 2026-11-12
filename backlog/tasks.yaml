@@ -1001,11 +1001,11 @@ tasks:
     priority: P0
     milestone: M1-v0.1.0
     semver: "0.1.0"
-    labels: [M1, release, scripts]
+    labels: [M1, release, automation]
     repo_targets: [playtest]
     acceptance_criteria:
       - "A recorded decision states whether scoped tags (<scope>-vX.Y.Z and a Go-only go/vX.Y.Z) are retired or kept for a named purpose; ADR 0010 and Spec 0007 are updated to match"
-      - "scripts/detect_release.py and auto-release.yml implement the decision, with a test for a change confined to one language directory"
+      - "automation/release.py and auto-release.yml implement the decision, with a test for a change confined to one language directory"
       - "No Go or R version can be published without a binary release of the same version"
       - "A release tag pushed by auto-release.yml starts release.yml; GitHub starts no workflow for an event caused by the default GITHUB_TOKEN, so a rehearsal verifies the chain"
       - "A push to main cannot tag the first release by accident: with no v* tag in the repository, detect_release.py requested a release on 2026-10-23 and only the failing quality gate stopped the tag step"

@@ -60,8 +60,8 @@ The repository enforces a strict, three-tier separation of concerns across GitHu
 | Workflow | Path | Trigger | Core Responsibility |
 | :--- | :--- | :--- | :--- |
 | **CI** | `.github/workflows/ci.yml` | Pull Requests & non-tag pushes | Validates code health: lints, formatting, multi-target tests, 90% Codecov coverage, vulnerability audit. **Never cuts releases or tags.** |
-| **Auto-Release** | `.github/workflows/auto-release.yml` | Push to `main` (ignoring `backlog/**`, `*.md`) OR **Milestone tag push** (`milestone-v*`, `milestone/*`, `m-v*`) OR dispatch | Runs `python scripts/detect_release.py`, validates quality gates, and cuts the proper annotated release tag (`v*` or `<scope>-v*`). |
-| **Release** | `.github/workflows/release.yml` | Release tag push (`v*`, `*-v*`, `*/*v*`) OR dispatch | **Phase 1**: Builds package artifacts for the selected targets.<br>**Phase 2**: Publishes Rust/Python/TypeScript to crates.io/PyPI/npm; Go is indexed from the Git tag; C/C++ can publish to a configured Conan remote; C# can publish to NuGet; Java can publish signed artifacts to Maven Central. R gets a CRAN-style check; an optional post-release job verifies R-universe auto-publication. All build artifacts are attached to the GitHub Release. |
+| **Auto-Release** | `.github/workflows/auto-release.yml` | Push to `main` (ignoring `backlog/**`, `*.md`) OR **Milestone tag push** (`milestone-v*`, `milestone/*`, `m-v*`) OR dispatch | Runs `python scripts/detect_release.py`, validates quality gates, and cuts the proper annotated release tag (`v*`, `<scope>-v*`, or `go/v*` for Go). |
+| **Release** | `.github/workflows/release.yml` | Release tag push (`v*`, `*-v*`, `*/*v*`) OR dispatch | **Phase 1**: Builds package artifacts for the selected targets.<br>**Phase 2**: Publishes Rust/Python/TypeScript to crates.io/PyPI/npm; Go is published through its `go/vX.Y.Z` Git tag, which `scripts/publish_go_module.py` creates for general releases and asks the Go proxy to index; C/C++ can publish to a configured Conan remote; C# can publish to NuGet; Java can publish signed artifacts to Maven Central. R gets a CRAN-style check; an optional post-release job verifies R-universe auto-publication. All build artifacts are attached to the GitHub Release. |
 | **CRAN Submission** | `.github/workflows/cran-publish.yml` | Manual dispatch | Select an R release tag and enter `CONFIRM`; checks and submits only the R package, then CRAN emails the maintainer for final confirmation. |
 
 ### Milestone Tag Pushes
@@ -70,18 +70,18 @@ The repository enforces a strict, three-tier separation of concerns across GitHu
   git tag -a "milestone-v0.2.0" -m "Milestone v0.2.0 release trigger"
   git push origin "milestone-v0.2.0"
   ```
-* `auto-release.yml` intercepts the milestone tag, extracts target version `0.2.0`, runs quality gates and dry-run packaging, and pushes the final release tag `v0.2.0` (or `<scope>-v0.2.0`).
+* `auto-release.yml` intercepts the milestone tag, extracts target version `0.2.0`, runs quality gates and dry-run packaging, and pushes the final release tag `v0.2.0` (or `<scope>-v0.2.0`; `go/v0.2.0` for Go).
 
 ### Scoped vs. General Tags
-* **General Releases (`vX.Y.Z`)**: Triggered when root build files (`pixi.toml`), shared infrastructure, or $>1$ target changes. Triggers publishing across **all 9 targets**.
-* **Scoped Releases (`<scope>-vX.Y.Z`)**: Triggered when only a single target changes:
+* **General Releases (`vX.Y.Z`)**: Triggered when root build files (`pixi.toml`), shared infrastructure, or $>1$ target changes. Triggers publishing across **all 9 targets**. The release workflow also pushes `go/vX.Y.Z` at the same commit, because Go does not read `vX.Y.Z` for a module in a subdirectory.
+* **Scoped Releases (`<scope>-vX.Y.Z`; `go/vX.Y.Z` for Go)**: Triggered when only a single target changes:
   * Rust: `rust-vX.Y.Z` $\rightarrow$ crates.io
   * Python: `python-vX.Y.Z` $\rightarrow$ PyPI
   * TypeScript: `ts-vX.Y.Z` $\rightarrow$ npm
   * C++: `cpp-vX.Y.Z` $\rightarrow$ GitHub Release; optionally a configured Conan remote
   * C: `c-vX.Y.Z` $\rightarrow$ GitHub Release; optionally a configured Conan remote
   * C#: `csharp-vX.Y.Z` $\rightarrow$ GitHub Release and, when configured, NuGet
-  * Go: `go-vX.Y.Z` $\rightarrow$ Go Proxy / `pkg.go.dev` indexing from the Git tag
+  * Go: `go/vX.Y.Z` $\rightarrow$ Go Proxy / `pkg.go.dev` indexing from the Git tag. Go resolves the module in `go/` only from tags with this `go/` prefix, never from `go-vX.Y.Z`.
   * Java: `java-vX.Y.Z` $\rightarrow$ GitHub Release and, when configured, Maven Central
   * R: `r-vX.Y.Z` $\rightarrow$ GitHub Release plus CRAN-style validation; optional CRAN submit requires manual confirmation, and R-universe auto-indexing can be verified
 
@@ -92,6 +92,16 @@ The repository enforces a strict, three-tier separation of concerns across GitHu
 * The `maven` environment must define `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`, `MAVEN_GPG_PRIVATE_KEY`, and `MAVEN_GPG_PASSPHRASE`. Maven Central publishing requires an approved namespace and signing key.
 * The `cran` environment must define `AUTHOR_EMAIL` as a variable or secret. The release workflow stamps it into the R package metadata and runs `R CMD check --as-cran`. To submit, manually dispatch `.github/workflows/cran-publish.yml` with the release `tag` and `confirmation=CONFIRM`; CRAN still emails the maintainer address for final confirmation.
 * R-universe is an automatic source-based deployment, not an artifact upload. To enable the optional post-release verification job, set repository variable `RUNIVERSE_ENABLED=true` (and optionally `RUNIVERSE_OWNER`). Create `<owner>.r-universe.dev` with a `packages.json` entry for `playtest` tracking `branch: "*release"`, and install the R-universe GitHub app on that owner. The job waits for the public package API to report the released version. R-universe builds from the source at the GitHub release tag, so that tagged source must already contain the matching `DESCRIPTION` version (the CI-time version stamp is not committed back to the tag).
+
+### CLI-First Distribution (Accepted, Not Implemented)
+
+The sections above describe the release workflows as they run today. ADRs 0015 to 0018 (accepted 2026-11-11) change the distribution model. Milestone M1 was reopened to deliver it (`task_050` to `task_059`). None of it is implemented, so do not describe it as existing. The rules below already bind new work:
+
+* **One version per release.** The Rust CLI `playtest` is the version authority and embeds every SDK. A release has one version across the CLI and all SDKs. Never bump the version of one package alone.
+* **Scoped tags are under review.** A package-scoped tag releases one target at its own version, which conflicts with the rule above. `task_059` decides whether scoped tags are retired. Do not build new behavior on them.
+* **Five crates.** `playtest`, `playtest-macros`, `playtest-core`, `playtest-assets`, and `playtest-cli` (Spec 0012 §1). `playtest` must never depend on `playtest-assets`, `playtest-cli`, or `clifacet`.
+* **Binary channels.** GitHub Release archives, crates.io, PyPI wheels, npm platform packages, conda, and Go and R download wrappers (ADR 0016). No package may download anything at install time or declare an npm lifecycle script.
+* **Known gaps in the current chain** are listed in `backlog/docs/milestones/M1-v0.1.0-foundation.md`. Read them before working on a release task.
 
 ---
 
@@ -105,17 +115,21 @@ backlog/
 ├── tasks.yaml            # Machine-readable tasks bound to milestones and SemVer
 └── docs/
     ├── milestones/       # Milestone definitions with explicit SemVer bindings
-    │   ├── M1-v0.1.0-foundation.md
+    │   ├── M1-v0.1.0-foundation.md             # Reopened: CLI binary, channels, init/sync
     │   ├── M2-v0.2.0-core-fixtures-and-macros.md
     │   ├── M3-v0.3.0-fluent-bdd-and-pbt.md
     │   ├── M4-v0.4.0-isolation-and-vcr-cassettes.md
-    │   ├── M5-v0.5.0-polyglot-conformance.md   # Includes Cross-Lang CLI & Doctor
+    │   ├── M5-v0.5.0-polyglot-conformance.md   # Includes CLI orchestration, Doctor & SDK reporters
     │   ├── M6-v1.0.0-universal-stable-release.md
     │   ├── M7-v1.1.0-ecosystem-integration-fixtures.md
     │   └── README.md
-    ├── adr/              # Architectural Decision Records (ADRs 0001 - 0014)
-    └── specs/            # Formal technical specifications (Specs 0001 - 0011)
+    ├── adr/              # Architectural Decision Records (ADRs 0001 - 0019)
+    └── specs/            # Formal technical specifications (Specs 0001 - 0014)
 ```
+
+Five more files in `milestones/` (`M1-v0.1.0-fixture-engine.md`, `M2-v0.2.0-macro-attributes.md`, `M3-v0.3.0-fluent-bdd.md`, `M4-v0.4.0-standard-isolation-fixtures.md`, `M5-v1.0.0-production-release.md`) belong to an earlier Rust-only roadmap. They carry a "Superseded" banner. Do not plan from them.
+
+`backlog/docs/adr/README.md` gives the status of every ADR. A Proposed ADR is not a decision: ADR 0012, 0013, 0014, and 0019 are Proposed. An accepted ADR is changed by an appended Amendments section or by a new ADR, never by rewriting its Decision.
 
 ### Task Synchronization Directives
 1. **SemVer Binding**: Every task in `backlog/tasks.yaml` must explicitly declare:
@@ -136,6 +150,14 @@ Playtest's parity target covers all nine language targets: Rust, Python, TypeScr
 Across targets, the contract requires fixture injection and documented scopes, requested-only resolution, failure-safe LIFO teardown, explicit-state Given/When/Then/And scenarios, property testing with fresh per-sample fixtures and reproducible shrinking, skip/parameterized cases, and equivalent isolation/determinism helpers from Spec 0004. Public APIs and test libraries may be idiomatic; observable behavior must match and pass the shared conformance suite.
 
 The cross-language `playtest` CLI is one shared orchestrator, not a separate CLI requirement for each language. It must detect and run all nine targets and report test/coverage outcomes consistently. Do not treat toolchain availability or a successful aggregate command as proof of feature parity.
+
+Rules that follow from ADRs 0015 to 0018. They bind new work now, although the CLI is not implemented yet:
+
+* **No CLI code in a language package.** The only per-language CLI code is a wrapper that locates or downloads the one binary. Do not add a CLI framework to a language package. `typer` (Python), `commander` (TypeScript), and `cobra` (Go) are declared today, are used by no code, and are removed by `task_055`, `task_056`, and `task_058`.
+* **The CLI is `crates/playtest-cli`**, built on `clifacet`. Keep `clifacet` types out of documented output; the output and exit-status contract is Spec 0008 §7.
+* **SDKs report; they do not run.** An SDK attaches a reporter to its native runner and writes records only when the CLI switches it on (Spec 0014). Do not add a runner entry point such as `python -m playtest` to an SDK.
+* **`playtest init` and `playtest sync` write only `playtest.toml` and `.playtest/`.** They never edit a consumer's manifest or lockfile (Spec 0013).
+* **Version skew is an error**, reported with exit status 3. Do not add a compatibility mode between versions.
 
 ---
 

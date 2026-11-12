@@ -10,7 +10,7 @@
     { "type": "ci", "section": "CI/CD", "hidden": false },
     { "type": "chore", "section": "Maintenance", "hidden": false }
   ],
-  "scopeRegex": "^(rs|py|ts|cpp|c|csharp|go|java|r|core|fixtures|bdd|pbt|browser|vcr|snap|cli|deps|release|scripts|backlog|ci)(?:-(rs|py|ts|cpp|c|csharp|go|java|r))?$",
+  "scopeRegex": "^(rs|py|ts|cpp|c|csharp|go|java|r|core|assets|macros|fixtures|bdd|pbt|browser|vcr|snap|cli|deps|lock|sandbox|release|scripts|backlog|ci)(?:-(rs|py|ts|cpp|c|csharp|go|java|r))?$",
   "lineLength": 100,
   "wrapDisabled": false,
   "preMajor": false,

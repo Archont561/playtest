@@ -32,13 +32,56 @@
   </a>
 </p>
 
-> Universal testing framework across nine language ecosystems.
+> Nine languages. One test contract. One CLI that pins them to a single version.
 >
-> One shared behavioral contract for dependency-injected fixtures, failure-safe
-> LIFO teardown, code-first BDD pipelines, and property-based testing, delivered
-> through idiomatic native SDKs and a Rust CLI.
+> Playtest is a polyglot test framework with the batteries included: the `playtest`
+> binary carries the SDK sources for all nine targets and writes them into your
+> repository as committed, reviewable mirrors. Fixtures, code-first BDD, property-based
+> testing, and deterministic isolation share one behavioral contract across Rust,
+> Python, TypeScript, C, C++, C#, Go, Java, and R.
 
-### 🏠 [Homepage](https://github.com/Archont561/playtest#readme)
+**Status.** `version`, `init`, and `sync` ship today, together with committed SDK mirrors
+and multi-channel binary packaging. The fixture engine, code-first BDD, property-based
+testing, and the `test`, `list`, `doctor`, `coverage`, and `mutation` orchestration
+commands follow through [Milestone M5](backlog/docs/milestones/M5-v0.5.0-polyglot-conformance.md).
+The [milestone roadmap](backlog/docs/milestones/README.md) tracks each stage.
+
+## Why one contract
+
+Most polyglot test setups produce nine separate test stories. Each ecosystem keeps its own
+fixture model, its own discovery rules, and its own notion of a report. Playtest replaces
+that with four properties the whole workspace shares:
+
+| Property | What it means in practice | Where it is specified |
+| :--- | :--- | :--- |
+| **One version authority** | The CLI and all nine SDKs share a version. A mismatch is an error with remediation, never a compatibility matrix. | [ADR 0015](backlog/docs/adr/0015-cli-first-distribution-and-five-crate-workspace.md), [Spec 0013 §6](backlog/docs/specs/0013-workspace-configuration-and-sdk-mirrors.md) |
+| **Batteries, literally** | The binary embeds every SDK source and materializes them through `init` and `sync` as solid-brotli assets. Nothing downloads at install time. | [`crates/playtest-assets`](crates/playtest-assets), [ADR 0020](backlog/docs/adr/0020-solid-brotli-compression-for-embedded-sdk-assets.md) |
+| **One behavioral contract** | Fixture injection, strict LIFO teardown, BDD pipelines, property-based testing, and isolation helpers behave the same in every target. | [Spec 0005](backlog/docs/specs/0005-polyglot-1-to-1-fixture-and-bdd-parity.md) |
+| **Machine contract first** | Versioned JSON, JUnit XML, and distinct exit codes are part of the design, not a later addition. | [Spec 0008 §7](backlog/docs/specs/0008-cross-language-cli-and-toolchain-detection.md), [ADR 0012](backlog/docs/adr/0012-machine-consumable-and-extensible-cli-contract.md) |
+
+## Built for three consumers
+
+The same run feeds a person at a terminal, a pipeline, and an automated agent, and each
+consumer reads the contract it needs.
+
+| Consumer | What Playtest gives it |
+| :--- | :--- |
+| **Humans** | One command across nine ecosystems, with `pretty` output that renders the same data the machine formats carry |
+| **CI** | JUnit XML, versioned JSON with a `schema_version` on every document, and four distinct exit codes: `0` pass, `1` test failure, `2` usage error, `3` environment failure |
+| **Agents** | No prompts and no ANSI color in machine modes, standard output carrying data only, failing property tests shipping their replay seed, and guidance reachable from `playtest version` instead of only from prose |
+
+Distinct exit codes matter more than they look. A pipeline distinguishes "your code is
+broken" from "your toolchain is unqualified" from "you called the command wrong" without
+parsing a single log line.
+
+## Scope
+
+Playtest covers deterministic, pre-deployment, assertion-shaped testing. Load and stress
+testing, security scanning, chaos engineering, A/B testing, canary deployments,
+coverage-guided fuzzing engines, and race model checking are deliberate non-goals.
+Coverage and mutation results are delegated to each ecosystem's native tools and
+normalized into one report; Playtest never reimplements those engines. The full boundary,
+with the reasoning for each exclusion, is in [`backlog/docs/caveats.md`](backlog/docs/caveats.md).
 
 ## Documentation
 
@@ -52,8 +95,8 @@ directories are the source of truth for using and working on this repository:
 - [Workspace configuration and SDK mirrors](backlog/docs/specs/0013-workspace-configuration-and-sdk-mirrors.md): `playtest.toml` version pinning and committed `.playtest/` mirrors
 - [Report protocol and runner orchestration](backlog/docs/specs/0014-report-protocol-and-runner-orchestration.md): native runner execution and structured JSONL test reporting
 - [Polyglot parity contract](backlog/docs/specs/0005-polyglot-1-to-1-fixture-and-bdd-parity.md): shared fixture, LIFO teardown, BDD, and property-testing semantics
-- [Architecture Decision Records](backlog/docs/adr/README.md): design decisions from ADR 0001 through ADR 0019
-- [Milestone roadmap](backlog/docs/milestones/README.md): current version-only scaffold status and planned delivery from `v0.1.0` to `v1.1.0`
+- [Architecture Decision Records](backlog/docs/adr/README.md): design decisions from ADR 0001 through ADR 0020
+- [Milestone roadmap](backlog/docs/milestones/README.md): current scaffold status and planned delivery from `v0.1.0` to `v1.1.0`
 - [Agent directives](AGENTS.md): repository invariants, registry configuration, and automation boundaries
 - [Contributing](CONTRIBUTING.md): setup, the checks CI runs, Conventional Commits, and merge policy
 
@@ -61,27 +104,42 @@ Planned work is tracked in [`backlog/`](backlog/tasks.yaml).
 
 ## Language Targets
 
-Parity is a roadmap contract rather than a claim that every capability ships in
-every language today: the repository currently holds the `0.1.0` version-only
-workspace scaffold while [Milestone M1](backlog/docs/milestones/M1-v0.1.0-foundation.md)
-delivers the `playtest` CLI binary, `init`, `sync`, and multi-channel packaging.
+Parity is a roadmap contract rather than a claim that every capability ships in every
+language today. The repository holds the `0.1.0` workspace scaffold while
+[Milestone M1](backlog/docs/milestones/M1-v0.1.0-foundation.md) delivers the `playtest`
+CLI binary, `init`, `sync`, and multi-channel packaging.
 
-| Language | Ecosystem | Directory | Package / Artifact |
-| :--- | :--- | :--- | :--- |
-| **Rust** | Cargo / crates.io | `crates/` | `playtest`, `playtest-macros`, `playtest-core`, `playtest-assets`, `playtest-cli` |
-| **Python** | PyPI / pytest | `python/` | `playtest-py` |
-| **TypeScript** | npm / Bun | `typescript/` | `@archont561/playtest` |
-| **C++** | CMake / Conan 2 | `cpp/` | `playtest-cpp` |
-| **C** | CMake / Conan 2 | `c/` | `playtest-c` |
-| **C#** | .NET / NuGet | `csharp/` | `Playtest` |
-| **Go** | Go Modules / `pkg.go.dev` | `go/` | `github.com/Archont561/playtest/go` |
-| **Java** | Maven Central | `java/` | `io.github.archont561:playtest` |
-| **R** | CRAN / R-universe | `r/` | `playtest` |
+| Language | Ecosystem | Directory | Package / Artifact | Today |
+| :--- | :--- | :--- | :--- | :--- |
+| **Rust** | Cargo / crates.io | `crates/` | `playtest`, `playtest-macros`, `playtest-core`, `playtest-assets`, `playtest-cli` | Package scaffold |
+| **Python** | PyPI / pytest | `python/` | `playtest-py` | Package scaffold |
+| **TypeScript** | npm / Bun | `typescript/` | `@archont561/playtest` | Package scaffold |
+| **C++** | CMake / Conan 2 | `cpp/` | `playtest-cpp` | Package scaffold |
+| **C** | CMake / Conan 2 | `c/` | `playtest-c` | Package scaffold |
+| **C#** | .NET / NuGet | `csharp/` | `Playtest` | Package scaffold |
+| **Go** | Go Modules / `pkg.go.dev` | `go/` | `github.com/Archont561/playtest/go` | Package scaffold |
+| **Java** | Maven Central | `java/` | `io.github.archont561:playtest` | Package scaffold |
+| **R** | CRAN / R-universe | `r/` | `playtest` | Package scaffold |
 
 ## Install
 
-Bootstrap the locked developer toolchain from `pixi.lock`, or materialize the
-airgapped Linux sandbox offline:
+Install the `playtest` binary through the channel your ecosystem already uses, then let it
+write the SDK mirror into your repository:
+
+```sh
+playtest version            # print the pinned CLI and SDK version
+playtest init --lang rust   # write playtest.toml and the SDK mirrors
+playtest sync --check       # fail when mirrors drift from the pinned version
+```
+
+The binary is distributed as per-platform GitHub Release archives, npm packages, conda
+packages, and a container channel; every channel carries the same version. See
+[Spec 0012](backlog/docs/specs/0012-workspace-crates-and-cli-distribution.md) for the
+package layout and [ADR 0016](backlog/docs/adr/0016-cli-binary-distribution-channels.md)
+for the channel decisions.
+
+Contributors bootstrap the locked toolchain from `pixi.lock`, or materialize the airgapped
+Linux sandbox offline:
 
 ```sh
 pixi install --frozen
@@ -89,14 +147,8 @@ pixi run --frozen bun-install
 pixi run install-hooks
 ```
 
-Offline Linux environments can restore the packed `default` environment and all
-vendored Cargo crates without network access via `./scripts/restore.sh`.
-
-## Usage
-
-```sh
-pixi run --frozen -- cargo run -p playtest-cli --locked
-```
+Offline Linux environments can restore the packed `default` environment and all vendored
+Cargo crates without network access via `./scripts/restore.sh`.
 
 ## Run tests
 
@@ -104,8 +156,7 @@ pixi run --frozen -- cargo run -p playtest-cli --locked
 pixi run test-all
 ```
 
-Run the fast governance, Clean Code, workflow, TOML, sandbox, and automation
-suite with:
+Run the fast governance, Clean Code, workflow, TOML, sandbox, and automation suite with:
 
 ```sh
 pixi run --frozen doit fast

@@ -1,6 +1,6 @@
 # Playtest for C# / .NET
 
-Playwright-style testing framework for .NET with dependency-injected fixtures, strict LIFO teardown, property-based testing, and fluent BDD scenarios.
+Polyglot test framework with the batteries included: dependency-injected fixtures, strict LIFO teardown, property-based testing, and code-first BDD for .NET.
 
 ## Installation
 ```bash

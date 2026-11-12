@@ -1,6 +1,6 @@
 # Playtest for C
 
-Playwright-style testing framework for C (C11/C23) with dependency-injected fixtures, strict LIFO teardown, property-based testing, and fluent BDD scenarios.
+Polyglot test framework with the batteries included: dependency-injected fixtures, strict LIFO teardown, property-based testing, and code-first BDD for C (C11/C23).
 
 ## Quick Start
 ```c

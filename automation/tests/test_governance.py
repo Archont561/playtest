@@ -15,6 +15,8 @@ from automation._proc import CommandResult, run_cmd
 from automation.advisory_exception import verify_advisory_exceptions
 from automation.merge_lcov import merge_lcov_files
 from automation.repo_check import (
+    CANONICAL_DESCRIPTION_LEAD,
+    _check_canonical_description,
     _check_crate_dependency_boundaries,
     _check_manifest_versions_and_autodiscovery,
     _check_required_and_forbidden,
@@ -84,6 +86,21 @@ def test_manifest_autodiscovery_check_detects_drift_and_hardcoded_source(tmp_pat
     )
     hardcode_errors = _check_manifest_versions_and_autodiscovery(tmp_path)
     assert any("hardcoded version literal" in item for item in hardcode_errors)
+
+
+def test_canonical_description_guard_rejects_positioning_drift(tmp_path: Path) -> None:
+    assert _check_canonical_description(REPO_ROOT) == []
+
+    pkg = tmp_path / "package.json"
+    pkg.write_text(
+        '{"description": "A Playwright-inspired testing framework for Python"}\n', encoding="utf-8"
+    )
+    assert any(
+        CANONICAL_DESCRIPTION_LEAD in item for item in _check_canonical_description(tmp_path)
+    )
+
+    pkg.write_text(f'{{"description": "{CANONICAL_DESCRIPTION_LEAD}: fixtures for Python"}}\n')
+    assert _check_canonical_description(tmp_path) == []
 
 
 def test_crate_dependency_boundary_rejects_transitive_cli_or_assets_leak(tmp_path: Path) -> None:

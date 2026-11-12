@@ -2,6 +2,7 @@
 name = "playtest"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -12,4 +13,21 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
+anyhow = { workspace = true }
+futures = { workspace = true }
+insta = { workspace = true }
+miette = { workspace = true }
+playtest-core = { workspace = true }
 playtest-macros = { workspace = true }
+proptest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+rstest = { workspace = true }
+rstest-bdd = { workspace = true }
+rstest-bdd-macros = { workspace = true }
+tower = { workspace = true }

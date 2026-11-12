@@ -1,10 +1,17 @@
 [workspace]
-members = ["crates/playtest", "crates/playtest-macros"]
-resolver = "2"
+members = [
+  "crates/playtest",
+  "crates/playtest-assets",
+  "crates/playtest-cli",
+  "crates/playtest-core",
+  "crates/playtest-macros",
+]
+resolver = "3"
 
 [workspace.package]
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
+rust-version = "1.88"
 authors = ["Archont561"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Archont561/playtest"
@@ -15,26 +22,75 @@ keywords = ["testing", "bdd", "fixtures", "playwright", "test-framework"]
 categories = ["development-tools::testing"]
 
 [workspace.dependencies]
-# Internal workspace crates
+# Internal workspace crates (ADR 0015 / Spec 0012 §1)
 playtest = { path = "crates/playtest", version = "0.1.0" }
+playtest-assets = { path = "crates/playtest-assets", version = "0.1.0" }
+playtest-cli = { path = "crates/playtest-cli", version = "0.1.0" }
+playtest-core = { path = "crates/playtest-core", version = "0.1.0" }
 playtest-macros = { path = "crates/playtest-macros", version = "0.1.0" }
 
-# Automation & CLI
+# CLI framework & argument grammar (playtest-cli only; Spec 0012 §1)
+clap = { version = "4.6.7", default-features = false, features = [
+  "derive",
+  "env",
+  "error-context",
+  "help",
+  "std",
+  "string",
+  "usage",
+] }
+clifacet = { version = "=0.5.0", default-features = false, features = [
+  "serde",
+  "settings-toml",
+] }
+
+# Serialization, configuration & diagnostics
 anyhow = "1.0"
-clap = { version = "4", features = ["derive"] }
-
-# Async & Futures
-futures = "0.3"
-tokio = { version = "1.40", features = ["full", "test-util"] }
-
-# Testing & Isolation
-insta = { version = "1.41", features = ["filters", "json", "yaml"] }
-proptest = "1.5"
+camino = { version = "1.2", features = ["serde1"] }
+miette = "7.6"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tempfile = "3.13"
+thiserror = "2.0"
+toml = "1.2"
+toml_edit = { version = "0.25", default-features = false, features = [
+  "display",
+  "parse",
+  "serde",
+] }
 
-# Macro development
+# Embedded SDK assets & deterministic mirror archives (Spec 0012 §2, Spec 0013 §4)
+flate2 = "1.1"
+include_dir = "0.7.4"
+sha2 = "0.11"
+tar = "0.4"
+zip = { version = "9.5", default-features = false, features = [
+  "deflate-flate2",
+] }
+
+# Async runtime & in-memory service testing
+futures = "0.3"
+tokio = { version = "1.40", features = ["full", "test-util"] }
+tower = { version = "0.5", features = ["util"] }
+
+# Testing, fixtures, snapshots, BDD & property-based testing
+assert_cmd = "2.2"
+insta = { version = "1.49", features = [
+  "filters",
+  "json",
+  "redactions",
+  "yaml",
+] }
+predicates = "3.1"
+proptest = "1.12"
+rstest = "0.28.0"
+rstest-bdd = "=0.6.0"
+rstest-bdd-macros = { version = "=0.6.0", features = [
+  "strict-compile-time-validation",
+] }
+tempfile = "3.27"
+trybuild = "1.0"
+
+# Procedural macro development
 proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "2.0", features = ["extra-traits", "full"] }

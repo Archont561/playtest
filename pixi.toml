@@ -5,7 +5,7 @@ channels = ["https://prefix.dev/archont561/archont561", "conda-forge"]
 platforms = ["linux-64"]
 
 [dependencies]
-rust = ">=1.82.0"
+rust = ">=1.88.0"
 cargo-nextest = ">=0.9.70"
 cargo-llvm-cov = ">=0.6.14"
 cargo-audit = ">=0.20.0"
@@ -14,7 +14,7 @@ actionlint = ">=1.7.1"
 shellcheck = ">=0.10.0"
 lefthook = ">=1.7.0"
 taplo = ">=0.9.0"
-pixi-sandbox = ">=0.8.0"
+pixi-sandbox = ">=0.9.0"
 bun = ">=1.3.0"
 python = ">=3.11"
 pytest = ">=8.0.0"
@@ -45,8 +45,8 @@ bunx = "bunx"
 # --- Formatting ---
 fmt-rs = "cargo fmt --all"
 fmt-check-rs = "cargo fmt --all -- --check"
-fmt-toml = "taplo fmt Cargo.toml pixi.toml pixi-sandbox.toml crates/playtest/Cargo.toml crates/playtest-macros/Cargo.toml python/pixi.toml typescript/pixi.toml cpp/pixi.toml go/pixi.toml java/pixi.toml r/pixi.toml c/pixi.toml csharp/pixi.toml"
-lint-toml = "taplo fmt --check Cargo.toml pixi.toml pixi-sandbox.toml crates/playtest/Cargo.toml crates/playtest-macros/Cargo.toml python/pixi.toml typescript/pixi.toml cpp/pixi.toml go/pixi.toml java/pixi.toml r/pixi.toml c/pixi.toml csharp/pixi.toml"
+fmt-toml = "taplo fmt Cargo.toml pixi.toml pixi-sandbox.toml crates/playtest/Cargo.toml crates/playtest-assets/Cargo.toml crates/playtest-cli/Cargo.toml crates/playtest-core/Cargo.toml crates/playtest-macros/Cargo.toml python/pixi.toml typescript/pixi.toml cpp/pixi.toml go/pixi.toml java/pixi.toml r/pixi.toml c/pixi.toml csharp/pixi.toml"
+lint-toml = "taplo fmt --check Cargo.toml pixi.toml pixi-sandbox.toml crates/playtest/Cargo.toml crates/playtest-assets/Cargo.toml crates/playtest-cli/Cargo.toml crates/playtest-core/Cargo.toml crates/playtest-macros/Cargo.toml python/pixi.toml typescript/pixi.toml cpp/pixi.toml go/pixi.toml java/pixi.toml r/pixi.toml c/pixi.toml csharp/pixi.toml"
 fmt-py = "pixi run --manifest-path python/pixi.toml fmt"
 fmt-check-py = "pixi run --manifest-path python/pixi.toml fmt-check"
 fmt-ts = "pixi run --manifest-path typescript/pixi.toml fmt"
@@ -195,9 +195,9 @@ build-all = { depends-on = [
 
 # --- Release & Packaging ---
 detect-release = "python scripts/detect_release.py"
-package-rs = "cargo package -p playtest-macros --no-verify --allow-dirty && (cargo package -p playtest --no-verify --allow-dirty || cargo package -p playtest --list --allow-dirty)"
-publish-rs = "cargo publish -p playtest-macros --locked && cargo publish -p playtest --locked"
-release-rs = "cargo publish -p playtest-macros --locked && cargo publish -p playtest --locked"
+package-rs = "cargo package -p playtest-macros --no-verify --allow-dirty && cargo package -p playtest-core --no-verify --allow-dirty && cargo package -p playtest-assets --no-verify --allow-dirty && (cargo package -p playtest --no-verify --allow-dirty || cargo package -p playtest --list --allow-dirty) && (cargo package -p playtest-cli --no-verify --allow-dirty || cargo package -p playtest-cli --list --allow-dirty)"
+publish-rs = "cargo publish -p playtest-macros --locked && cargo publish -p playtest-core --locked && cargo publish -p playtest-assets --locked && cargo publish -p playtest --locked && cargo publish -p playtest-cli --locked"
+release-rs = "cargo publish -p playtest-macros --locked && cargo publish -p playtest-core --locked && cargo publish -p playtest-assets --locked && cargo publish -p playtest --locked && cargo publish -p playtest-cli --locked"
 
 release-py = "pixi run --manifest-path python/pixi.toml release"
 release-ts = "pixi run --manifest-path typescript/pixi.toml release"

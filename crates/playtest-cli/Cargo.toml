@@ -1,0 +1,44 @@
+[package]
+name = "playtest-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+description = "Unified Playtest CLI for workspace initialization, SDK mirror sync, and test orchestration"
+keywords = ["playtest", "cli", "testing", "polyglot"]
+categories = ["command-line-utilities", "development-tools::testing"]
+
+[[bin]]
+name = "playtest"
+path = "src/main.rs"
+
+[dependencies]
+camino = { workspace = true }
+clap = { workspace = true, features = ["color", "suggestions"] }
+clifacet = { workspace = true }
+flate2 = { workspace = true }
+miette = { workspace = true, features = ["fancy"] }
+playtest-assets = { workspace = true }
+playtest-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+tar = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+toml_edit = { workspace = true }
+zip = { workspace = true }
+
+[dev-dependencies]
+assert_cmd = { workspace = true }
+insta = { workspace = true }
+predicates = { workspace = true }
+proptest = { workspace = true }
+rstest = { workspace = true }
+rstest-bdd = { workspace = true }
+rstest-bdd-macros = { workspace = true }
+tempfile = { workspace = true }

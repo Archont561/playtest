@@ -80,7 +80,7 @@ The user runs the wiring command once per project, and again when the path of th
 | Language | Command |
 | :--- | :--- |
 | Python | `uv add --dev <path to wheel>` |
-| TypeScript | `npm add --save-dev <path to tarball>`, `pnpm add --save-dev <path to tarball>`, or `bun add --dev <path to tarball>` |
+| TypeScript | `npm add --save-dev <path to tarball>`, `pnpm add --save-dev @archont561/playtest@file:<path to tarball>`, or `bun add --dev @archont561/playtest@file:<path to tarball>` |
 | Go | `go mod edit -replace github.com/Archont561/playtest/go=./.playtest/go`, or a `use` line in `go.work` |
 | Rust | `cargo add playtest --dev` |
 

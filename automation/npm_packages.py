@@ -288,7 +288,7 @@ def _verify_one_npm_client(
         proj.mkdir()
         cache.mkdir()
         _write_e2e_consumer_manifest(proj, spec, platform_tgz)
-        add_cmd = _client_install_cmd(manager, mgr_bin, cache, platform_tgz, wrapper_tgz)
+        add_cmd = _client_install_cmd(manager, mgr_bin, cache, wrapper_tgz)
         env = {
             "npm_config_audit": "false",
             "npm_config_fund": "false",
@@ -309,7 +309,6 @@ def _client_install_cmd(
     manager: str,
     mgr_bin: str,
     cache: Path,
-    platform_tgz: Path,
     wrapper_tgz: Path,
 ) -> list[str]:
     if manager == "npm":
@@ -321,7 +320,6 @@ def _client_install_cmd(
             "--no-fund",
             "--cache",
             str(cache),
-            str(platform_tgz),
             str(wrapper_tgz),
         ]
     if manager == "pnpm":
@@ -331,10 +329,9 @@ def _client_install_cmd(
             "--save-dev",
             "--store-dir",
             str(cache),
-            str(platform_tgz),
             str(wrapper_tgz),
         ]
-    return [mgr_bin, "add", "--dev", str(platform_tgz), str(wrapper_tgz)]
+    return [mgr_bin, "add", "--dev", "--cache-dir", str(cache), str(wrapper_tgz)]
 
 
 def verify_clean_installs(root: Path, cli_bin: Path) -> int:

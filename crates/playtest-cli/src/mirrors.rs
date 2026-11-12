@@ -147,7 +147,7 @@ pub fn wiring_command_for(language: &str, relative_mirror_path: &str) -> Option<
     match language {
         "python" => Some(format!("uv add --dev {relative_mirror_path}")),
         "typescript" => Some(format!(
-            "npm add --save-dev {relative_mirror_path}  # or pnpm add --save-dev {relative_mirror_path} / bun add --dev {relative_mirror_path}"
+            "npm add --save-dev {relative_mirror_path}  # or pnpm add --save-dev @archont561/playtest@file:{relative_mirror_path} / bun add --dev @archont561/playtest@file:{relative_mirror_path}"
         )),
         _ => None,
     }

@@ -281,9 +281,17 @@ def _js_add_cmd(manager: str, bin_path: str, tgz_rel: str, cache_dir: Path) -> l
             "--offline",
             "--store-dir",
             str(cache_dir),
-            f"./{tgz_rel}",
+            f"@archont561/playtest@file:{tgz_rel}",
         ]
-    return [bin_path, "add", "--dev", "--offline", "--cache-dir", str(cache_dir), f"./{tgz_rel}"]
+    return [
+        bin_path,
+        "add",
+        "--dev",
+        "--offline",
+        "--cache-dir",
+        str(cache_dir),
+        f"@archont561/playtest@file:{tgz_rel}",
+    ]
 
 
 def _verify_js_manager(

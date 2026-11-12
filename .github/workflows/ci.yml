@@ -145,7 +145,7 @@ jobs:
         include:
           - os: ubuntu-24.04
             bin: target/debug/playtest
-          - os: macos-latest
+          - os: macos-15-intel
             bin: target/debug/playtest
           - os: windows-2025
             bin: target/debug/playtest.exe

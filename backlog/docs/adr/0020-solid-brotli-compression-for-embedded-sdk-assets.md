@@ -46,3 +46,7 @@ Three technical constraints govern any compression choice in `playtest-assets`:
 
 ### Negative
 - First call to `embedded_files` / `get_embedded_file` in a `playtest sync` or `playtest version` invocation pays a sub-millisecond one-time in-memory decompression cost and retains the decompressed SDK bytes for the process lifetime (negligible for short-lived CLI commands).
+
+## Amendments
+
+**2026-11-11.** Maintainer directed immediate delivery of solid `.tar.br` compression in `playtest-assets` ahead of M5 (`task_067` moved to M1 `v0.1.0` and completed). `playtest-assets` now packs normalized SDK files into `$OUT_DIR/embedded_sdks.tar.br` at compile time (`tar` + `brotli` quality `11`, `lgwin = 22`, `portable-float` in `[build-dependencies]`) and lazily decodes once via `brotli-decompressor` + `OnceLock` in `[dependencies]`, removing `include_dir`.

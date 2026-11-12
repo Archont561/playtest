@@ -1,18 +1,34 @@
-//! Embedded polyglot SDK assets bundled into the `playtest` CLI (`Spec 0012 §2`).
+//! Embedded polyglot SDK assets bundled into the `playtest` CLI (`Spec 0012 §2`, `ADR 0020`).
 //!
-//! `playtest-assets` embeds the exact published file set of every Playtest language SDK
-//! at compile time via `build.rs` + `include_dir`, keeping each language directory as
-//! the single source of truth in Git.
+//! `playtest-assets` packs the published file set of every Playtest language SDK into a
+//! deterministic solid POSIX `ustar` `.tar.br` stream at compile time (`build.rs` + `brotli`
+//! with `portable-float`) and lazily decodes it once on first access via `brotli-decompressor`
+//! and [`std::sync::OnceLock`], keeping each language directory as the single source of truth
+//! in Git while preserving zero-copy `'static` slices for callers.
 
+use std::collections::BTreeMap;
 use std::fmt;
+use std::io::Read;
 use std::str::{self, FromStr};
+use std::sync::OnceLock;
 
-use include_dir::{Dir, DirEntry, include_dir};
+use brotli_decompressor::Decompressor;
 
 /// Synchronized workspace semantic version of `playtest-assets` and every embedded SDK.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-static EMBEDDED_SDKS: Dir<'_> = include_dir!("$OUT_DIR/embedded_sdks");
+const BROTLI_DECODE_BUFFER_SIZE: usize = 4096;
+
+static EMBEDDED_SDKS_TAR_BR: &[u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/embedded_sdks.tar.br"));
+
+static DECODED_SDKS: OnceLock<BTreeMap<SdkLanguage, Vec<DecodedAsset>>> = OnceLock::new();
+
+#[derive(Debug)]
+struct DecodedAsset {
+    path: Box<str>,
+    contents: Box<[u8]>,
+}
 
 /// Supported target SDK languages embedded inside `playtest-assets`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -106,6 +122,18 @@ impl FromStr for SdkLanguage {
     }
 }
 
+/// Error returned when decoding a solid `.tar.br` SDK asset stream fails.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ArchiveDecodeError(pub String);
+
+impl fmt::Display for ArchiveDecodeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "failed to decode embedded SDK archive: {}", self.0)
+    }
+}
+
+impl std::error::Error for ArchiveDecodeError {}
+
 /// A single embedded SDK file with its relative path inside the SDK root and raw bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EmbeddedFile {
@@ -137,59 +165,119 @@ pub struct EmbeddedSdk {
     pub files: Vec<EmbeddedFile>,
 }
 
+/// Return the raw compile-time solid `.tar.br` payload (`ADR 0020`).
+#[must_use]
+pub const fn embedded_archive_bytes() -> &'static [u8] {
+    EMBEDDED_SDKS_TAR_BR
+}
+
+/// Validate and decode a solid `.tar.br` SDK archive, returning the total file count.
+///
+/// # Errors
+///
+/// Returns [`ArchiveDecodeError`] if Brotli decompression fails, the tar stream is
+/// malformed, or an archive entry lacks a valid `<lang>/<relative_path>` prefix.
+pub fn verify_archive_bytes(tar_br: &[u8]) -> Result<usize, ArchiveDecodeError> {
+    let decoded = decode_solid_tar_br(tar_br)?;
+    Ok(decoded.values().map(Vec::len).sum())
+}
+
+fn decode_solid_tar_br(
+    tar_br: &[u8],
+) -> Result<BTreeMap<SdkLanguage, Vec<DecodedAsset>>, ArchiveDecodeError> {
+    let mut tar_bytes = Vec::new();
+    let mut decoder = Decompressor::new(tar_br, BROTLI_DECODE_BUFFER_SIZE);
+    decoder
+        .read_to_end(&mut tar_bytes)
+        .map_err(|err| ArchiveDecodeError(format!("brotli stream error: {err}")))?;
+
+    let mut archive = tar::Archive::new(tar_bytes.as_slice());
+    let entries = archive
+        .entries()
+        .map_err(|err| ArchiveDecodeError(format!("tar header error: {err}")))?;
+
+    let mut by_lang: BTreeMap<SdkLanguage, Vec<DecodedAsset>> = BTreeMap::new();
+    for entry_res in entries {
+        let mut entry =
+            entry_res.map_err(|err| ArchiveDecodeError(format!("tar entry error: {err}")))?;
+        if !entry.header().entry_type().is_file() {
+            continue;
+        }
+        let raw_path = entry
+            .path()
+            .map_err(|err| ArchiveDecodeError(format!("invalid entry path: {err}")))?
+            .to_string_lossy()
+            .replace('\\', "/");
+        let (lang_key, rel_path) = raw_path.split_once('/').ok_or_else(|| {
+            ArchiveDecodeError(format!(
+                "archive entry `{raw_path}` missing `<lang>/` prefix"
+            ))
+        })?;
+        if rel_path.is_empty() {
+            return Err(ArchiveDecodeError(format!(
+                "archive entry `{raw_path}` has empty relative path"
+            )));
+        }
+        let lang =
+            SdkLanguage::from_str(lang_key).map_err(|err| ArchiveDecodeError(err.to_string()))?;
+
+        let mut buf = Vec::new();
+        entry
+            .read_to_end(&mut buf)
+            .map_err(|err| ArchiveDecodeError(format!("failed reading `{raw_path}`: {err}")))?;
+
+        by_lang.entry(lang).or_default().push(DecodedAsset {
+            path: rel_path.into(),
+            contents: buf.into_boxed_slice(),
+        });
+    }
+
+    for files in by_lang.values_mut() {
+        files.sort_by(|lhs, rhs| lhs.path.cmp(&rhs.path));
+    }
+    Ok(by_lang)
+}
+
+fn decoded_sdks() -> &'static BTreeMap<SdkLanguage, Vec<DecodedAsset>> {
+    DECODED_SDKS.get_or_init(|| match decode_solid_tar_br(EMBEDDED_SDKS_TAR_BR) {
+        Ok(map) => map,
+        Err(err) => panic!("{err}"),
+    })
+}
+
 /// Return the embedded SDK version for `language` (always equal to [`VERSION`]).
 #[must_use]
 pub const fn sdk_version(_language: SdkLanguage) -> &'static str {
     VERSION
 }
 
-fn strip_language_prefix(full_path: &'static str, lang_key: &str) -> &'static str {
-    let normalized = full_path.strip_prefix(lang_key).unwrap_or(full_path);
-    normalized
-        .strip_prefix('/')
-        .or_else(|| normalized.strip_prefix('\\'))
-        .unwrap_or(normalized)
-}
-
-fn collect_dir_files(dir: &'static Dir<'static>, lang_key: &str, out: &mut Vec<EmbeddedFile>) {
-    for entry in dir.entries() {
-        match entry {
-            DirEntry::Dir(sub) => collect_dir_files(sub, lang_key, out),
-            DirEntry::File(file) => {
-                if let Some(raw_path) = file.path().to_str() {
-                    out.push(EmbeddedFile {
-                        path: strip_language_prefix(raw_path, lang_key),
-                        contents: file.contents(),
-                    });
-                }
-            }
-        }
-    }
-}
-
 /// Return all embedded published files for `language`, sorted lexicographically by relative path.
 #[must_use]
 pub fn embedded_files(language: SdkLanguage) -> Vec<EmbeddedFile> {
-    let lang_key = language.as_str();
-    let Some(lang_dir) = EMBEDDED_SDKS.get_dir(lang_key) else {
+    let Some(entries) = decoded_sdks().get(&language) else {
         return Vec::new();
     };
-    let mut files = Vec::new();
-    collect_dir_files(lang_dir, lang_key, &mut files);
-    files.sort_by_key(|item| item.path);
-    files
+    entries
+        .iter()
+        .map(|item| EmbeddedFile {
+            path: &item.path,
+            contents: &item.contents,
+        })
+        .collect()
 }
 
 /// Look up a single embedded file for `language` by its relative forward-slash path.
 #[must_use]
 pub fn get_embedded_file(language: SdkLanguage, relative_path: &str) -> Option<EmbeddedFile> {
     let clean_rel = relative_path.trim_start_matches('/');
-    let full_lookup = format!("{}/{clean_rel}", language.as_str());
-    let file = EMBEDDED_SDKS.get_file(full_lookup)?;
-    let raw_path = file.path().to_str()?;
+    let entries = decoded_sdks().get(&language)?;
+    let idx = entries
+        .binary_search_by(|item| item.path.as_ref().cmp(clean_rel))
+        .ok()?;
+    let found = entries.get(idx)?;
     Some(EmbeddedFile {
-        path: strip_language_prefix(raw_path, language.as_str()),
-        contents: file.contents(),
+        path: &found.path,
+        contents: &found.contents,
     })
 }
 

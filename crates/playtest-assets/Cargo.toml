@@ -22,15 +22,17 @@ include = [
 ]
 
 [dependencies]
-include_dir = { workspace = true }
+brotli-decompressor = { workspace = true }
+tar = { workspace = true, default-features = false }
 
 [build-dependencies]
+brotli = { workspace = true }
 serde = { workspace = true }
+tar = { workspace = true, default-features = false }
 toml = { workspace = true }
 
 [dev-dependencies]
 brotli = { workspace = true }
-brotli-decompressor = { workspace = true }
 rstest = { workspace = true }
 tempfile = { workspace = true }
 toml = { workspace = true }

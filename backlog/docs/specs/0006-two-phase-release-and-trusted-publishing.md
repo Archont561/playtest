@@ -1,84 +1,63 @@
 # Specification 0006: Two-Phase Release and Trusted Publishing
 
 ## Overview
-Specifies the packaging standards, artifact storage schemas, OpenID Connect (OIDC) authentication flows, and registry publication rules implemented in `.github/workflows/release.yml`.
-
-This specification describes the workflow as it is implemented. The CLI-first distribution model of [ADR 0015](../adr/0015-cli-first-distribution-and-five-crate-workspace.md) and [ADR 0016](../adr/0016-cli-binary-distribution-channels.md) changes several jobs; those changes are not implemented yet and are listed under [Planned Changes](#planned-changes).
+Specifies the packaging standards, artifact storage schemas, OpenID Connect (OIDC) authentication flows, and registry publication rules implemented in `.github/workflows/release.yml` across the CLI-first five-crate workspace and multi-channel distribution architecture ([ADR 0006](../adr/0006-crates-io-trusted-publishing.md), [ADR 0008](../adr/0008-two-phase-artifact-release-pipeline.md), [ADR 0015](../adr/0015-cli-first-distribution-and-five-crate-workspace.md), [ADR 0016](../adr/0016-cli-binary-distribution-channels.md), [Spec 0012](./0012-workspace-crates-and-cli-distribution.md)).
 
 ## Two-Phase Pipeline Architecture
 
 ### Phase 1: Package Generation and Staging
 
-Matrix build jobs execute package creation tasks isolated from registry secrets:
+Phase 1 build jobs execute isolated from registry credentials and stage immutable workflow artifacts from the unified `vX.Y.Z` tag after `gate` verifies version parity across every manifest, `VERSION` constant, and embedded SDK:
 
-| Target | Build Command | Artifact Name | Output Path | Format |
+| Target | Job(s) | Artifact Name(s) | Output Path | Format |
 | :--- | :--- | :--- | :--- | :--- |
-| **Rust** | `pixi run package-rs` | `package-rust` | `target/package/*.crate` | `.crate` |
-| **Python** | `pixi run release-py` | `package-python` | `python/dist/*` | `.whl`, `.tar.gz` |
-| **TypeScript** | `pixi run release-ts` | `package-typescript` | `typescript/*.tgz` | `.tgz` |
-| **C++** | `pixi run release-cpp` | `package-cpp` | `cpp/dist/*` | `.tar.gz` |
-| **C** | `pixi run release-c` | `package-c` | `c/dist/*` | `.tar.gz` |
-| **C#** | `pixi run release-csharp` | `package-csharp` | `csharp/dist/*` | `.nupkg` |
-| **Go** | `pixi run release-go` | `package-go` | `go/dist/*` | `.tar.gz` |
-| **Java** | `pixi run release-java` | `package-java` | `java/dist/*` | `.jar` |
-| **R** | `pixi run release-r` | `package-r` | `r/dist/*` | `playtest_*.tar.gz` |
+| **CLI Binaries** | `build-cli` (5-platform matrix) + `stage-cli-release-assets` | `cli-bin-<target>`, `cli-release-archives` | `release-assets/cli/*` | `.tar.gz`, `.zip`, `.sha256`, `sha256.sum` |
+| **Rust Crates** | `build-rust` (`pixi run --frozen package-rs`) | `package-rust` | `target/package/*.crate` | `.crate` (all 5 crates) |
+| **Python** | `build-python` (5-platform `maturin` matrix + sdist) | `package-python-<target>` | `python/dist/*` | `.whl`, `.tar.gz` |
+| **TypeScript / npm** | `build-typescript` (`automation.npm_packages` + `cargo-npm`) | `package-typescript` | `npm-dist/*.tgz` | 5 platform `.tgz` + wrapper `.tgz` |
+| **conda** | `build-conda` (5-platform `pixi build --path conda` matrix) | `package-conda-<subdir>` | `conda-dist/*.conda` | `.conda` |
+| **C++** | `build-cpp` (`pixi run --frozen -e cpp sdk-release`) | `package-cpp` | `cpp/dist/*` | `.tar.gz` |
+| **C** | `build-c` (`pixi run --frozen -e c sdk-release`) | `package-c` | `c/dist/*` | `.tar.gz` |
+| **C#** | `build-csharp` (`pixi run --frozen -e csharp sdk-release`) | `package-csharp` | `csharp/dist/*` | `.nupkg` |
+| **Go** | `build-go` (`pixi run --frozen -e go sdk-release`) | `package-go` | `go/dist/*` | `.tar.gz` |
+| **Java** | `build-java` (`pixi run --frozen -e java sdk-release`) | `package-java` | `java/dist/*` | `.jar` |
+| **R** | `build-r` (`pixi run --frozen -e r sdk-release`) | `package-r` | `r/dist/*` | `playtest_*.tar.gz` |
 
-Each job uses `actions/upload-artifact@v4` with `if-no-files-found: error`.
+Each job uses `actions/upload-artifact` with `if-no-files-found: error`.
 
-### Phase 2: Registry Publishing from Artifacts
+### Phase 2: Registry Publishing and Release Publication
 
-Downstream publishing jobs download only their respective artifact via `actions/download-artifact@v4` and execute registry uploads:
+Downstream jobs upload validated Phase 1 artifacts using scoped OIDC Trusted Publishing environments or environment secrets:
 
 1. **crates.io (`publish-crates`)**:
+   - Trusted Publishing binding on crates.io for all five reserved crates (`playtest`, `playtest-macros`, `playtest-core`, `playtest-assets`, `playtest-cli`): repository `Archont561/playtest`, workflow `release.yml`, environment `crates`.
    - Environment: `crates`
-   - Permissions: `id-token: write`
-   - Uses `rust-lang/crates-io-auth-action@v1` for OIDC authentication.
-   - Runs `pixi run release-rs`.
+   - Permissions: `id-token: write`, `contents: read`
+   - Uses `rust-lang/crates-io-auth-action@v1` (`id: auth`) to exchange the GitHub OIDC JWT for a temporary token and passes `CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}` to `pixi run --frozen publish-rs`.
+   - Publishes in topological dependency order: `playtest-macros` $\rightarrow$ `playtest-core` $\rightarrow$ `playtest-assets` $\rightarrow$ `playtest` $\rightarrow$ `playtest-cli`.
 2. **PyPI (`publish-pypi`)**:
    - Environment: `pypi`
-   - Permissions: `id-token: write`
-   - Uses `pypa/gh-action-pypi-publish@release/v1` targeting `python/dist/`.
+   - Permissions: `id-token: write`, `contents: read`
+   - Downloads `package-python-*` into `python/dist/` and uploads the 5 platform wheels and sdist via `pypa/gh-action-pypi-publish@release/v1`.
 3. **npm (`publish-npm`)**:
    - Environment: `npm`
-   - Permissions: `id-token: write`
-   - Runs `npm publish *.tgz --provenance --access public` with `NODE_AUTH_TOKEN`.
-4. **Go (`publish-go`)**:
-   - Permissions: `contents: write`
-   - Runs `python3 -m automation.publish_go "$RELEASE_TAG"` from a checkout of the release tag.
-   - Ensures the tag `go/vX.Y.Z` exists, creating it at the release commit for a general `vX.Y.Z` release. Go resolves a module in a repository subdirectory only from tags named `<subdirectory>/vX.Y.Z`. An existing `go/vX.Y.Z` on a different commit is accepted when its `go/` directory is identical (an earlier Go-only release already published that version) and fails the job otherwise; the tag is never moved.
-   - Requests `https://proxy.golang.org/github.com/!archont561/playtest/go/@v/vX.Y.Z.info` to trigger indexing. Proxy URLs case-encode the module path (`A` becomes `!a`). A proxy that does not confirm the version produces a warning, not a failure.
+   - Permissions: `id-token: write`, `contents: read`
+   - Downloads `package-typescript` and runs `python3 -m automation.publish_registries npm` (`npm publish --provenance --access public`), publishing all five `@archont561/playtest-<os>-<cpu>` platform packages strictly before `@archont561/playtest`.
+4. **conda (`publish-conda`)**:
+   - Environment: `conda`
+   - Downloads `package-conda-*` and uploads `.conda` archives to `https://prefix.dev/archont561/archont561` via `python3 -m automation.publish_registries conda` when `PREFIX_DEV_TOKEN` is configured.
 5. **Conan (`publish-conan`)**:
    - Environment: `conan`
-   - Runs `conan create` and `conan upload` for `playtest-cpp` and `playtest-c` from a checkout of the release tag.
-   - Skipped with a warning unless `CONAN_REMOTE_URL`, `CONAN_USERNAME`, and `CONAN_PASSWORD` are configured.
+   - Runs `conan create` and `conan upload` for `playtest-cpp` and `playtest-c` when `CONAN_REMOTE_URL`, `CONAN_USERNAME`, and `CONAN_PASSWORD` are configured.
 6. **NuGet (`publish-nuget`)**:
    - Environment: `nuget`
-   - Pushes `csharp/dist/*.nupkg` from the `package-csharp` artifact with `dotnet nuget push --skip-duplicate`.
-   - Skipped with a warning unless `NUGET_API_KEY` is configured.
+   - Pushes `csharp/dist/*.nupkg` from `package-csharp` with `dotnet nuget push --skip-duplicate` when `NUGET_API_KEY` is configured.
 7. **Maven Central (`publish-maven-central`)**:
    - Environment: `maven`
-   - Stamps the release version and runs a signed `mvn deploy` from a checkout of the release tag.
-   - Skipped with a warning unless the four `MAVEN_CENTRAL_*` and `MAVEN_GPG_*` secrets are configured.
-8. **CRAN check (`prepare-cran`) and R-universe (`publish-runiverse`)**:
-   - `prepare-cran` runs `R CMD check --as-cran --no-manual` on the `package-r` artifact. Submission to CRAN is the separate, manually confirmed `.github/workflows/cran-publish.yml`.
-   - `publish-runiverse` runs after the GitHub Release when `RUNIVERSE_ENABLED` is `true` and waits until R-universe reports the released version.
-9. **GitHub Releases (`github-release`)**:
-   - Runs after every build and publish job above, including `publish-go`.
-   - Downloads all staged artifacts from Phase 1.
-   - Generates release notes from Conventional Commits using `convco changelog`.
-   - Attaches all package archives to the GitHub Release via `softprops/action-gh-release@v2`.
+   - Stamps the release version and runs a signed `mvn deploy` when the `MAVEN_CENTRAL_*` and `MAVEN_GPG_*` secrets are configured.
+8. **CRAN check (`prepare-cran`), GitHub Releases (`github-release`), Go (`publish-go`), and R-universe (`publish-runiverse`)**:
+   - `prepare-cran` runs `R CMD check --as-cran --no-manual` on `package-r`. Manual CRAN submission via `.github/workflows/cran-publish.yml` verifies `vX.Y.Z/sha256.sum` exists before submitting.
+   - `github-release` publishes the immutable GitHub Release `vX.Y.Z` with all CLI binary archives, per-archive `.sha256` files, combined `sha256.sum`, and SDK artifacts attached in one publication step via `softprops/action-gh-release@v2`.
+   - `publish-go` runs **after** `github-release`, verifies over HTTPS that `vX.Y.Z/sha256.sum` is live, pushes `go/vX.Y.Z` at the release commit via `python3 -m automation.publish_go`, and triggers `proxy.golang.org` indexing.
+   - `publish-runiverse` runs after `github-release` when `RUNIVERSE_ENABLED` is `true` and waits until R-universe reports the released version.
 
-## Planned Changes
-
-Not implemented. Each item is tracked by the task named, and [Specification 0012](./0012-workspace-crates-and-cli-distribution.md) is the target contract.
-
-| Area | Today | Target | Task |
-| :--- | :--- | :--- | :--- |
-| Rust crates | `package-rs` and `release-rs` handle `playtest-macros` and `playtest` | Five crates, published in dependency order | `task_050` |
-| CLI binaries | None are built | cargo-dist builds one archive per platform, with SHA-256 files, attached to an immutable GitHub Release | `task_054` |
-| PyPI | A pure-Python wheel and a source distribution built with setuptools | Platform wheels built by maturin that hold the binary and the Python SDK | `task_055` |
-| npm | `release-ts` runs `bun pm pack --dry-run`, which writes no tarball, while `build-typescript` requires `typescript/*.tgz`; `publish-npm` publishes tarballs in alphabetical order | Platform packages and a wrapper generated by cargo-npm, platform packages published first | `task_056` |
-| conda | Not published | A package built with `pixi-build-rust` | `task_057` |
-| Go | `publish-go` pushes `go/vX.Y.Z` before `github-release` runs | The Go tag is pushed after the release assets exist, because the Go wrapper downloads them | `task_058`, `task_059` |
-| Versions | Scoped tags release one target at its own version | One version per release across the CLI and all SDKs | `task_059` |
-| Platforms | Every job runs on `ubuntu-latest`; the Pixi workspace declares `linux-64` | A build matrix that covers every supported platform | `task_054` |

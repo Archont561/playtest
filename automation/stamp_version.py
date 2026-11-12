@@ -74,11 +74,20 @@ def _replace_once(path: Path, pattern: str, replacement: str) -> None:
 
 
 def _stamp_rust(root: Path, version: str) -> None:
+    cargo_path = root / "Cargo.toml"
     _replace_once(
-        root / "Cargo.toml",
+        cargo_path,
         r'(\[workspace\.package\][^\[]*?^version\s*=\s*)"[^"]+"',
         rf'\g<1>"{version}"',
     )
+    cargo_text = cargo_path.read_text(encoding="utf-8")
+    updated_deps = re.sub(
+        r'^(playtest(?:-[a-z]+)?\s*=\s*\{\s*path\s*=\s*"crates/playtest[^"]*",\s*version\s*=\s*)"[^"]+"',
+        rf'\g<1>"{version}"',
+        cargo_text,
+        flags=re.MULTILINE,
+    )
+    cargo_path.write_text(updated_deps, encoding="utf-8")
     conda_pixi = root / "conda/pixi.toml"
     if conda_pixi.is_file():
         _replace_once(

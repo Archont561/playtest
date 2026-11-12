@@ -72,7 +72,8 @@ Every other channel and both download wrappers depend on the GitHub Release.
 ### 4.1 crates.io
 
 - `cargo install playtest-cli` builds from source and installs a binary named `playtest`. It needs Rust 1.88 or newer.
-- All five crates are published through Trusted Publishing ([ADR 0006](../adr/0006-crates-io-trusted-publishing.md)). `playtest-core`, `playtest-assets`, and `playtest-cli` are first reserved at `0.0.0`, as `playtest` and `playtest-macros` were.
+- All five workspace crates (`playtest`, `playtest-macros`, `playtest-core`, `playtest-assets`, and `playtest-cli`) have `0.0.0` placeholder reservations on crates.io and are configured for OIDC Trusted Publishing ([ADR 0006](../adr/0006-crates-io-trusted-publishing.md)) targeting repository `Archont561/playtest`, workflow `release.yml`, and GitHub Actions environment `crates`.
+- `publish-crates` exchanges the GitHub OIDC token via `rust-lang/crates-io-auth-action@v1` and publishes the five crates in topological dependency order (`playtest-macros` $\rightarrow$ `playtest-core` $\rightarrow$ `playtest-assets` $\rightarrow$ `playtest` $\rightarrow$ `playtest-cli`) with `CARGO_REGISTRY_TOKEN`.
 
 ### 4.2 PyPI
 
@@ -162,8 +163,7 @@ Checked on 2026-11-11 against each registry's public index or API. "Owned by thi
 
 | Registry | Name | State |
 | :--- | :--- | :--- |
-| crates.io | `playtest`, `playtest-macros` | Owned by this project |
-| crates.io | `playtest-core`, `playtest-assets`, `playtest-cli` | Free; to reserve |
+| crates.io | `playtest`, `playtest-macros`, `playtest-core`, `playtest-assets`, `playtest-cli` | Owned by this project (`0.0.0` placeholders reserved; Trusted Publishing configured for `Archont561/playtest`, workflow `release.yml`, environment `crates`) |
 | PyPI | `playtest-py` | Owned by this project |
 | PyPI | `playtest` | Taken by an unrelated project |
 | npm | `@archont561/playtest` | Owned by this project; platform packages use the same scope |
@@ -173,7 +173,7 @@ Checked on 2026-11-11 against each registry's public index or API. "Owned by thi
 | Maven Central | `io.github.archont561:playtest` | Owned by this project (`0.0.0` published) |
 | CRAN | `playtest` | Free; not submitted |
 | Go | `github.com/Archont561/playtest/go` | Module path; no reservation needed |
-| conda-forge | `playtest` | No feedstock found; the receiving channel is not chosen (§4.4) |
+| prefix.dev / conda | `playtest` | Published to `https://prefix.dev/archont561/archont561` (§4.4); no conda-forge feedstock |
 | ConanCenter, vcpkg | `playtest-cpp`, `playtest-c` | No recipe found; this project publishes to a configured Conan remote |
 
 ## 8. Release Pipeline Requirements

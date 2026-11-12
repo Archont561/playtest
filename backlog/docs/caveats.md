@@ -59,4 +59,4 @@ The `playtest` binary is the version authority, and SDKs reach a repository thro
 - **Nothing downloads at install time.** The Go and R wrappers download the binary on first use and need network access once. No package runs a lifecycle script.
 - **No SDK ships a test runner.** The CLI starts each native runner; the SDK only reports from inside it. Running the native runner directly stays supported and unchanged.
 - **No native binary channel for Java, C#, C, or C++ in `v0.1.0`.** Those repositories take the binary from GitHub Releases, conda, or another channel.
-- **Not implemented yet.** All of this is a target contract tracked by `task_050` to `task_064`.
+- **Staged delivery.** Milestone M1 (`task_050` to `task_059`) delivers the five-crate workspace, `version`/`init`/`sync`, deterministic mirrors, and multi-channel binary packaging; runner orchestration (`list`, `doctor`, `test`, `mutation`) and SDK JSONL reporters remain scheduled for Milestone M5 (`task_060` to `task_064`).

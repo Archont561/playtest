@@ -190,8 +190,9 @@ fn test_manifest_and_embedded_files_match_sources_byte_for_byte() {
 fn test_brotli_solid_round_trip_is_deterministic_across_embedded_sdks() {
     let mut raw_stream = Vec::new();
     for sdk in all_embedded_sdks() {
+        let lang_bytes = sdk.language.as_str().as_bytes();
         for file in sdk.files {
-            raw_stream.extend_from_slice(sdk.language.as_str().as_bytes());
+            raw_stream.extend_from_slice(lang_bytes);
             raw_stream.push(b'/');
             raw_stream.extend_from_slice(file.path.as_bytes());
             raw_stream.push(0);
@@ -202,12 +203,9 @@ fn test_brotli_solid_round_trip_is_deterministic_across_embedded_sdks() {
     assert!(!raw_stream.is_empty());
 
     let compress_once = |payload: &[u8]| -> Vec<u8> {
-        let mut out = Vec::new();
-        let mut writer = brotli::CompressorWriter::new(&mut out, 4096, 11, 22);
-        writer.write_all(payload).expect("compress payload");
-        writer.flush().expect("flush brotli stream");
-        drop(writer);
-        out
+        let mut writer = brotli::CompressorWriter::new(Vec::new(), 4096, 11, 22);
+        writer.write_all(payload).expect("compress");
+        writer.into_inner()
     };
 
     let compressed_a = compress_once(&raw_stream);
@@ -217,7 +215,6 @@ fn test_brotli_solid_round_trip_is_deterministic_across_embedded_sdks() {
 
     let mut decompressed = Vec::new();
     let mut reader = brotli_decompressor::Decompressor::new(compressed_a.as_slice(), 4096);
-    reader.read_to_end(&mut decompressed).expect("decode solid");
+    reader.read_to_end(&mut decompressed).expect("decode");
     assert_eq!(decompressed, raw_stream);
 }
-

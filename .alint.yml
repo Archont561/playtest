@@ -78,3 +78,49 @@ rules:
       - r/pixi.toml
     level: error
     message: All Pixi environments belong in the single root pixi.toml workspace.
+
+  - id: require-ts-bunup-config
+    kind: file_exists
+    paths: typescript/bunup.config.ts
+    level: error
+    message: TypeScript SDK must define typescript/bunup.config.ts for bunup builds.
+
+  - id: require-ts-tsconfig
+    kind: file_exists
+    paths: typescript/tsconfig.json
+    level: error
+    message: TypeScript SDK must define typescript/tsconfig.json for @/ SDK root alias resolution.
+
+  - id: require-ts-bunup-build-script
+    kind: json_path_equals
+    paths: typescript/package.json
+    path: $.scripts.build
+    equals: bunup
+    level: error
+    message: TypeScript SDK build script in typescript/package.json must invoke bunup.
+
+  - id: require-ts-sdk-root-alias
+    kind: json_path_equals
+    paths: typescript/tsconfig.json
+    path: "$.compilerOptions.paths['@/*']"
+    equals:
+      - "./*"
+    level: error
+    message: TypeScript SDK tsconfig.json must alias @/* to ./* (SDK root) for dev and bunup builds.
+
+  - id: require-ts-bunup-tsconfig-alias
+    kind: file_content_matches
+    paths: typescript/bunup.config.ts
+    pattern: 'preferredTsconfig:\s*"\./tsconfig\.json"'
+    level: error
+    message: typescript/bunup.config.ts must reference preferredTsconfig "./tsconfig.json" so bunup resolves @/ aliases at build time.
+
+  - id: forbid-ts-relative-imports
+    kind: import_gate
+    language: js
+    paths:
+      - "typescript/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"
+      - "!typescript/node_modules/**"
+    forbid: '^\.\.?(?:/|$)'
+    level: error
+    message: Relative and nested parent imports (./ or ../) are forbidden in the TypeScript SDK; use the @/ SDK root alias instead.

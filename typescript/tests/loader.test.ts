@@ -9,11 +9,11 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const THIS_DIR = dirname(fileURLToPath(import.meta.url));
-const LOADER_SRC = resolve(THIS_DIR, "../loader/playtest.cjs");
+const SDK_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
+const LOADER_SRC = join(SDK_ROOT, "loader", "playtest.cjs");
 const NODE_BIN = "node";
 
 interface SandboxLayout {

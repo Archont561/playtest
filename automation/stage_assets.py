@@ -72,12 +72,13 @@ def is_forbidden_asset_path(rel_str: str) -> bool:
 
 
 def build_typescript_dist(root: Path = REPO_ROOT) -> int:
-    """Compile `typescript/dist/index.js` via `bun build` prior to staging/building."""
+    """Compile `typescript/dist/` (`index.js` + `index.d.ts`) via `bunup`."""
     ts_dir = root / "typescript"
-    res = run_cmd(
-        ["bun", "build", "src/index.ts", "--outdir", "dist", "--target", "node"],
-        cwd=ts_dir,
-    )
+    if not (ts_dir / "node_modules" / "bunup").exists():
+        install = run_cmd(["bun", "install", "--frozen-lockfile"], cwd=ts_dir)
+        if install.returncode != 0:
+            return install.returncode
+    res = run_cmd(["bun", "run", "build"], cwd=ts_dir)
     return res.returncode
 
 

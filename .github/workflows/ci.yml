@@ -166,9 +166,12 @@ jobs:
           toolchain: stable
       - name: Cache Rust build artifacts
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      - name: Build TypeScript SDK dist output
+      - name: Install TypeScript SDK build dependencies
         shell: bash
-        run: bun build typescript/src/index.ts --outdir typescript/dist --target node
+        run: bun install --cwd typescript --frozen-lockfile
+      - name: Build TypeScript SDK dist output with bunup
+        shell: bash
+        run: bun run --cwd typescript build
       - name: Build Playtest CLI
         shell: bash
         run: cargo build -p playtest-cli --locked

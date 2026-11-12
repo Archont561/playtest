@@ -180,6 +180,7 @@ def _copy_stamp_fixture(dest: Path) -> None:
         "python/src/playtest/__init__.py",
         "typescript/package.json",
         "typescript/src/index.ts",
+        "typescript/src/version.ts",
         "cpp/CMakeLists.txt",
         "cpp/conanfile.py",
         "cpp/include/playtest/playtest.hpp",

@@ -7,14 +7,12 @@
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
-use std::io::{self, Cursor, Write};
+use std::io;
 
 use playtest_assets::{SdkLanguage, embedded_files, get_embedded_file};
 use serde_json::{Map, Value as JsonValue};
 use sha2::{Digest, Sha256};
 use tar::{Builder as TarBuilder, EntryType, Header as TarHeader};
-use zip::write::SimpleFileOptions;
-use zip::{CompressionMethod, DateTime as ZipDateTime, ZipWriter};
 
 /// Fixed POSIX `ustar` modification timestamp (`1985-10-26T08:15:00Z`, npm's reproducibility epoch).
 const DETERMINISTIC_TAR_MTIME: u64 = 499_162_500;
@@ -126,6 +124,87 @@ fn deterministic_gzip(payload: &[u8]) -> Vec<u8> {
     let isize_mod = (payload.len() as u64 & 0xffff_ffff) as u32;
     out.extend_from_slice(&crc.to_le_bytes());
     out.extend_from_slice(&isize_mod.to_le_bytes());
+    out
+}
+
+fn push_u16_le(buf: &mut Vec<u8>, val: u16) {
+    buf.extend_from_slice(&val.to_le_bytes());
+}
+
+fn push_u32_le(buf: &mut Vec<u8>, val: u32) {
+    buf.extend_from_slice(&val.to_le_bytes());
+}
+
+/// Write a deterministic PKWARE `ZIP_STORED` archive with fixed Unix (`system = 3`) headers.
+///
+/// The `zip` crate stamps `version_made_by` differently on `cfg(windows)` vs `cfg(unix)`;
+/// emitting explicit little-endian PKWARE 2.0 headers guarantees identical `.whl` bytes across
+/// Linux, macOS, and Windows.
+#[must_use]
+fn deterministic_stored_zip(entries: &BTreeMap<String, Vec<u8>>) -> Vec<u8> {
+    const DOS_DATE_1980_01_01: u16 = 0x0021;
+    const UTF8_NAME_FLAG: u16 = 0x0800;
+    const VERSION_NEEDED_2_0: u16 = 20;
+    const VERSION_MADE_BY_UNIX_2_0: u16 = 0x0314;
+    const UNIX_REG_0644_ATTR: u32 = 0o100_644 << 16;
+
+    let mut out = Vec::new();
+    let mut central_dir = Vec::new();
+
+    for (entry_path, data) in entries {
+        let name_bytes = entry_path.as_bytes();
+        let name_len = name_bytes.len() as u16;
+        let data_len = data.len() as u32;
+        let crc = crc32_ieee(data);
+        let local_offset = out.len() as u32;
+
+        push_u32_le(&mut out, 0x0403_4b50);
+        push_u16_le(&mut out, VERSION_NEEDED_2_0);
+        push_u16_le(&mut out, UTF8_NAME_FLAG);
+        push_u16_le(&mut out, 0);
+        push_u16_le(&mut out, 0);
+        push_u16_le(&mut out, DOS_DATE_1980_01_01);
+        push_u32_le(&mut out, crc);
+        push_u32_le(&mut out, data_len);
+        push_u32_le(&mut out, data_len);
+        push_u16_le(&mut out, name_len);
+        push_u16_le(&mut out, 0);
+        out.extend_from_slice(name_bytes);
+        out.extend_from_slice(data);
+
+        push_u32_le(&mut central_dir, 0x0201_4b50);
+        push_u16_le(&mut central_dir, VERSION_MADE_BY_UNIX_2_0);
+        push_u16_le(&mut central_dir, VERSION_NEEDED_2_0);
+        push_u16_le(&mut central_dir, UTF8_NAME_FLAG);
+        push_u16_le(&mut central_dir, 0);
+        push_u16_le(&mut central_dir, 0);
+        push_u16_le(&mut central_dir, DOS_DATE_1980_01_01);
+        push_u32_le(&mut central_dir, crc);
+        push_u32_le(&mut central_dir, data_len);
+        push_u32_le(&mut central_dir, data_len);
+        push_u16_le(&mut central_dir, name_len);
+        push_u16_le(&mut central_dir, 0);
+        push_u16_le(&mut central_dir, 0);
+        push_u16_le(&mut central_dir, 0);
+        push_u16_le(&mut central_dir, 0);
+        push_u32_le(&mut central_dir, UNIX_REG_0644_ATTR);
+        push_u32_le(&mut central_dir, local_offset);
+        central_dir.extend_from_slice(name_bytes);
+    }
+
+    let cd_offset = out.len() as u32;
+    let cd_size = central_dir.len() as u32;
+    let count = entries.len() as u16;
+    out.extend_from_slice(&central_dir);
+
+    push_u32_le(&mut out, 0x0605_4b50);
+    push_u16_le(&mut out, 0);
+    push_u16_le(&mut out, 0);
+    push_u16_le(&mut out, count);
+    push_u16_le(&mut out, count);
+    push_u32_le(&mut out, cd_size);
+    push_u32_le(&mut out, cd_offset);
+    push_u16_le(&mut out, 0);
     out
 }
 
@@ -281,19 +360,7 @@ fn render_python_wheel(version: &str) -> io::Result<RenderedMirror> {
     let _ = writeln!(record_text, "{record_path},,");
     entries.insert(record_path, record_text.into_bytes());
 
-    let cursor = Cursor::new(Vec::new());
-    let mut writer = ZipWriter::new(cursor);
-    let options = SimpleFileOptions::default()
-        .compression_method(CompressionMethod::Stored)
-        .unix_permissions(0o644)
-        .last_modified_time(ZipDateTime::default());
-
-    for (entry_path, data) in &entries {
-        writer.start_file(entry_path.as_str(), options)?;
-        writer.write_all(data)?;
-    }
-
-    let bytes = writer.finish()?.into_inner();
+    let bytes = deterministic_stored_zip(&entries);
     let sha256 = sha256_hex(&bytes);
     let filename = format!("playtest_py-{wheel_ver}-py3-none-any.whl");
 

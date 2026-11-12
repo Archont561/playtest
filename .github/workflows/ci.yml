@@ -124,14 +124,7 @@ jobs:
       - name: Stage embedded SDK assets for MSRV verification
         run: python3 -m automation.stage_assets --build-generated
       - name: Verify cargo install --locked on Rust 1.88
-        shell: bash
-        run: |
-          if ! cargo install --path crates/playtest-cli --locked --root "$RUNNER_TEMP/cargo-root" 2> "$RUNNER_TEMP/cargo-msrv.err"; then
-            cat "$RUNNER_TEMP/cargo-msrv.err" >&2
-            msg="$(tr '\n' ' ' < "$RUNNER_TEMP/cargo-msrv.err")"
-            echo "::error title=cargo-install-rust-1.88::${msg}"
-            exit 101
-          fi
+        run: python3 -c 'import os,subprocess,sys; r=subprocess.run(["cargo","install","--path","crates/playtest-cli","--locked","--root",os.environ["RUNNER_TEMP"]+"/cargo-root"],capture_output=True,text=True); sys.stderr.write(r.stderr); r.returncode and print("::error title=msrv::"+r.stderr.replace("\n"," | ")); sys.exit(r.returncode)'
       - name: Verify installed playtest binary version
         run: '"$RUNNER_TEMP/cargo-root/bin/playtest" version'
       - name: Clean staged SDK assets

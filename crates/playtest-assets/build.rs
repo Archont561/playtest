@@ -95,6 +95,26 @@ fn resolve_language_root(
     Ok(workspace_root.join(&spec.source_dir))
 }
 
+fn normalize_asset_bytes(lang: &str, rel_str: &str, raw: Vec<u8>) -> Vec<u8> {
+    let Ok(text) = std::str::from_utf8(&raw) else {
+        return raw;
+    };
+    let lf = text.replace("\r\n", "\n");
+    if lang != "typescript" || !rel_str.starts_with("dist/") {
+        return lf.into_bytes();
+    }
+    let mut out = String::with_capacity(lf.len());
+    for chunk in lf.split_inclusive('\n') {
+        if let Some(rest) = chunk.strip_prefix("// ") {
+            out.push_str("// ");
+            out.push_str(&rest.replace('\\', "/"));
+        } else {
+            out.push_str(chunk);
+        }
+    }
+    out.into_bytes()
+}
+
 fn copy_language_files(
     lang: &str,
     spec: &LanguageSpec,
@@ -132,7 +152,9 @@ fn copy_language_files(
         if let Some(parent) = dst_file.parent() {
             fs::create_dir_all(parent)?;
         }
-        fs::copy(&src_file, &dst_file)?;
+        let raw_bytes = fs::read(&src_file)?;
+        let normalized = normalize_asset_bytes(lang, rel_str, raw_bytes);
+        fs::write(&dst_file, normalized)?;
     }
     Ok(())
 }

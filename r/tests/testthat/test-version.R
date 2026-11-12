@@ -3,7 +3,7 @@ description_path <- description_candidates[file.exists(description_candidates)][
 if (is.na(description_path)) {
   stop("Could not locate the package DESCRIPTION file")
 }
-expected_version <- read.dcf(description_path)[1, "Version"]
+expected_version <- unname(read.dcf(description_path)[1, "Version"])
 if (!identical(VERSION, expected_version)) {
   stop(paste("Expected", expected_version, "got", VERSION))
 }

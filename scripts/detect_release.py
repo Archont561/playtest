@@ -6,7 +6,7 @@ Inspects git history and conventional commits to:
 1. Detect which packages/directories have changed since the last release tag.
 2. Determine target scope: 'all' (general release) vs. single scoped package.
 3. Calculate next SemVer version via convco.
-4. Formulate the proper release tag (e.g. 'v0.2.0' or 'python-v0.2.0').
+4. Formulate the proper release tag (e.g. 'v0.2.0', 'python-v0.2.0' or 'go/v0.2.0').
 """
 
 import argparse
@@ -177,7 +177,9 @@ def get_scope_mapping(scope: str) -> tuple[str, str]:
         "cpp": ("cpp-v", "cpp"),
         "c": ("c-v", "c"),
         "csharp": ("csharp-v", "csharp"),
-        "go": ("go-v", "go"),
+        # Go resolves a module in a repository subdirectory only from tags named
+        # "<subdirectory>/vX.Y.Z", so the Go scope cannot use the "<scope>-v" form.
+        "go": ("go/v", "go"),
         "java": ("java-v", "java"),
         "r": ("r-v", "r"),
         "none": ("", ""),

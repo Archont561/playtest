@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to publish (e.g. v0.1.0 or python-v0.1.0)"
+        description: "Release tag to publish (e.g. v0.1.0, python-v0.1.0 or go/v0.1.0)"
         required: false
         type: string
 
@@ -103,6 +103,7 @@ jobs:
             echo "Supported formats:"
             echo "  - General: 'vX.Y.Z' (e.g. v0.1.0)"
             echo "  - Scoped:  '<scope>-vX.Y.Z' (e.g. python-v0.1.0, ts-v0.1.0, rust-v0.1.0, c-v0.1.0, csharp-v0.1.0)"
+            echo "  - Go:      'go/vX.Y.Z' (e.g. go/v0.1.0)"
             exit 1
           fi
 
@@ -467,19 +468,23 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-go:
-    name: Register Go Module (pkg.go.dev)
+    name: Tag & Register Go Module (pkg.go.dev)
     needs: [plan, build-go]
     if: needs.plan.outputs.go == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     steps:
-      - name: Trigger Go Proxy Indexing
-        run: |
-          TAG="${{ needs.plan.outputs.tag_name }}"
-          MODULE="github.com/Archont561/playtest/go"
-          echo "Pinging proxy.golang.org for ${MODULE}@${TAG}..."
-          curl -s -i "https://proxy.golang.org/${MODULE}/@v/${TAG}.info" || true
+      - name: Checkout release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.tag_name }}
+      # Go resolves the module in go/ only from a go/vX.Y.Z tag, so a general vX.Y.Z
+      # release gets that tag here before the proxy is asked to index the version.
+      - name: Push Go Module Tag & Trigger Go Proxy Indexing
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
+        run: python3 scripts/publish_go_module.py "$RELEASE_TAG"
 
   publish-conan:
     name: Publish C and C++ to configured Conan remote

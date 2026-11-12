@@ -56,6 +56,8 @@ Commands:
   init             Create playtest.toml and .playtest/ in a workspace
   sync             Write SDK mirrors into .playtest/; --check reports drift without writing
   test             Execute tests across detected subprojects
+  coverage         Run coverage instrumentation and merge LCOV across detected subprojects
+  mutation         Run native mutation engines and aggregate normalized scores
   list             List detected projects, runtimes, and test targets
   doctor           Check toolchain compatibility and environment health
 
@@ -68,13 +70,15 @@ Options:
   --skip-unavailable  Report explicitly selected but unavailable targets as skipped (see §6)
 ```
 
-`version`, `init`, and `sync` ship in M1 (`v0.1.0`) and are specified in [Spec 0013](./0013-workspace-configuration-and-sdk-mirrors.md). `test`, `list`, and `doctor` ship in M5 (`v0.5.0`), and the options above apply to them. `playtest mutation` is specified in [Spec 0011](./0011-delegated-mutation-testing.md).
+`version`, `init`, and `sync` ship in M1 (`v0.1.0`) and are specified in [Spec 0013](./0013-workspace-configuration-and-sdk-mirrors.md). `test`, `coverage`, `list`, and `doctor` ship in M5 (`v0.5.0`), and the options above apply to them. `playtest coverage` is specified in [Spec 0015](./0015-coverage-collection-and-reporting.md), and `playtest mutation` in [Spec 0011](./0011-delegated-mutation-testing.md); the two delegate to native tools rather than running tests of their own.
 
 Unsupported filter semantics must be reported rather than silently ignored. Reports identify each target's command, exit status, test counts when available, and diagnostics.
 
 ## 4. Decentralized LCOV Coverage Contract
 
 Each target's native runner or a target-specific converter emits an LCOV file at its documented location. The shared CLI/automation layer collects these files, normalizes `SF:` paths relative to the repository root, and merges them into the unified `coverage/lcov.info` report. The orchestrator should not parse every language's proprietary coverage format itself.
+
+Two surfaces perform this merge: the report phase of `playtest test` ([Spec 0014 §5](./0014-report-protocol-and-runner-orchestration.md)) and the standalone `playtest coverage` command ([Spec 0015](./0015-coverage-collection-and-reporting.md)). They share one normalization rule and one tracefile layout, so a merged report is identical whichever surface produced it. Before either ships, the same merge exists as build automation in `automation/merge_lcov.py`.
 
 ## 5. Conformance Boundary
 

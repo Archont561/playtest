@@ -129,7 +129,7 @@ consumer's repo. That is a battery. Lead with that.
 Today on `main`: `playtest version`, `init`, `sync`; committed SDK mirrors for nine
 languages; multi-channel binary packaging; the full two-phase release pipeline. Not yet:
 the fixture engine (M2), BDD and property testing (M3), isolation helpers (M4), and
-`test`/`list`/`doctor`/`coverage`/`mutation` orchestration (M5).
+`test`/`coverage`/`list`/`doctor`/`mutation` orchestration (M5).
 
 Your current README already hedges this well in the Language Targets section. Keep that
 discipline and move a one-line version of it to the top, because a visitor's first action
@@ -236,7 +236,7 @@ feature list with no spine. Suggested:
 ```markdown
 **Status:** `version`, `init`, and `sync` ship today, with committed SDK mirrors and
 multi-channel binary packaging. The fixture engine, BDD, property testing, and
-`playtest test` / `doctor` / `coverage` / `mutation` orchestration are scheduled through
+`playtest test` / `coverage` / `doctor` / `mutation` orchestration are scheduled through
 [Milestone M5](backlog/docs/milestones/M5-v0.5.0-polyglot-conformance.md).
 ```
 
@@ -311,6 +311,36 @@ The "Playwright-style" anchor still does real work — instant comprehension for
 feature — so it stays in the specs and ADRs, where it can be qualified, and leaves the
 package descriptions, where it undersold nine ecosystems as "one library, but Rust".
 
+## 6a. A command with no specification
+
+Setting the About box also means promising `code-coverage` as a topic, and that prompted an
+audit of every `playtest <command>` mention across the design documents. It found that the
+README, this record, and the milestone summary all named a `coverage` orchestration command
+arriving in M5, while no specification, task, or milestone deliverable defined one.
+[Spec 0008 §4](../../backlog/docs/specs/0008-cross-language-cli-and-toolchain-detection.md)
+described only an LCOV merge performed by a "shared CLI/automation layer", and the only
+implementation of that merge is `automation/merge_lcov.py`, a build task.
+
+A command promised in a README that no contract defines is the same class of defect as a
+description that drifts between files: the copy outran the design. Two repairs were
+possible — withdraw the claim, or make the design true. The second was chosen, because the
+claim is defensible and the merge already exists in a form worth standardizing:
+
+- [Spec 0015](../../backlog/docs/specs/0015-coverage-collection-and-reporting.md) defines
+  `playtest coverage`: native instrumentation per target, LCOV normalization and merge,
+  `--min-lines` / `--min-branches` thresholds, and its relationship to `playtest test`,
+  which already merges LCOV in its report phase.
+- [Spec 0008 §3](../../backlog/docs/specs/0008-cross-language-cli-and-toolchain-detection.md)
+  lists the command in the grammar and points to Spec 0015; §4 names both surfaces that
+  perform the merge.
+- `task_068` tracks the implementation in M5, with the acceptance criteria the command
+  needs, and the M5 milestone carries the matching deliverable.
+
+The lesson is narrower than "write more specs". The README was written from the milestone
+prose, and the milestone prose was the thing that never named `coverage`. A claim entering
+user-facing copy should be traceable to a specification line, and this document is where
+that traceability was missing.
+
 ## 7. Summary of applied changes
 
 | Item | Change |
@@ -323,5 +353,6 @@ package descriptions, where it undersold nine ecosystems as "one library, but Ru
 | **Topics** | +`test-automation` +`code-coverage`, −`vcr` → 20 of 20 |
 | **README** | Applied: new blockquote, status line, "Why one contract" table, "three consumers" table, scope section, shipped/planned column, real usage commands |
 | **Beyond the README** | Applied: 13 package descriptions unified on the canonical lead, guarded by `repo_check._check_canonical_description` |
+| **Coverage claim** | Repaired: the `coverage` command the README promised is now defined by Spec 0015 and tracked by `task_068` in M5, instead of being an untraceable claim (§6a) |
 
 ---

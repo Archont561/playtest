@@ -94,6 +94,8 @@ directories are the source of truth for using and working on this repository:
 - [Workspace crates and CLI distribution](backlog/docs/specs/0012-workspace-crates-and-cli-distribution.md): the five-crate Rust workspace, embedded SDKs, and binary channels
 - [Workspace configuration and SDK mirrors](backlog/docs/specs/0013-workspace-configuration-and-sdk-mirrors.md): `playtest.toml` version pinning and committed `.playtest/` mirrors
 - [Report protocol and runner orchestration](backlog/docs/specs/0014-report-protocol-and-runner-orchestration.md): native runner execution and structured JSONL test reporting
+- [Coverage collection and reporting](backlog/docs/specs/0015-coverage-collection-and-reporting.md): native LCOV instrumentation for nine targets, merged into one normalized report
+- [Delegated mutation testing](backlog/docs/specs/0011-delegated-mutation-testing.md): native mutation engines, normalized scores, and threshold gating
 - [Polyglot parity contract](backlog/docs/specs/0005-polyglot-1-to-1-fixture-and-bdd-parity.md): shared fixture, LIFO teardown, BDD, and property-testing semantics
 - [Architecture Decision Records](backlog/docs/adr/README.md): design decisions from ADR 0001 through ADR 0020
 - [Milestone roadmap](backlog/docs/milestones/README.md): current scaffold status and planned delivery from `v0.1.0` to `v1.1.0`

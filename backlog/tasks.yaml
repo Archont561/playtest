@@ -822,6 +822,26 @@ tasks:
       - "Mutation results never appear as conformance or parity evidence (Spec 0011 §5)"
     dependencies: [task_026]
 
+  - id: task_068
+    title: Delegated coverage collection and LCOV reporting
+    description: "Implement Spec 0015: playtest coverage runs each selected target's documented native coverage tool, normalizes and merges the LCOV tracefiles into one report, and enforces optional thresholds, without parsing any proprietary coverage format."
+    status: backlog
+    priority: P1
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, cli, coverage, quality]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "playtest coverage runs the documented instrumentation mapping for selected targets and reads each target's declared LCOV tracefile location; a missing coverage tool for an explicitly selected target exits 3 with remediation, and a selection matching no target exits 2"
+      - "SF: records are normalized to repository-relative forward-slash paths on every host, including Windows drive letters and UNC prefixes; a file that cannot be resolved still appears in the report"
+      - "The merged LCOV is written to coverage/lcov.info by default and is byte-identical to what automation/merge_lcov.py produces for the same inputs, verified by a shared-cases test"
+      - "--format json emits one schema_version document with per-target counters, merged totals, excluded targets, and threshold outcomes per Spec 0008 §7; --format junit is rejected with exit 2"
+      - "--min-lines and --min-branches fail with exit 1 naming the metric and the observed rate; a test failure without --ignore-test-failures also exits 1; a threshold outside 0-100 exits 2"
+      - "A target that produced no tracefile is reported with an explicit no_coverage status instead of being omitted from the merged totals"
+      - "doctor reports configured coverage tools as optional tools, and coverage results never appear as conformance or parity evidence (Spec 0015 §9)"
+      - "R becomes the ninth merged source: coverage-r emits r/coverage/lcov.info and automation/merge_lcov.py lists it, so coverage-all no longer reports an eight-language result as polyglot (Spec 0015 §4)"
+    dependencies: [task_026]
+
   # ============================================================================
   # Milestone M1 Addendum: CLI-First Distribution (v0.1.0)
   # ADR 0015-0017, Specs 0012-0013. Reopens M1; v0.1.0 was never tagged.

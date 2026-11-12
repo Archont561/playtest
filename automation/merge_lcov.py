@@ -37,6 +37,33 @@ def _rewrite_sf_record(raw_text: str, prefix: str, root: Path) -> list[str]:
     return lines
 
 
+def _append_candidate(
+    candidate: Path,
+    prefix: str,
+    root: Path,
+    resolved_out: Path,
+    merged_lines: list[str],
+) -> int:
+    if not candidate.is_file() or candidate.resolve() == resolved_out.resolve():
+        return 0
+    content = candidate.read_text(encoding="utf-8").strip()
+    if not content:
+        return 0
+    merged_lines.extend(_rewrite_sf_record(content, prefix, root))
+    return 1
+
+
+def _expand_extra_paths(root: Path, extra_inputs: Sequence[Path]) -> list[Path]:
+    expanded: list[Path] = []
+    for extra in extra_inputs:
+        base_extra = extra if extra.is_absolute() else (root / extra)
+        if base_extra.is_dir():
+            expanded.extend(sorted(base_extra.rglob("*.info")))
+        else:
+            expanded.append(base_extra)
+    return expanded
+
+
 def merge_lcov_files(
     root: Path = REPO_ROOT,
     output: Path | None = None,
@@ -50,24 +77,10 @@ def merge_lcov_files(
     merged_count = 0
 
     for prefix, rel_path in DEFAULT_SOURCES:
-        candidate = root / rel_path
-        if not candidate.is_file() or candidate.resolve() == resolved_out.resolve():
-            continue
-        content = candidate.read_text(encoding="utf-8").strip()
-        if content:
-            merged_lines.extend(_rewrite_sf_record(content, prefix, root))
-            merged_count += 1
+        merged_count += _append_candidate(root / rel_path, prefix, root, resolved_out, merged_lines)
 
-    for extra in extra_inputs:
-        base_extra = extra if extra.is_absolute() else (root / extra)
-        candidates = sorted(base_extra.rglob("*.info")) if base_extra.is_dir() else [base_extra]
-        for candidate in candidates:
-            if not candidate.is_file() or candidate.resolve() == resolved_out.resolve():
-                continue
-            content = candidate.read_text(encoding="utf-8").strip()
-            if content:
-                merged_lines.extend(_rewrite_sf_record(content, "", root))
-                merged_count += 1
+    for candidate in _expand_extra_paths(root, extra_inputs):
+        merged_count += _append_candidate(candidate, "", root, resolved_out, merged_lines)
 
     if merged_count == 0 and require_any:
         raise FileNotFoundError("no non-empty LCOV tracefiles were found to merge")

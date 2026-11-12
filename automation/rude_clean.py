@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import shutil
 from collections.abc import Sequence
 from pathlib import Path
@@ -11,6 +12,7 @@ from automation import REPO_ROOT
 from automation._proc import emit_err, emit_line, run_cmd
 
 DEFAULT_TARGETS: tuple[str, ...] = ("automation", "python/src", "python/tests")
+WARNING_SUMMARY_RE = re.compile(r"Found\s+\d+\s+error\(s\)\s+and\s+([1-9]\d*)\s+warning\(s\)")
 
 
 def run_rude_clean(root: Path = REPO_ROOT, targets: Sequence[str] = DEFAULT_TARGETS) -> int:
@@ -23,11 +25,14 @@ def run_rude_clean(root: Path = REPO_ROOT, targets: Sequence[str] = DEFAULT_TARG
         emit_err("[rude-clean] ERROR: rude.toml not found at repository root.")
         return 1
     existing_targets = [rel for rel in targets if (root / rel).exists()]
-    cmd = ["rude", "--config", str(config_path), *existing_targets]
-    res = run_cmd(cmd, cwd=root, timeout=180)
-    if res.returncode != 0:
-        emit_err("[rude-clean] ERROR: Python Clean Code complexity check failed.")
-        return res.returncode
+    cmd = ["rude", "check", "--config", str(config_path), *existing_targets]
+    res = run_cmd(cmd, cwd=root, timeout=180, capture=True)
+    combined = (res.stdout + res.stderr).strip()
+    if combined:
+        emit_line(combined)
+    if res.returncode != 0 or WARNING_SUMMARY_RE.search(combined) is not None:
+        emit_err("[rude-clean] ERROR: Python Clean Code complexity check reported findings.")
+        return res.returncode or 1
     emit_line("[rude-clean] OK: Python complexity and Clean Code bounds satisfied.")
     return 0
 

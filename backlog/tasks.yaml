@@ -868,7 +868,7 @@ tasks:
   - id: task_052
     title: CLI binary with version, init, and the playtest.toml version pin
     description: "Deliver the first playtest binary on clifacet with the version and init commands and the version pin check of Spec 0013 §§1, 2, and 6 (ADR 0015, ADR 0017)."
-    status: ready
+    status: done
     priority: P0
     milestone: M1-v0.1.0
     semver: "0.1.0"
@@ -887,7 +887,7 @@ tasks:
   - id: task_053
     title: playtest sync with Python and TypeScript mirrors
     description: "Implement Spec 0013 §§3-5 (ADR 0017): playtest sync writes committed, installer-native SDK mirrors for Python and TypeScript, and sync --check is the drift gate."
-    status: backlog
+    status: ready
     priority: P0
     milestone: M1-v0.1.0
     semver: "0.1.0"

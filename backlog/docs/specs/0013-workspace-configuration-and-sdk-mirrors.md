@@ -4,7 +4,7 @@
 
 Specifies the files the CLI owns in a consumer repository, the commands that create and refresh them, and how a language project is connected to its SDK, as decided in [ADR 0017](../adr/0017-committed-sdk-mirrors-and-explicit-wiring.md). Target milestone: M1 (`v0.1.0`) for the commands and for the Python and TypeScript mirrors; the other targets follow in M5 (`v0.5.0`).
 
-**This is a target contract. None of it is implemented yet.** Delivery is tracked by `task_052`, `task_053`, and `task_064`.
+**Implementation status:** `playtest.toml`, `playtest version`, `playtest init`, and the §6 version pin check are implemented (`task_052`). `playtest sync` and the SDK mirrors follow in `task_053` and `task_064`.
 
 Terms:
 
@@ -15,8 +15,18 @@ Terms:
 ## 1. `playtest.toml`
 
 - The file sits at the workspace root. A command locates the workspace by the nearest `playtest.toml` at or above the current directory.
-- It records at least: a schema version, the exact Playtest version the workspace uses (the *pin*), and the languages to mirror.
-- Illustrative shape. `task_052` settles the key names and records them here:
+- Settled `schema = 1` keys (`playtest_core::WorkspaceConfig`):
+
+  | Key | Type | Required | Meaning |
+  | :--- | :--- | :--- | :--- |
+  | `schema` | integer | Yes | Manifest schema version; must equal `1`. Unsupported schema numbers fail with exit status `3`. |
+  | `version` | non-empty string | Yes | Exact Playtest SemVer release pinned by the workspace (for example `"0.1.0"`). |
+  | `mirrors` | table | No | Mirror configuration table; defaults to empty when omitted. |
+  | `mirrors.languages` | array of strings | No | Canonical SDK target identifiers mirrored into `.playtest/<lang>/` by `playtest sync` (`["python", "typescript"]` by default when created by `playtest init`, overridable via `playtest init --lang <target>`). |
+
+  Unknown keys in `schema = 1` are rejected as invalid workspace configuration (`exit status 3`) so typos cannot go unnoticed.
+
+- Canonical layout written by `playtest init`:
 
   ```toml
   schema = 1

@@ -1,5 +1,8 @@
 # ADR 0001: Two-Crate Monorepo Architecture
 
+## Status
+Superseded by [ADR 0015](./0015-cli-first-distribution-and-five-crate-workspace.md) on 2026-11-11. The workspace now has five crates. Two rules of this record are kept: procedural macros live in `playtest-macros`, and users declare only `playtest`.
+
 ## Context
 In Rust, procedural macros (e.g. `#[proc_macro_attribute]`) must reside in a crate declared with `proc-macro = true` in `Cargo.toml`. Such crates are legally prohibited from exporting normal structs, traits, or runtime constants. At the same time, consumers should not have to depend on multiple fragmented packages.
 

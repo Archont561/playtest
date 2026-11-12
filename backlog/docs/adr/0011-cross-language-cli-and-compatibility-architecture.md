@@ -1,7 +1,7 @@
 # ADR 0011: Cross-Language CLI & Toolchain Compatibility Architecture
 
 ## Status
-Accepted
+Accepted. Amended by [ADR 0015](./0015-cli-first-distribution-and-five-crate-workspace.md) and [ADR 0018](./0018-sdk-reporters-and-report-protocol.md) on 2026-11-11; see Amendments below.
 
 ## Context
 As Playtest expands to 7 programming languages, running tests requires developers and CI pipelines to remember individual, disparate commands (`cargo nextest`, `pytest`, `bun test`, `ctest`, `go test`, `mvn test`, `Rscript`). Furthermore, developer workstations frequently experience toolchain drift (e.g. outdated compiler versions, missing test runner plugins, incompatible runtime flags). A single unified CLI is needed to discover project manifests, evaluate local toolchain health, and orchestrate polyglot test runs under a single command.
@@ -26,3 +26,12 @@ Under **Milestone M5 (`v0.5.0`)**, we introduce the **Unified Polyglot CLI** (`p
 
 ### Negative
 - Requires maintaining detection logic and version parsers across 7 different toolchains.
+
+## Amendments
+
+**2026-11-11.** One shared CLI with manifest discovery, `playtest doctor`, and unified reporting stands. Four statements above are out of date:
+
+- **Targets.** Playtest has nine language targets, not seven. C and C# were added after this record ([Spec 0005](../specs/0005-polyglot-1-to-1-fixture-and-bdd-parity.md), [Spec 0008 §1](../specs/0008-cross-language-cli-and-toolchain-detection.md)).
+- **Milestone.** The CLI is not introduced in M5. The binary ships from M1 (`v0.1.0`) with `version`, `init`, and `sync` ([ADR 0015](./0015-cli-first-distribution-and-five-crate-workspace.md)). M5 adds discovery, `doctor`, and `test`.
+- **Execution.** `playtest test` starts all selected runners at once and combines each runner's exit status, the records of the SDK reporter, and the runner's own report ([ADR 0018](./0018-sdk-reporters-and-report-protocol.md), [Spec 0014](../specs/0014-report-protocol-and-runner-orchestration.md)).
+- **Toolchain floors.** The compatibility matrix is maintained in Spec 0008 §2. Building the CLI from source needs Rust 1.88 or newer; a Rust test target may need less.

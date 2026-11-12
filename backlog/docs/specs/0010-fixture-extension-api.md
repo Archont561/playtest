@@ -31,6 +31,8 @@ A registered fixture provider must be able to, in every host language:
 
 Targets beyond these three adopt the same contract when their core parity ([Spec 0005](./0005-polyglot-1-to-1-fixture-and-bdd-parity.md)) lands; the contract does not change per target, only the mapping row.
 
+**Open proposal.** [ADR 0019](../adr/0019-runner-neutral-test-declaration-for-pure-runners.md) proposes to make registration independent of the test runner before the `v1.0.0` freeze, so that runners such as Python's `unittest` can be supported after v1. For Python that means a Playtest entry-point group instead of pytest's. The rows above stand until that record is decided.
+
 ## 4. Provider Conformance Profile
 
 - The conformance suite (task_023) gains a provider profile verifying, for a reference provider: registration, requested-only construction, composition with core fixtures, LIFO teardown after injected failures/panics, structured unavailability diagnostics, and CLI discovery reporting.

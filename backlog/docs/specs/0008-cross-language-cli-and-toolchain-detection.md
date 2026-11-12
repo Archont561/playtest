@@ -2,7 +2,9 @@
 
 ## Overview
 
-Specifies the workspace discovery protocol, manifest signatures, toolchain compatibility checks, and diagnostic/reporting behavior for the shared `playtest` CLI under **Milestone M5 (`v0.5.0`)**. The CLI is one shared Rust tool that orchestrates all nine language targets; it does not replace their native test frameworks or implement their framework APIs.
+Specifies the workspace discovery protocol, manifest signatures, toolchain compatibility checks, and diagnostic/reporting behavior for the orchestration commands of the shared `playtest` CLI (`test`, `list`, `doctor`), delivered in **Milestone M5 (`v0.5.0`)**. The CLI is one shared Rust tool that orchestrates all nine language targets; it does not replace their native test frameworks or implement their framework APIs.
+
+The binary itself ships earlier, in Milestone M1 (`v0.1.0`), with `version`, `init`, and `sync` ([ADR 0015](../adr/0015-cli-first-distribution-and-five-crate-workspace.md)). Its crates and distribution channels are specified in [Spec 0012](./0012-workspace-crates-and-cli-distribution.md), the workspace file and SDK mirrors in [Spec 0013](./0013-workspace-configuration-and-sdk-mirrors.md), and the way `playtest test` runs and observes each native runner in [Spec 0014](./0014-report-protocol-and-runner-orchestration.md).
 
 ## 1. Workspace Project Auto-Detection
 
@@ -22,6 +24,8 @@ The CLI inspects the active repository or requested directory and identifies the
 
 C and C++ can share CMake files, so detection must inspect declared project languages/targets or require an explicit override; it must not guess solely from the presence of `CMakeLists.txt`. When several supported runners exist, selection and override behavior must be deterministic and visible in `playtest list`/diagnostics.
 
+The table names the runner that detection selects. The exact command line, including the reporter that each SDK attaches to its runner, is defined in [Spec 0014 §4](./0014-report-protocol-and-runner-orchestration.md).
+
 ## 2. Toolchain Compatibility (`playtest doctor`)
 
 The diagnostic engine probes the configured tools and compares them to the compatibility matrix. Initial minimums are:
@@ -38,6 +42,8 @@ The diagnostic engine probes the configured tools and compares them to the compa
 | Java | OpenJDK 11+ |
 | R | R 4.1+ |
 
+The Rust row is the floor for Rust test targets. Building the CLI itself from source (`cargo install playtest-cli`) needs Rust 1.88 or newer ([Spec 0012 §1](./0012-workspace-crates-and-cli-distribution.md)); installing a prebuilt binary needs no Rust toolchain.
+
 The exact matrix must remain synchronized with CI, Pixi manifests, and published target support. Diagnostics must distinguish required from optional tools, identify missing/incompatible versions, and give actionable remediation without claiming that the framework's features are fully conformant merely because a runtime is present.
 
 ## 3. CLI Command Grammar
@@ -46,10 +52,12 @@ The exact matrix must remain synchronized with CI, Pixi manifests, and published
 playtest [COMMAND] [OPTIONS]
 
 Commands:
+  version          Print the CLI version, the binary's path, and target package versions
+  init             Create playtest.toml and .playtest/ in a workspace
+  sync             Write SDK mirrors into .playtest/; --check reports drift without writing
   test             Execute tests across detected subprojects
   list             List detected projects, runtimes, and test targets
   doctor           Check toolchain compatibility and environment health
-  version          Print the CLI and target package versions
 
 Options:
   --lang <TARGET>  Select one or more targets: rust, python, ts, cpp, c, csharp, go, java, r
@@ -59,6 +67,8 @@ Options:
   --fail-fast      Stop after the first failing target
   --skip-unavailable  Report explicitly selected but unavailable targets as skipped (see §6)
 ```
+
+`version`, `init`, and `sync` ship in M1 (`v0.1.0`) and are specified in [Spec 0013](./0013-workspace-configuration-and-sdk-mirrors.md). `test`, `list`, and `doctor` ship in M5 (`v0.5.0`), and the options above apply to them. `playtest mutation` is specified in [Spec 0011](./0011-delegated-mutation-testing.md).
 
 Unsupported filter semantics must be reported rather than silently ignored. Reports identify each target's command, exit status, test counts when available, and diagnostics.
 
@@ -92,7 +102,7 @@ Exit status:
 | 0 | All selected targets ran and passed; policy skips and exclusions allowed |
 | 1 | At least one test failure |
 | 2 | Usage or selection error (unknown target or tier, no matches, invalid flag) |
-| 3 | Environment failure: an explicitly selected target is unavailable, or `doctor` found a required toolchain or probe failure |
+| 3 | Environment failure: an explicitly selected target is unavailable, `doctor` found a required toolchain or probe failure, the running binary does not match the version pinned in `playtest.toml` ([Spec 0013 §6](./0013-workspace-configuration-and-sdk-mirrors.md)), `playtest sync --check` found the SDK mirrors out of date (Spec 0013 §3), or an SDK reported a version or protocol that differs from the CLI's ([Spec 0014 §7](./0014-report-protocol-and-runner-orchestration.md)) |
 
 JSON rules:
 
@@ -105,7 +115,7 @@ JSON rules:
 
 `playtest doctor` cannot know consumer-specific runtimes, but consumer qualification workflows — for example verifying an application install prefix and its Python bindings before running a headless smoke tier — need the same required/optional/remediation semantics as built-in checks.
 
-- Consumers register probes through workspace configuration discovered by the CLI; the registration format is versioned alongside the JSON schema.
+- Consumers register probes through workspace configuration discovered by the CLI; the registration format is versioned alongside the JSON schema. [Spec 0013 §1](./0013-workspace-configuration-and-sdk-mirrors.md) names `playtest.toml` as the intended file; `task_037` confirms or changes this.
 - Each probe yields a record with at least `id`, `description`, `observed`, `ok`, `required`, and `remediation`.
 - Probe results fold into pretty and JSON doctor output next to built-in checks and obey the same exit-status rules.
 - A passing probe reports environment readiness only; it must never assert framework feature parity (§5 boundary).

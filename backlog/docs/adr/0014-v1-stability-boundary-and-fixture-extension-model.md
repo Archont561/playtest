@@ -38,3 +38,11 @@ Two factors decide it. First, the user-facing rule *"after v1, only ecosystem su
 - The API still ships designed against one small canary, not against Tauri/Qt reality; the additive-only evolution rule is the standing mitigation, and first-party packages in 1.1.x are the first real stress test.
 - More artifacts to release, document, and discover: release-pipeline slots, docs-portal sections, and `playtest list` reporting must surface the package family.
 - A core×provider compatibility matrix appears; providers must declare core version ranges and pass the provider profile to claim compatibility.
+
+## Related Decisions
+
+**2026-11-11.** Three later records touch this boundary. None of them changes the Decision above.
+
+- [ADR 0015](./0015-cli-first-distribution-and-five-crate-workspace.md) gives every release one version across the CLI and all SDKs. How that combines with "core package releases after 1.0 are fixes-only" is an open question recorded there.
+- [ADR 0018](./0018-sdk-reporters-and-report-protocol.md) adds the report protocol between the CLI and the SDKs. Whether it joins the freeze list is an open question recorded there.
+- [ADR 0019](./0019-runner-neutral-test-declaration-for-pure-runners.md) (Proposed) would add a runner-adapter surface to the freeze list and change the Python registration row of Spec 0010 §3.

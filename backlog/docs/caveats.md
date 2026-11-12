@@ -27,8 +27,9 @@ In Rust, `cargo test` and `cargo-nextest` execute test cases in parallel across 
 ## 4. Procedural Macro Crate Boundary
 
 Rust enforces that `proc-macro = true` crates cannot export normal runtime structs, traits, or constants:
-- The workspace strictly maintains two primary crates: `playtest` (facade) and `playtest-macros` (proc-macros).
+- Procedural macros live in `playtest-macros`, and `playtest` re-exports them.
 - Users depend only on `playtest`.
+- The workspace has five crates in total ([ADR 0015](adr/0015-cli-first-distribution-and-five-crate-workspace.md), which supersedes ADR 0001): `playtest`, `playtest-macros`, `playtest-core`, `playtest-assets`, and `playtest-cli`. `playtest` never depends on the assets or the CLI.
 
 ## 5. Testing Techniques: In and Out of Scope
 
@@ -47,3 +48,15 @@ Where each class of testing technique belongs in Playtest:
   - **Exploratory / manual test-management systems** — documentation and process, not executable contracts.
   - **Coverage-guided fuzzing engines** (libFuzzer/AFL class) — a possible future per-target integration, never part of the shared cross-language contract; in-framework fuzzing is covered by property-based testing.
   - **Race / interleaving model checking** (loom-class) — a language-runtime primitive; ecosystem candidate at best, out of contract.
+
+## 6. CLI-First Distribution: Limits and Costs
+
+The `playtest` binary is the version authority, and SDKs reach a repository through the binary or beside it ([ADR 0015](adr/0015-cli-first-distribution-and-five-crate-workspace.md) to [ADR 0018](adr/0018-sdk-reporters-and-report-protocol.md)). The model has deliberate limits:
+
+- **One version, no mixing.** A CLI and an SDK of different versions are an error, not a supported combination. There is no compatibility matrix between versions.
+- **`init` and `sync` never edit consumer manifests.** Wiring a project to its SDK is one explicit command of the ecosystem's own tool. It is repeated when the mirror's path changes, which for Python and TypeScript is every upgrade. npm and Bun do not report a forgotten wiring command while their cache holds the old SDK ([Spec 0013 §5](specs/0013-workspace-configuration-and-sdk-mirrors.md)).
+- **Mirrors are committed files.** A consumer repository carries a wheel or a tarball per mirrored language and reviews it as a diff on every upgrade.
+- **Nothing downloads at install time.** The Go and R wrappers download the binary on first use and need network access once. No package runs a lifecycle script.
+- **No SDK ships a test runner.** The CLI starts each native runner; the SDK only reports from inside it. Running the native runner directly stays supported and unchanged.
+- **No native binary channel for Java, C#, C, or C++ in `v0.1.0`.** Those repositories take the binary from GitHub Releases, conda, or another channel.
+- **Not implemented yet.** All of this is a target contract tracked by `task_050` to `task_064`.

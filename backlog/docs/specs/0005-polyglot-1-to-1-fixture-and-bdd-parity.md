@@ -80,6 +80,8 @@ The suite must report results per language and per capability. Full parity is ac
 
 The cross-language CLI is one shared tool, not nine independent CLI implementations. It must detect every supported target, run its configured native test command, support target selection, and normalize process status, test summaries, and LCOV coverage. Selection semantics follow [Spec 0008 §6](./0008-cross-language-cli-and-toolchain-detection.md): an explicitly requested target or tier that cannot run is a reported failure with remediation, not a green skip. CLI orchestration does not substitute for the framework features in §§1–3.
 
+Each target's SDK contributes a reporter for its native runner, not a runner of its own. The reporter and its record format are specified in [Spec 0014](./0014-report-protocol-and-runner-orchestration.md). No language package ships a CLI: the one binary and the wrappers that locate it are specified in [Spec 0012](./0012-workspace-crates-and-cli-distribution.md). An SDK states its version when a run starts, and a version that differs from the CLI's is an environment failure ([ADR 0015](../adr/0015-cli-first-distribution-and-five-crate-workspace.md)).
+
 ## 5. Compatibility and evolution
 
 - Keep public syntax idiomatic; keep behavior and failure guarantees equivalent.

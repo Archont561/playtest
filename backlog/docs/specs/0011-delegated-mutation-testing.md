@@ -2,7 +2,7 @@
 
 ## Overview
 
-Specifies how Playtest supports **mutation testing** — a meta-quality technique that measures a suite's fault-detection power by injecting small source changes ("mutants") and checking that the suite fails on them. Playtest **does not implement mutation engines**: it delegates to each target's native mutator and aggregates normalized results, following the same decentralized pattern as LCOV coverage in [Spec 0008 §4](./0008-cross-language-cli-and-toolchain-detection.md). Ships with the CLI in Milestone M5 (`v0.5.0`). The scope classification of this technique — against A/B testing, canary deployments, load testing, and the rest — is recorded in [caveats.md §5](../caveats.md).
+Specifies how Playtest supports **mutation testing** — a meta-quality technique that measures a suite's fault-detection power by injecting small source changes ("mutants") and checking that the suite fails on them. Playtest **does not implement mutation engines**: it delegates to each target's native mutator and aggregates normalized results, following the same decentralized pattern as LCOV coverage in [Spec 0008 §4](./0008-cross-language-cli-and-toolchain-detection.md). Ships with the CLI's orchestration commands in Milestone M5 (`v0.5.0`); the binary itself ships from M1 ([Spec 0008](./0008-cross-language-cli-and-toolchain-detection.md)). The scope classification of this technique — against A/B testing, canary deployments, load testing, and the rest — is recorded in [caveats.md §5](../caveats.md).
 
 ## 1. Positioning
 

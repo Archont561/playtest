@@ -1,5 +1,8 @@
 # ADR 0006: Crates.io Trusted Publishing via GitHub Actions OIDC
 
+## Status
+Accepted. Amended by [ADR 0015](./0015-cli-first-distribution-and-five-crate-workspace.md) on 2026-11-11; see Amendments below.
+
 ## Context
 Long-lived API tokens stored in GitHub Actions secrets are prone to leakage and require manual secret rotation. Crates.io supports OpenID Connect (OIDC) Trusted Publishing.
 
@@ -15,3 +18,7 @@ Long-lived API tokens stored in GitHub Actions secrets are prone to leakage and 
 ## Consequences
 - Zero long-lived tokens required in repository secrets.
 - Secure, auditable, and automated releases directly from Git tags.
+
+## Amendments
+
+**2026-11-11.** The workspace now publishes five crates ([ADR 0015](./0015-cli-first-distribution-and-five-crate-workspace.md)). `playtest-core`, `playtest-assets`, and `playtest-cli` need the same reservation and Trusted Publishing configuration as `playtest` and `playtest-macros` (`task_050`). The `reserve_crate.sh` script named in decision 1 is not in this repository; [ADR 0009](./0009-python-only-repo-automation.md) requires any replacement to be a Python script.

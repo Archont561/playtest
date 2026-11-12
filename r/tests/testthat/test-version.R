@@ -1,9 +1,10 @@
 description_candidates <- c("DESCRIPTION", "../../DESCRIPTION")
-description_path <- description_candidates[file.exists(description_candidates)][1]
-if (is.na(description_path)) {
-  stop("Could not locate the package DESCRIPTION file")
+existing <- description_candidates[file.exists(description_candidates)]
+expected_version <- if (length(existing) > 0L) {
+  unname(read.dcf(existing[[1L]])[1L, "Version"])
+} else {
+  as.character(utils::packageVersion("playtest"))
 }
-expected_version <- unname(read.dcf(description_path)[1, "Version"])
 if (!identical(VERSION, expected_version)) {
   stop(paste("Expected", expected_version, "got", VERSION))
 }

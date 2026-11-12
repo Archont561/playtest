@@ -4,14 +4,13 @@ on:
   push:
     tags:
       - "v[0-9]*"
-      - "go/v[0-9]*"
       - "!milestone-v*"
       - "!milestone/**"
       - "!m-v*"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Unified release tag to publish (e.g. v0.2.0 or go/v0.2.0)"
+        description: "Unified release tag to publish (e.g. v0.2.0)"
         required: false
         type: string
 
@@ -47,14 +46,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Parse and validate release tag
+      - name: Parse and validate unified release tag
         id: parse
         env:
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: python3 -m automation.release plan --tag "$RELEASE_TAG"
 
   gate:
-    name: Monorepo Quality Gate
+    name: Monorepo Quality & Version Alignment Gate
     needs: [plan]
     if: needs.plan.outputs.valid == 'true'
     runs-on: ubuntu-24.04
@@ -76,13 +75,94 @@ jobs:
         env:
           RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
         run: python3 -m automation.stamp_version all "$RELEASE_TAG"
+      - name: Build TypeScript dist before CLI verification
+        run: pixi run --frozen build-ts-dist
+      - name: Compile Playtest CLI for version alignment check
+        run: pixi run --frozen cargo build -p playtest-cli --locked
+      - name: Verify manifest, CLI, and embedded asset version alignment
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
+        run: python3 -m automation.release_binaries verify-version --version "$RELEASE_TAG" --cli-bin target/debug/playtest
       - name: Run Clean Code and governance gates
         run: pixi run --frozen doit fast
       - name: Run polyglot test suites
         run: pixi run --frozen test-all
 
+  build-cli:
+    name: Build CLI Archive (${{ matrix.target }})
+    needs: [plan, gate]
+    if: needs.plan.outputs.rust == 'true'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            runner: ubuntu-24.04
+            bin_name: playtest
+          - target: aarch64-unknown-linux-musl
+            runner: ubuntu-24.04-arm
+            bin_name: playtest
+          - target: x86_64-apple-darwin
+            runner: macos-15-intel
+            bin_name: playtest
+          - target: aarch64-apple-darwin
+            runner: macos-15
+            bin_name: playtest
+          - target: x86_64-pc-windows-msvc
+            runner: windows-2025
+            bin_name: playtest.exe
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.tag_name }}
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1.4.2"
+      - name: Install musl tools on Linux runners
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends musl-tools
+      - name: Install Rust toolchain and target ${{ matrix.target }}
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: cli-${{ matrix.target }}
+      - name: Stamp unified release version
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
+        run: python -m automation.stamp_version all "$RELEASE_TAG"
+      - name: Compile, package, and verify ${{ matrix.target }} CLI archive
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
+        run: python -m automation.release_binaries build-target --target "${{ matrix.target }}" --version "$RELEASE_TAG" --raw-dir raw-bin --dist-dir release-assets
+      - name: Upload GitHub Release archive and .sha256 sidecar
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cli-archive-${{ matrix.target }}
+          path: release-assets/*
+          if-no-files-found: error
+      - name: Upload compiled binary for npm platform package assembly
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cli-bin-${{ matrix.target }}
+          path: raw-bin/${{ matrix.target }}/${{ matrix.bin_name }}
+          if-no-files-found: error
+
   build-rust:
-    name: Build & Package (Rust)
+    name: Build & Package (Rust Crates)
     needs: [plan, gate]
     if: needs.plan.outputs.rust == 'true'
     runs-on: ubuntu-24.04
@@ -117,65 +197,170 @@ jobs:
           if-no-files-found: error
 
   build-python:
-    name: Build & Package (Python)
+    name: Build Maturin Wheel (${{ matrix.target }})
     needs: [plan, gate]
     if: needs.plan.outputs.python == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            runner: ubuntu-24.04
+            sdist: "true"
+          - target: aarch64-unknown-linux-musl
+            runner: ubuntu-24.04-arm
+            sdist: "false"
+          - target: x86_64-apple-darwin
+            runner: macos-15-intel
+            sdist: "false"
+          - target: aarch64-apple-darwin
+            runner: macos-15
+            sdist: "false"
+          - target: x86_64-pc-windows-msvc
+            runner: windows-2025
+            sdist: "false"
     steps:
       - name: Checkout tagged source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.plan.outputs.tag_name }}
-      - name: Set up Pixi py environment
-        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
-          pixi-version: ${{ env.PIXI_VERSION }}
-          environments: py
-          locked: true
-          cache: true
-      - name: Stamp Python SDK version
+          python-version: "3.12"
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1.4.2"
+      - name: Stamp unified release version
+        shell: bash
         env:
           RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
-        run: python3 -m automation.stamp_version python "$RELEASE_TAG"
-      - name: Build Python wheel and sdist
-        run: pixi run --frozen -e py sdk-release
-      - name: Upload Python artifacts
+        run: python -m automation.stamp_version all "$RELEASE_TAG"
+      - name: Stage embedded SDK assets for maturin build
+        shell: bash
+        run: python -m automation.stage_assets --build-generated
+      - name: Build platform wheel via maturin-action
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          working-directory: python
+          target: ${{ matrix.target }}
+          args: --release --locked --out dist
+          sccache: "true"
+      - name: Build Python sdist on primary Linux runner
+        if: matrix.sdist == 'true'
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          command: sdist
+          working-directory: python
+          args: --out dist
+      - name: Upload Python wheel and sdist artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: package-python
+          name: package-python-${{ matrix.target }}
           path: python/dist/*
           if-no-files-found: error
 
   build-typescript:
-    name: Build & Package (TypeScript)
-    needs: [plan, gate]
+    name: Assemble npm Platform & Wrapper Packages
+    needs: [plan, gate, build-cli]
     if: needs.plan.outputs.typescript == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout tagged source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.plan.outputs.tag_name }}
-      - name: Set up Pixi ts environment
+      - name: Set up Pixi default and ts environments
         uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
         with:
           pixi-version: ${{ env.PIXI_VERSION }}
-          environments: ts
+          environments: default ts
           locked: true
           cache: true
-      - name: Stamp TypeScript SDK version
+      - name: Stamp unified release version
         env:
           RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
-        run: python3 -m automation.stamp_version typescript "$RELEASE_TAG"
-      - name: Build TypeScript npm tarball
+        run: python3 -m automation.stamp_version all "$RELEASE_TAG"
+      - name: Build and test TypeScript SDK
         run: pixi run --frozen -e ts sdk-release
-      - name: Upload TypeScript artifacts
+      - name: Download Phase 1 CLI binaries across all 5 platforms
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: cli-bin-*
+          path: raw-bin/
+          merge-multiple: true
+      - name: Install pinned cargo-npm 0.1.5
+        run: pixi run --frozen cargo install cargo-npm --version 0.1.5 --locked
+      - name: Generate and pack npm platform and wrapper tarballs
+        run: pixi run --frozen python -m automation.npm_packages pack-release --binaries-dir raw-bin --out-dir npm-dist --use-cargo-npm
+      - name: Upload npm platform and wrapper tarballs
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-typescript
-          path: typescript/*.tgz
+          path: npm-dist/*.tgz
+          if-no-files-found: error
+
+  build-conda:
+    name: Build Conda Package (${{ matrix.conda_platform }})
+    needs: [plan, gate]
+    if: needs.plan.outputs.rust == 'true'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - conda_platform: linux-64
+            runner: ubuntu-24.04
+          - conda_platform: linux-aarch64
+            runner: ubuntu-24.04-arm
+          - conda_platform: osx-64
+            runner: macos-15-intel
+          - conda_platform: osx-arm64
+            runner: macos-15
+          - conda_platform: win-64
+            runner: windows-2025
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.tag_name }}
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1.4.2"
+      - name: Set up Pixi CLI
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          pixi-version: ${{ env.PIXI_VERSION }}
+          run-install: false
+      - name: Stamp unified release version
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
+        run: python -m automation.stamp_version all "$RELEASE_TAG"
+      - name: Stage embedded SDK assets for conda build
+        shell: bash
+        run: python -m automation.stage_assets --build-generated
+      - name: Build .conda package for ${{ matrix.conda_platform }}
+        shell: bash
+        run: pixi build --path conda --target-platform "${{ matrix.conda_platform }}" --output-dir conda-dist
+      - name: Clean staged SDK assets
+        shell: bash
+        run: python -m automation.stage_assets --clean
+      - name: Upload built .conda package
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-conda-${{ matrix.conda_platform }}
+          path: conda-dist/*.conda
           if-no-files-found: error
 
   build-cpp:
@@ -419,18 +604,19 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - name: Download Python artifacts
+      - name: Download Phase 1 Python wheels and sdist
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: package-python
+          pattern: package-python-*
           path: python/dist/
-      - name: Publish to PyPI via OIDC
+          merge-multiple: true
+      - name: Publish to PyPI via Trusted Publishing OIDC
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
         with:
           packages-dir: python/dist/
 
   publish-npm:
-    name: Publish to npm (TypeScript)
+    name: Publish Platform & Wrapper Packages to npm
     needs: [plan, build-typescript]
     if: needs.plan.outputs.typescript == 'true'
     runs-on: ubuntu-24.04
@@ -448,33 +634,38 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "22"
-      - name: Download TypeScript artifacts
+      - name: Download Phase 1 npm platform and wrapper tarballs
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: package-typescript
-          path: typescript/
-      - name: Publish TypeScript tarball to npm
+          path: npm-dist/
+      - name: Publish platform packages first, then @archont561/playtest wrapper
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: python3 -m automation.publish_registries npm
 
-  publish-go:
-    name: Tag & Register Go Module (pkg.go.dev)
-    needs: [plan, build-go]
-    if: needs.plan.outputs.go == 'true'
+  publish-conda:
+    name: Upload Conda Packages (prefix.dev)
+    needs: [plan, build-conda]
+    if: needs.plan.outputs.rust == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    permissions:
-      contents: write
+    timeout-minutes: 15
+    environment: conda
+    env:
+      PREFIX_DEV_TOKEN: ${{ secrets.PREFIX_DEV_TOKEN }}
     steps:
       - name: Checkout tagged source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.plan.outputs.tag_name }}
-      - name: Push Go subdirectory tag and warm Go module proxy
-        env:
-          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
-        run: python3 -m automation.publish_go "$RELEASE_TAG"
+      - name: Download Phase 1 .conda packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: package-conda-*
+          path: conda-dist/
+          merge-multiple: true
+      - name: Upload .conda packages to prefix.dev/archont561/archont561
+        run: python3 -m automation.publish_registries conda
 
   publish-conan:
     name: Publish C and C++ to Conan
@@ -595,12 +786,14 @@ jobs:
         run: python3 -m automation.publish_registries check-cran
 
   github-release:
-    name: Create GitHub Release
+    name: Publish GitHub Release & Binary Checksums
     needs:
       - plan
+      - build-cli
       - build-rust
       - build-python
       - build-typescript
+      - build-conda
       - build-cpp
       - build-c
       - build-csharp
@@ -610,7 +803,7 @@ jobs:
       - publish-crates
       - publish-pypi
       - publish-npm
-      - publish-go
+      - publish-conda
       - publish-maven-central
       - publish-conan
       - publish-nuget
@@ -637,22 +830,43 @@ jobs:
           environments: default
           locked: true
           cache: true
-      - name: Download all built release artifacts
+      - name: Download Phase 1 CLI binary archives and per-archive .sha256 sidecars
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
+          pattern: cli-archive-*
           path: dist/
           merge-multiple: true
+      - name: Assemble combined sha256.sum across all 5 supported platforms
+        run: python3 -m automation.release_binaries combine-checksums --dist-dir dist --output dist/sha256.sum
       - name: Generate release notes via convco
         env:
           RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
         run: pixi run --frozen python -m automation.release changelog --tag "$RELEASE_TAG" --output RELEASE_NOTES.md
-      - name: Publish GitHub Release with attached artifacts
+      - name: Publish GitHub Release with all binary archives and checksums attached
         uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           tag_name: ${{ needs.plan.outputs.tag_name }}
           body_path: RELEASE_NOTES.md
           generate_release_notes: true
           files: dist/*
+
+  publish-go:
+    name: Tag & Register Go Module (After Binary Release)
+    needs: [plan, build-go, github-release]
+    if: needs.plan.outputs.go == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.tag_name }}
+      - name: Verify GitHub Release binaries and push Go subdirectory tag go/vX.Y.Z
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
+        run: python3 -m automation.publish_go "$RELEASE_TAG"
 
   publish-runiverse:
     name: Verify R-universe Auto-Publication

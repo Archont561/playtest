@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
 
 [project]
 name = "playtest-py"
@@ -16,13 +16,21 @@ classifiers = [
   "Framework :: Pytest",
   "Topic :: Software Development :: Testing",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Rust",
 ]
-
-dependencies = ["pytest>=8.0.0", "typer>=0.12.0"]
+dependencies = ["pytest>=8.0.0"]
 
 [project.urls]
 Homepage = "https://github.com/Archont561/playtest"
 Repository = "https://github.com/Archont561/playtest"
+
+[tool.maturin]
+manifest-path = "../crates/playtest-cli/Cargo.toml"
+module-name = "playtest"
+bindings = "bin"
+python-source = "src"
+python-packages = ["playtest"]
+strip = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

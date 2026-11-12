@@ -33,7 +33,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
-      - name: Validate CRAN release tag
+      - name: Validate unified release tag and verify GitHub Release binaries exist
         run: python3 -m automation.release validate-cran-tag --tag "$RELEASE_TAG"
       - name: Stamp R package version and maintainer email
         run: python3 -m automation.stamp_version r "$RELEASE_TAG" --author-email "$AUTHOR_EMAIL"

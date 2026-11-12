@@ -1,13 +1,14 @@
 //! # playtest-cli
 //!
 //! Command-line interface library for the unified `playtest` binary
-//! (`Spec 0008`, `Spec 0012 §1`, `Spec 0013 §§1, 2, 6`).
+//! (`Spec 0008`, `Spec 0012 §1`, `Spec 0013 §§1-6`).
 //!
 //! Command-line parser internals remain private so neither `playtest-core` nor
 //! documented CLI interfaces expose third-party CLI framework types (`Spec 0012 §1`).
 
 mod cli;
 mod commands;
+pub mod mirrors;
 pub mod output;
 
 use std::env;
@@ -16,9 +17,13 @@ use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+pub use mirrors::{
+    RenderedMirror, expected_mirror_filename, render_mirror, sha256_hex, wiring_command_for,
+};
 pub use output::{
-    ContractSummary, ExitCodeSummary, InitReport, JSON_SCHEMA_VERSION, OutputFormat, VersionReport,
-    WorkspacePinStatus,
+    ContractSummary, ExitCodeSummary, InitReport, JSON_SCHEMA_VERSION, MirrorDriftEntry,
+    MirrorDriftKind, MirrorSyncStatus, OutputFormat, SyncCheckReport, SyncReport,
+    SyncedMirrorEntry, VersionReport, WorkspacePinStatus,
 };
 pub use playtest_core::ExitStatus;
 
@@ -47,7 +52,7 @@ impl RunEnvironment {
         }
     }
 
-    /// Override the simulated CLI version (used by version-pin conformance tests).
+    /// Override the simulated CLI version (used by version-pin and upgrade conformance tests).
     #[must_use]
     pub fn with_cli_version(mut self, cli_version: impl Into<String>) -> Self {
         self.cli_version = cli_version.into();
@@ -98,5 +103,6 @@ pub fn run_process() -> ExitCode {
     };
     let status = run_with_env(env::args_os(), &env, &mut stdout, &mut stderr);
     let _ = stderr.flush();
+    let _ = stdout.flush();
     ExitCode::from(status)
 }

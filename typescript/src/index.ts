@@ -3,7 +3,17 @@
  * Playwright-style testing framework for TypeScript.
  */
 
-import pkg from "../package.json";
+import { readFileSync } from "node:fs";
 
-export const VERSION: string = pkg.version;
+interface PackageManifest {
+	readonly version: string;
+}
+
+function discoverVersion(): string {
+	const raw = readFileSync(new URL("../package.json", import.meta.url), "utf8");
+	const manifest = JSON.parse(raw) as PackageManifest;
+	return manifest.version;
+}
+
+export const VERSION: string = discoverVersion();
 export default { VERSION };

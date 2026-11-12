@@ -1,6 +1,8 @@
 include = [
   "Cargo.toml",
+  "conda/pixi.toml",
   "deny.toml",
+  "dist-workspace.toml",
   "pixi.toml",
   "pixi-sandbox.toml",
   "rude.toml",

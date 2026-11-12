@@ -1,0 +1,38 @@
+[workspace]
+name = "playtest-conda"
+version = "0.1.0"
+description = "Conda package recipe for the Playtest CLI binary (Spec 0012 §4.4)."
+channels = ["https://prefix.dev/conda-forge"]
+platforms = ["linux-64", "linux-aarch64", "osx-64", "osx-arm64", "win-64"]
+preview = ["pixi-build"]
+
+[package]
+name = "playtest"
+version = { workspace = true }
+publish = true
+description = { workspace = true }
+license = "MIT"
+license-file = "../../LICENSE"
+homepage = "https://github.com/Archont561/playtest"
+repository = "https://github.com/Archont561/playtest"
+
+[package.build]
+source = { path = "../crates/playtest-cli" }
+
+[package.build.backend]
+name = "pixi-build-rust"
+version = ">=0.4.0,<1"
+channels = ["https://prefix.dev/conda-forge"]
+
+[package.build-dependencies]
+rust = ">=1.88.0,<2"
+
+[package.build.config]
+binaries = ["playtest"]
+compilers = ["rust", "c"]
+extra-input-globs = [
+  "../playtest-assets/**/*",
+  "../playtest-core/**/*",
+  "../../Cargo.toml",
+  "../../Cargo.lock",
+]

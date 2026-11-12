@@ -1,35 +1,38 @@
 # ADR 0010: Milestone-Driven Auto-Release Lifecycle
 
 ## Status
-Accepted. Amended on 2026-11-11 for the Go tag form. [ADR 0015](./0015-cli-first-distribution-and-five-crate-workspace.md) puts the scoped tags of this record under review (`task_059`). See Amendments below.
+Accepted. Amended on 2026-11-11 to retire package-scoped release tags in favor of one unified `vX.Y.Z` version per release ([ADR 0015](./0015-cli-first-distribution-and-five-crate-workspace.md), `task_059`).
 
 ## Context
-Releasing multi-language software requires a predictable mechanism to transition planned development milestones into tagged, published deliverables. Relying solely on manual git tagging or commits directly to release branches risks publishing untested code or misformatting tags. Maintainers need the ability to push a milestone tag or trigger auto-release on push to `main` while guaranteeing strict validation.
+Releasing multi-language software requires a predictable mechanism to transition planned development milestones into tagged, published deliverables. Relying solely on manual git tagging or commits directly to release branches risks publishing untested code or misformatting tags. Maintainers need the ability to push a milestone tag or trigger auto-release on push to `main` while guaranteeing strict validation and keeping the CLI binary and every language SDK at the exact same SemVer release.
 
 ## Decision
-We established a milestone-driven release lifecycle connecting git milestone tags to automated publishing:
+We established a milestone-driven release lifecycle connecting git milestone tags and `main` branch changes to unified `vX.Y.Z` releases:
 1. **Milestone Tag Convention**:
-   - Pushing a tag matching `milestone-v<SEMVER>` or `milestone/v<SEMVER>` (e.g., `milestone-v0.2.0`) automatically triggers `.github/workflows/auto-release.yml`.
-2. **Automated Change & Scope Detection**:
+   - Pushing a tag matching `milestone-v<SEMVER>`, `milestone/M<N>-v<SEMVER>`, `milestone/v<SEMVER>`, or `m-v<SEMVER>` (e.g., `milestone-v0.1.0`) automatically triggers `.github/workflows/auto-release.yml`.
+2. **Unified Change Detection & First-Release Guard**:
    - The workflow invokes `python -m automation.release detect`.
-   - If triggered by a milestone tag, the target SemVer version is bound directly to that milestone.
-   - If triggered by a regular push to `main`, `automation/release.py` inspects git diffs against the last release tag and queries `convco` to determine whether a general tag (`v*`) or package-scoped tag (`<scope>-v*`) is warranted.
-3. **Automated Quality Gate & Tag Publication**:
-   - Enforces formatting, linter, test, and package build checks.
-   - Creates and pushes the clean release tag (`vX.Y.Z` or `<scope>-vX.Y.Z`), which in turn triggers `.github/workflows/release.yml` for remote publishing.
+   - If triggered by a milestone tag or `workflow_dispatch` `override_version`, the target SemVer version is bound directly to that version.
+   - If triggered by a push to `main` when **no prior `v[0-9]*` tag exists**, `detect` returns `should_release=false` so an ordinary push to `main` never tags `v0.1.0` accidentally; the initial `v0.1.0` release requires an explicit milestone tag or `override_version`.
+   - Once `v0.1.0` exists, any releasable Conventional Commit (`feat`, `fix`, `perf`, or `!:` / `BREAKING CHANGE`) touching non-documentation paths — even when confined to a single language directory — cuts a **unified `vX.Y.Z`** release across the CLI and every SDK.
+   - Package-scoped release tags (`<scope>-vX.Y.Z` and standalone `go/vX.Y.Z`) are **retired**. `go/vX.Y.Z` is pushed solely as a Go module subdirectory alias by `publish-go` strictly *after* `github-release` publishes `vX.Y.Z` with verified binary archives.
+3. **Automated Quality Gate, Tag Publication, and Workflow Chaining**:
+   - Enforces formatting, Clean Code, polyglot test, and package build checks before cutting the annotated `vX.Y.Z` tag.
+   - Because GitHub suppresses `on: push: tags:` triggers for events pushed with `GITHUB_TOKEN`, `auto-release.yml` (`permissions: contents: write, actions: write`) explicitly dispatches `release.yml` via `workflow_dispatch` on `refs/tags/vX.Y.Z` whenever `RELEASE_PUSH_TOKEN` is not configured.
 
 ## Consequences
 ### Positive
-- Clear audit trail linking backlog milestones directly to published package versions.
-- Pushing a single milestone tag initiates the entire quality validation and deployment pipeline hands-free.
-- Prevents release of untracked or misaligned versions.
+- Every published release keeps the CLI binary, embedded SDK mirrors, download wrappers, and all registry packages at one exact version.
+- No Go or R release can ever exist without a verified binary release of the same version on GitHub Releases.
+- `auto-release.yml` reliably starts `release.yml` under default `GITHUB_TOKEN` permissions without requiring a personal access token.
 
 ### Negative
-- Requires maintaining milestone tags in git alongside release tags.
+- A single-language fix increments the version number of the entire monorepo (`task_066` settles post-`1.0` freeze semantics).
 
 ## Amendments
 
-**2026-11-11.**
+**2026-11-11 (`task_059`).**
 
-- The scoped tag for Go is `go/vX.Y.Z`, not `go-vX.Y.Z` ([Spec 0007](../specs/0007-autorelease-change-detection-and-milestone-dispatch.md)).
-- [ADR 0015](./0015-cli-first-distribution-and-five-crate-workspace.md) gives every release one version across the CLI and all SDKs. Package-scoped tags release one language at its own version, which conflicts with that. `task_059` decides their future. Until then this record describes the implemented behavior.
+- Retired all package-scoped release tags (`<scope>-vX.Y.Z`, `r-vX.Y.Z`, and standalone `go/vX.Y.Z` release triggers). `plan_release_tag()` and `validate_cran_tag()` accept only unified `vX.Y.Z` tags (`Spec 0007`, `Spec 0012 §8`).
+- `go/vX.Y.Z` remains only as the output subdirectory module tag created by `publish-go` after `github-release` attaches the `vX.Y.Z` CLI archives and `sha256.sum`.
+- Added the first-release guard in `detect_next_release()` and explicit `workflow_dispatch` chaining from `auto-release.yml` to `release.yml` when pushing tags with `GITHUB_TOKEN`.

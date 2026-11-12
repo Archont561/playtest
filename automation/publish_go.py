@@ -1,4 +1,4 @@
-"""Tag the Go subdirectory module (`go/vX.Y.Z`) and request Go proxy indexing."""
+"""Tag the Go subdirectory module (`go/vX.Y.Z`) after binary release verification."""
 
 from __future__ import annotations
 
@@ -10,18 +10,39 @@ from pathlib import Path
 
 from automation import REPO_ROOT
 from automation._proc import emit_err, emit_line, run_cmd
+from automation.release import (
+    DEFAULT_RELEASE_DOWNLOAD_URL,
+    UNIFIED_RELEASE_TAG_RE,
+    verify_binary_release_exists,
+)
 from automation.stamp_version import extract_version_from_tag
 
-GO_MODULE_PATH: str = "github.com/archont561/playtest/go"
+# Go module proxy case-encodes uppercase 'A' in 'Archont561' as '!archont561'.
+GO_PROXY_MODULE_PATH: str = "github.com/!archont561/playtest/go"
 
 
-def ensure_go_module_tag(release_tag: str, *, root: Path = REPO_ROOT, dry_run: bool = False) -> str:
-    """Ensure `go/vX.Y.Z` exists on origin at HEAD and return the Go tag name."""
-    version = extract_version_from_tag(release_tag)
+def ensure_go_module_tag(
+    release_tag: str,
+    *,
+    root: Path = REPO_ROOT,
+    dry_run: bool = False,
+    require_binary_release: bool = True,
+    release_base_url: str = DEFAULT_RELEASE_DOWNLOAD_URL,
+) -> str:
+    """Verify GitHub Release `vX.Y.Z` exists, then create and push `go/vX.Y.Z`."""
+    cleaned = release_tag.strip()
+    if not UNIFIED_RELEASE_TAG_RE.match(cleaned):
+        raise ValueError(
+            f"Go module publication requires unified release tag vX.Y.Z, got {release_tag!r}"
+        )
+    version = extract_version_from_tag(cleaned)
     go_tag = f"go/v{version}"
     if dry_run:
-        emit_line(f"[publish-go] DRY-RUN: would tag and push {go_tag}")
+        emit_line(f"[publish-go] DRY-RUN: would verify v{version} binaries and push {go_tag}")
         return go_tag
+
+    if require_binary_release:
+        verify_binary_release_exists(version, base_url=release_base_url)
 
     existing = run_cmd(
         ["git", "rev-parse", "-q", "--verify", f"refs/tags/{go_tag}"], cwd=root, capture=True
@@ -52,7 +73,7 @@ def ensure_go_module_tag(release_tag: str, *, root: Path = REPO_ROOT, dry_run: b
 
 def request_go_proxy_index(version: str, *, dry_run: bool = False) -> None:
     """Ask proxy.golang.org to index `vX.Y.Z` for the `go/` subdirectory module."""
-    url = f"https://proxy.golang.org/{GO_MODULE_PATH}/@v/v{version}.info"
+    url = f"https://proxy.golang.org/{GO_PROXY_MODULE_PATH}/@v/v{version}.info"
     if dry_run:
         emit_line(f"[publish-go] DRY-RUN: would GET {url}")
         return
@@ -67,14 +88,20 @@ def request_go_proxy_index(version: str, *, dry_run: bool = False) -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry point for Go module subdirectory tag publishing."""
     parser = argparse.ArgumentParser(description="Publish Go subdirectory module tag.")
-    parser.add_argument("release_tag", help="Release tag (e.g. v0.2.0 or go/v0.2.0).")
+    parser.add_argument("release_tag", help="Unified release tag (e.g. v0.2.0).")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--skip-release-check", action="store_true")
+    parser.add_argument("--release-base-url", default=DEFAULT_RELEASE_DOWNLOAD_URL)
     parser.add_argument("--root", type=Path, default=REPO_ROOT)
     args = parser.parse_args(list(argv) if argv is not None else None)
     try:
         version = extract_version_from_tag(args.release_tag)
         go_tag = ensure_go_module_tag(
-            args.release_tag, root=args.root.resolve(), dry_run=args.dry_run
+            args.release_tag,
+            root=args.root.resolve(),
+            dry_run=args.dry_run,
+            require_binary_release=not args.skip_release_check,
+            release_base_url=args.release_base_url,
         )
         request_go_proxy_index(version, dry_run=args.dry_run)
     except (ValueError, RuntimeError) as err:

@@ -9,7 +9,7 @@ files = ["README.md", "pyproject.toml", "src/playtest/__init__.py"]
 [languages.typescript]
 source_dir = "typescript"
 generated = ["dist/index.js"]
-files = ["dist/index.js", "package.json"]
+files = ["dist/index.js", "package.json", "src/index.d.ts"]
 
 [languages.cpp]
 source_dir = "cpp"

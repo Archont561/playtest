@@ -4,7 +4,7 @@
 
 Specifies the files the CLI owns in a consumer repository, the commands that create and refresh them, and how a language project is connected to its SDK, as decided in [ADR 0017](../adr/0017-committed-sdk-mirrors-and-explicit-wiring.md). Target milestone: M1 (`v0.1.0`) for the commands and for the Python and TypeScript mirrors; the other targets follow in M5 (`v0.5.0`).
 
-**Implementation status:** `playtest.toml`, `playtest version`, `playtest init`, and the §6 version pin check are implemented (`task_052`). `playtest sync` and the SDK mirrors follow in `task_053` and `task_064`.
+**Implementation status:** `playtest.toml`, `playtest version`, `playtest init`, `playtest sync`, `playtest sync --check`, deterministic Python (`.whl`) and TypeScript (`.tgz`) SDK mirrors, stale consumer manifest wiring detection, and the §6 version pin check are implemented (`task_052`, `task_053`). Remaining language mirrors follow in `task_064`.
 
 Terms:
 
@@ -57,16 +57,14 @@ Terms:
 
 ## 4. Mirror Forms
 
-| Language | Mirror in `.playtest/<lang>/` | Package name | State on 2026-11-11 |
+| Language | Mirror in `.playtest/<lang>/` | Package name | State |
 | :--- | :--- | :--- | :--- |
-| Python | `py3-none-any` wheel | `playtest-py`, imported as `playtest` | Prototyped with uv |
-| TypeScript | npm tarball (`.tgz`) | `@archont561/playtest` | Prototyped with npm, pnpm, Bun, and Yarn |
-| Go | module directory | `github.com/Archont561/playtest/go` | Prototyped with Go 1.27 |
+| Python | `py3-none-any` wheel | `playtest-py`, imported as `playtest` | Implemented & tested offline with `uv` (`task_053`) |
+| TypeScript | npm tarball (`.tgz`) | `@archont561/playtest` | Implemented & tested offline with `npm`, `pnpm`, and `Bun` (`task_053`) |
+| Go | module directory | `github.com/Archont561/playtest/go` | Prototyped with Go 1.27; tracked by `task_064` |
 | Rust | none; crates.io | `playtest` | Not applicable |
-| C# | to be designed; a project directory added with `dotnet add reference` is the candidate | `Playtest` | Not tested |
-| Java, R, C, C++ | to be designed | — | Not designed |
-
-"Prototyped" means tried in scratch projects outside this repository. No repository test covers a mirror yet.
+| C# | to be designed; a project directory added with `dotnet add reference` is the candidate | `Playtest` | Not tested (`task_064`) |
+| Java, R, C, C++ | to be designed | — | Not designed (`task_064`) |
 
 Rules:
 
@@ -100,7 +98,7 @@ A project may depend on the registry package at exactly the pinned version inste
 | npm 10.9.8 | `npm ci`, `npm install` | exits 0, installs the old SDK | fails |
 | Bun 1.4.4 | `bun install`, `bun install --frozen-lockfile` | exits 0, installs the old SDK | fails |
 
-A developer machine is in the first column, and so is a CI job that restores the package cache. There, npm and Bun do not report the forgotten step. From M5, the handshake of Spec 0014 §7 reports the old SDK when `playtest test` runs. Before M5 nothing in Playtest reports it (§8, question 3).
+A developer machine is in the first column, and so is a CI job that restores the package cache. There, npm and Bun do not report the forgotten step. From M5, the handshake of Spec 0014 §7 reports the old SDK when `playtest test` runs. Before M5 (and permanently as a static drift check), `playtest sync --check` inspects `pyproject.toml` and `package.json` files inside the workspace (ignoring `.git`, `.playtest`, `node_modules`, `.venv`, `target`, `dist`, `build`, and `.pixi`) and exits with status `3` (`stale_wiring`) whenever a consumer manifest still references a `.playtest/<lang>/...` artifact path that no longer exists on disk, printing the exact `uv add --dev` / `npm add --save-dev` / `pnpm add --save-dev` / `bun add --dev` wiring command (§8, question 3).
 
 ## 6. Version Pin Check
 
@@ -123,7 +121,7 @@ A developer machine is in the first column, and so is a CI job that restores the
 
 1. Whether `sync` should also offer a flat package index for Python, so that the wiring survives upgrades.
 2. The mirror forms and wiring commands for C#, Java, R, C, and C++.
-3. How a forgotten wiring command is detected before M5 (§5). One candidate: `playtest sync --check` also reads the project manifests and fails when one names a file in `.playtest/` that no longer exists. Reading a manifest does not conflict with §2, which forbids editing one. `task_053` decides.
+3. **Settled (`task_053`):** How a forgotten wiring command is detected before M5 (§5). `playtest sync --check` reads consumer `pyproject.toml` and `package.json` manifests in the workspace without modifying them (§2) and fails with exit status `3` (`stale_wiring`) whenever any manifest references a `.playtest/` mirror file that no longer exists on disk, naming both the manifest and the replacement wiring command.
 
 ## 9. Verification
 

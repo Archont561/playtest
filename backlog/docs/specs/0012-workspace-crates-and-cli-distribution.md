@@ -4,7 +4,7 @@
 
 Specifies the Rust workspace layout, the embedding of SDK files, and the channels through which the `playtest` binary reaches users, as decided in [ADR 0015](../adr/0015-cli-first-distribution-and-five-crate-workspace.md) and [ADR 0016](../adr/0016-cli-binary-distribution-channels.md). Target milestone: M1 (`v0.1.0`).
 
-**This is a target contract. None of it is implemented or published yet.** Delivery is tracked by `task_050` to `task_059`. Statements about third-party tools reflect documentation and experiments from 2026-11-11 and must be confirmed by the implementing task.
+**Implementation status:** Implemented across `task_050`–`task_059` for M1 (`v0.1.0`).
 
 Terms:
 
@@ -46,12 +46,26 @@ Rules:
 
 Every other channel and both download wrappers depend on the GitHub Release.
 
-1. cargo-dist builds the binary for each platform of the supported matrix. The matrix is declared here by `task_054`; it is not fixed yet.
-2. Archives are `.tar.gz` on Unix and `.zip` on Windows. cargo-dist's Unix default is `.tar.xz` and is overridden.
-3. Each archive has a `.sha256` file, and the release has one combined `sha256.sum`.
-4. The release tag is `vX.Y.Z`. Every download URL can be derived from the version and the platform alone.
-5. The release is published with all assets attached. Assets are never added or replaced afterwards.
-6. GitHub immutable releases are enabled for the repository. This is a repository setting made by an admin, not part of a workflow file. The setting could not be read from the agent sandbox on 2026-11-11 (the API returned 403), so its current state is unknown.
+1. **Supported 5-platform distribution matrix (`task_054`, `dist-workspace.toml` pinned to `cargo-dist = 0.34.0`):**
+
+   | Rust target triple | GitHub runner | Release archive | npm platform package | Conda platform | Go `GOOS`/`GOARCH` |
+   | :--- | :--- | :--- | :--- | :--- | :--- |
+   | `x86_64-unknown-linux-musl` | `ubuntu-24.04` | `playtest-cli-x86_64-unknown-linux-musl.tar.gz` | `@archont561/playtest-linux-x64` | `linux-64` | `linux`/`amd64` |
+   | `aarch64-unknown-linux-musl` | `ubuntu-24.04-arm` | `playtest-cli-aarch64-unknown-linux-musl.tar.gz` | `@archont561/playtest-linux-arm64` | `linux-aarch64` | `linux`/`arm64` |
+   | `x86_64-apple-darwin` | `macos-15-intel` | `playtest-cli-x86_64-apple-darwin.tar.gz` | `@archont561/playtest-darwin-x64` | `osx-64` | `darwin`/`amd64` |
+   | `aarch64-apple-darwin` | `macos-15` | `playtest-cli-aarch64-apple-darwin.tar.gz` | `@archont561/playtest-darwin-arm64` | `osx-arm64` | `darwin`/`arm64` |
+   | `x86_64-pc-windows-msvc` | `windows-2025` | `playtest-cli-x86_64-pc-windows-msvc.zip` | `@archont561/playtest-win32-x64` | `win-64` | `windows`/`amd64` |
+
+2. Archives are `.tar.gz` on Unix and `.zip` on Windows (`dist-workspace.toml` overrides cargo-dist's `.tar.xz` Unix default). Every archive bundles `playtest` (`playtest.exe` on Windows) and the root MIT `LICENSE` file under `playtest-cli-<triple>/`.
+3. Each archive has a `<archive>.sha256` sidecar file, and the release has one combined `sha256.sum` generated deterministically by `automation/release_binaries.py combine-checksums`.
+4. The release tag is `vX.Y.Z`. Every download URL is derived from the version and target alone: `https://github.com/Archont561/playtest/releases/download/v<version>/playtest-cli-<triple>.<ext>` and `.../sha256.sum`.
+5. All archives, `.sha256` sidecars, and `sha256.sum` are built and verified in Phase 1 (`build-cli`) and attached atomically when `github-release` publishes `vX.Y.Z`. Assets are never added or replaced afterwards.
+6. **GitHub immutable releases verification:** Repository admins enable **Settings -> General -> Releases -> Enable release immutability** so published tags and release assets cannot be replaced or deleted. Maintainers verify the setting with an admin-scoped token via:
+   ```bash
+   gh api repos/Archont561/playtest/immutable-releases
+   # Expected response: {"enabled":true,"enforced_by_owner":...}
+   ```
+   (Integration tokens without repository administration scope receive HTTP 403 on this endpoint.)
 
 ## 4. Registry Channels
 
@@ -74,19 +88,27 @@ Every other channel and both download wrappers depend on the GitHub Release.
 - The wrapper package `@archont561/playtest` lists the platform packages as `optionalDependencies` and also carries the TypeScript SDK and the loader.
 - No package declares a lifecycle script.
 - Linux binaries for npm are static musl builds, so there is one Linux package per architecture and no libc selection.
-- Configuration sketch for `crates/playtest-cli/Cargo.toml`. `task_056` settles the values and adds the `targets` list from the platform matrix:
+- Settled configuration in `crates/playtest-cli/Cargo.toml` (`cargo-npm` pinned to `0.1.5` in `automation/npm_packages.py` and `release.yml`):
 
   ```toml
   [package.metadata.npm]
   name = "@archont561/playtest"
   prefix = "@archont561/playtest-"
   bins = ["playtest"]
+  out-dir = "npm"
   mode = "merge"
-  custom = { engines = { node = ">=18" } }
+  targets = [
+    "x86_64-unknown-linux-musl",
+    "aarch64-unknown-linux-musl",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+    "x86_64-pc-windows-msvc",
+  ]
+  custom = { engines = { node = ">=18" }, publishConfig = { access = "public" } }
   ```
 
-- Generation steps, run by a Python script: stage the built TypeScript SDK into `npm/@archont561/playtest/`; run `cargo npm generate`; replace the generated `bin/playtest.js` with the loader; add `bin/package.json` containing `{"type":"commonjs"}`; list `bin` in `files`.
-- Publication: `cargo npm publish -- --provenance --access public`. Platform packages are published before the wrapper.
+- Generation steps, run by `automation/npm_packages.py`: stage the built TypeScript SDK into `npm/@archont561/playtest/`; run `cargo npm generate` (`0.1.5`) over the Phase 1 compiled binaries; replace `bin/playtest.js` with Playtest's loader (`typescript/loader/playtest.cjs`); write `bin/package.json` containing `{"type":"commonjs"}`; assert zero install lifecycle scripts across all generated manifests; pack deterministic `.tgz` tarballs.
+- Publication (`automation/publish_registries.py npm`): publishes all five `@archont561/playtest-<platform>-<arch>` tarballs with `npm publish --provenance --access public` strictly before publishing the `@archont561/playtest` wrapper tarball.
 - Loader contract (`bin/playtest.js`):
   1. Resolve `@archont561/playtest-<platform>-<arch>` for the host.
   2. If the package is absent or its binary is not executable, exit with status 3 and a message that names the package and the fix. Print no stack trace.
@@ -97,8 +119,8 @@ Every other channel and both download wrappers depend on the GitHub Release.
 
 ### 4.4 conda
 
-- A recipe built with `pixi-build-rust` produces the package `playtest`, which puts the binary on `PATH`.
-- The receiving channel is chosen by `task_057`. The root `pixi.toml` already lists the channel `https://prefix.dev/archont561/archont561`.
+- Recipe `conda/pixi.toml` built with `pixi-build-rust` produces the `playtest` `.conda` package across all 5 matrix platforms (`linux-64`, `linux-aarch64`, `osx-64`, `osx-arm64`, `win-64`), placing `playtest` on `PATH`.
+- **Settled receiving channel (`task_057`):** `https://prefix.dev/archont561/archont561` (already configured in the root `pixi.toml` `channels` list). Phase 1 (`build-conda`) builds `.conda` artifacts per platform, and Phase 2 (`publish-conda`) uploads them via `automation/publish_registries.py conda` without recompiling.
 
 ## 5. Download Wrappers (Go and R)
 
@@ -122,8 +144,8 @@ Every other channel and both download wrappers depend on the GitHub Release.
 ### 5.3 R
 
 - `playtest::install_cli()` downloads the binary when the user calls it. Nothing is downloaded when the package is installed or loaded, as CRAN policy requires.
-- The binary is stored under `tools::R_user_dir()`.
-- `tools::sha256sum()` exists only from R 4.5. The package documents how it verifies the checksum on older R, or raises its minimum R version.
+- The binary is stored under `tools::R_user_dir("playtest", which = "cache")`.
+- **Checksum verification across R versions (`task_058`):** `r/DESCRIPTION` declares `Depends: R (>= 4.3.0)`. On R 4.5 and newer, `install_cli()` uses `tools::sha256sum()`. On R 4.3 and 4.4 (where `tools::sha256sum()` is absent), `install_cli()` verifies the archive before extraction using a pure base-R FIPS 180-4 SHA-256 implementation (`.sha256_raw()` in `r/R/install_cli.R`, tested against NIST vectors and `tools::sha256sum()`).
 - `playtest-r` is not a valid R package name. The package is named `playtest`.
 
 ## 6. Deferred Channels
@@ -156,12 +178,14 @@ Checked on 2026-11-11 against each registry's public index or API. "Owned by thi
 
 ## 8. Release Pipeline Requirements
 
-1. **One version per release.** A check fails the release when any package manifest, `VERSION` constant, or embedded SDK version differs from the release version.
-2. **Build in Phase 1.** Every artifact is built in Phase 1 from the release tag and stored as a workflow artifact. Publishing jobs upload and never compile ([ADR 0008](../adr/0008-two-phase-artifact-release-pipeline.md)). Which channels repackage one compiled binary and which compile the tag themselves is settled by `task_055` to `task_057`.
-3. **Order.** npm platform packages are published before the wrapper. The GitHub Release is published with its assets before the tag `go/vX.Y.Z` is pushed and before an R package version is submitted.
-4. **No wrapper without a binary.** No Go or R version is published without a binary release of the same version. A Go-only release tag has no such release today; `task_059` resolves this.
-5. **Automation rules.** Helpers are Python modules under `automation/` ([ADR 0009](../adr/0009-python-only-repo-automation.md); `scripts/` holds only `scripts/restore.sh`), and commands run through Pixi ([ADR 0005](../adr/0005-hermetic-pixi-and-nextest-toolchain.md)).
-6. **Platforms.** The Pixi workspace declares only `linux-64` today. The release build covers every platform of the matrix in §3.
+1. **One version per release.** `automation/release_binaries.py verify-version` fails the release in `gate` when any package manifest, `VERSION` constant, or embedded SDK version differs from the release version.
+2. **Build in Phase 1 (`task_055`–`task_057`).** Every artifact is built in Phase 1 from the release tag and stored as a workflow artifact; Phase 2 jobs upload and never compile ([ADR 0008](../adr/0008-two-phase-artifact-release-pipeline.md)). Specifically:
+   - **GitHub Releases & npm repackage one compiled binary per platform:** `build-cli` compiles the 5 canonical release binaries once; `build-typescript` downloads those exact Phase 1 binaries and packages `@archont561/playtest-<os>-<cpu>` + `@archont561/playtest` via `cargo-npm` `0.1.5`.
+   - **PyPI (`maturin`) and conda (`pixi-build-rust`) compile the tagged commit in Phase 1:** `build-python` (`PyO3/maturin-action` `v1.51.0` with `bindings = "bin"` and `--locked`) builds the 5 platform wheels + sdist in Phase 1, and `build-conda` (`pixi build --path conda`) builds the 5 `.conda` packages in Phase 1; `publish-pypi` and `publish-conda` upload those Phase 1 artifacts without compiling.
+3. **Order.** `publish-npm` publishes all 5 platform packages before the wrapper. `github-release` publishes `vX.Y.Z` with all archives and `sha256.sum` attached before `publish-go` pushes `go/vX.Y.Z` and before `cran-publish.yml` submits an R package version.
+4. **No wrapper without a binary (`task_059`).** Package-scoped and Go-only release triggers are retired ([Spec 0007](./0007-autorelease-change-detection-and-milestone-dispatch.md)). Both `automation/publish_go.py` and `automation/release.py validate-cran-tag` verify over HTTPS that `vX.Y.Z/sha256.sum` is published on GitHub Releases before pushing `go/vX.Y.Z` or submitting to CRAN.
+5. **Automation rules.** Helpers are Python modules under `automation/` ([ADR 0009](../adr/0009-python-only-repo-automation.md); `scripts/` holds only `scripts/restore.sh`), and workspace commands run through Pixi ([ADR 0005](../adr/0005-hermetic-pixi-and-nextest-toolchain.md)).
+6. **Platforms.** Developer tasks in the root `pixi.toml` run on `linux-64`; `release.yml` Phase 1 matrices (`build-cli`, `build-python`, `build-conda`) build and verify every platform of the 5-target matrix in §3.
 
 ## 9. Verification
 

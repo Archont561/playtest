@@ -76,6 +76,22 @@ def inject_banner(content: str, *, art: str | None = None) -> str:
     return content.replace(BANNER_MARKER, rendered)
 
 
+def _run_generator_in_tempdir(command: list[str], package_json: Path, runner: Runner) -> str:
+    workdir = Path(tempfile.mkdtemp(prefix="playtest-readme-"))
+    try:
+        shutil.copyfile(package_json, workdir / "package.json")
+        status = runner(command, workdir)
+        produced = workdir / "README.md"
+        if status != 0:
+            raise RuntimeError(f"{GENERATOR_PACKAGE} exited with status {status}")
+        if not produced.is_file():
+            raise RuntimeError(f"{GENERATOR_PACKAGE} did not produce a README.md")
+        raw_text = produced.read_text(encoding="utf-8")
+        return "\n".join(line.rstrip() for line in raw_text.splitlines()) + "\n"
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)
+
+
 def render_readme(
     *,
     template: Path = TEMPLATE,
@@ -95,21 +111,26 @@ def render_readme(
         "-p",
         str(template.resolve()),
     ]
-    workdir = Path(tempfile.mkdtemp(prefix="playtest-readme-"))
-    try:
-        shutil.copyfile(package_json, workdir / "package.json")
-        status = runner(command, workdir)
-        produced = workdir / "README.md"
-        if status != 0:
-            raise RuntimeError(f"{GENERATOR_PACKAGE} exited with status {status}")
-        if not produced.is_file():
-            raise RuntimeError(f"{GENERATOR_PACKAGE} did not produce a README.md")
-        raw_text = produced.read_text(encoding="utf-8")
-        normalized = "\n".join(line.rstrip() for line in raw_text.splitlines()) + "\n"
-        content = inject_banner(normalized)
-        return ReadmeResult(content=content, command=tuple(command))
-    finally:
-        shutil.rmtree(workdir, ignore_errors=True)
+    normalized = _run_generator_in_tempdir(command, package_json, runner)
+    return ReadmeResult(content=inject_banner(normalized), command=tuple(command))
+
+
+def _sync_readme_target(content: str, target: Path, template_name: str, *, check: bool) -> int:
+    existing = target.read_text(encoding="utf-8") if target.is_file() else ""
+    if check:
+        if content != existing:
+            emit_err(
+                "README.md is out of date. Run `python -m automation.readme` and commit the result."
+            )
+            return 1
+        emit_line("[readme] OK: README.md matches automation/readme/README.ejs.")
+        return 0
+    if content == existing:
+        emit_line("[readme] OK: README.md unchanged.")
+    else:
+        target.write_text(content, encoding="utf-8")
+        emit_line(f"[readme] OK: wrote {target.name} from {template_name}.")
+    return 0
 
 
 def write_readme(
@@ -129,27 +150,10 @@ def write_readme(
     except RuntimeError as err:
         emit_err(f"[readme] ERROR: {err}")
         return 1
-
     if not result.attributed:
         emit_err(f"[readme] ERROR: generated output lacks {GENERATOR_PACKAGE} attribution")
         return 1
-
-    existing = target.read_text(encoding="utf-8") if target.is_file() else ""
-    if check:
-        if result.content != existing:
-            emit_err(
-                "README.md is out of date. Run `python -m automation.readme` and commit the result."
-            )
-            return 1
-        emit_line("[readme] OK: README.md matches automation/readme/README.ejs.")
-        return 0
-
-    if result.content == existing:
-        emit_line("[readme] OK: README.md unchanged.")
-    else:
-        target.write_text(result.content, encoding="utf-8")
-        emit_line(f"[readme] OK: wrote {target.name} from {template.name}.")
-    return 0
+    return _sync_readme_target(result.content, target, template.name, check=check)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

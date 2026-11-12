@@ -91,6 +91,24 @@ def clean_staged_assets(root: Path = REPO_ROOT) -> None:
         shutil.rmtree(staged_dir)
 
 
+def _stage_language_files(
+    lang: str, spec: dict[str, Any], root: Path, staged_root: Path
+) -> list[Path]:
+    source_dir = root / str(spec["source_dir"])
+    copied: list[Path] = []
+    for rel_str in (str(item) for item in spec.get("files", [])):
+        if is_forbidden_asset_path(rel_str):
+            raise ValueError(f"forbidden test/lockfile/cache path in {lang}: {rel_str}")
+        err = validate_no_symlink_components(source_dir, Path(rel_str))
+        if err is not None:
+            raise FileNotFoundError(err)
+        dst = staged_root / lang / rel_str
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_dir / rel_str, dst, follow_symlinks=False)
+        copied.append(dst)
+    return copied
+
+
 def stage_assets(root: Path = REPO_ROOT, *, build_generated: bool = False) -> list[Path]:
     """Copy all manifest-listed SDK files into `crates/playtest-assets/staged/`."""
     if build_generated and build_typescript_dist(root) != 0:
@@ -100,19 +118,7 @@ def stage_assets(root: Path = REPO_ROOT, *, build_generated: bool = False) -> li
     staged_root = root / STAGED_REL
     staged_files: list[Path] = []
     for lang, spec in sorted(languages.items()):
-        source_dir = root / str(spec["source_dir"])
-        files: list[str] = [str(item) for item in spec.get("files", [])]
-        for rel_str in files:
-            if is_forbidden_asset_path(rel_str):
-                raise ValueError(f"forbidden test/lockfile/cache path in {lang}: {rel_str}")
-            err = validate_no_symlink_components(source_dir, Path(rel_str))
-            if err is not None:
-                raise FileNotFoundError(err)
-            src = source_dir / rel_str
-            dst = staged_root / lang / rel_str
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dst, follow_symlinks=False)
-            staged_files.append(dst)
+        staged_files.extend(_stage_language_files(lang, spec, root, staged_root))
     return staged_files
 
 

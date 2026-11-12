@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 import pytest
@@ -48,45 +48,42 @@ def test_pinned_version_reads_exact_semver(tmp_path: Path) -> None:
         pinned_version(bad_pkg)
 
 
-def test_render_and_check_readme_with_stub_runner(tmp_path: Path) -> None:
+def _write_stub_template(tmp_path: Path) -> tuple[Path, Path, Path]:
     template = tmp_path / "README.ejs"
     template.write_text("# Stub\n", encoding="utf-8")
     pkg = tmp_path / "package.json"
     pkg.write_text('{"devDependencies": {"readme-md-generator": "1.0.0"}}', encoding="utf-8")
-    target = tmp_path / "README.md"
+    return template, pkg, tmp_path / "README.md"
 
-    def fake_runner(_cmd: Sequence[str], cwd: Path) -> int:
-        (cwd / "README.md").write_text(
-            f"# Playtest\n{BANNER_MARKER}\n\n{ATTRIBUTION}\n",
-            encoding="utf-8",
-        )
-        return 0
 
-    rendered = render_readme(template=template, package_json=pkg, runner=fake_runner)
+def _stub_runner(_cmd: Sequence[str], cwd: Path) -> int:
+    (cwd / "README.md").write_text(
+        f"# Playtest\n{BANNER_MARKER}\n\n{ATTRIBUTION}\n",
+        encoding="utf-8",
+    )
+    return 0
+
+
+def _write_check_readme(
+    check: bool,
+    template: Path,
+    pkg: Path,
+    target: Path,
+    runner: Callable[[Sequence[str], Path], int],
+) -> int:
+    return write_readme(
+        check=check, template=template, package_json=pkg, target=target, runner=runner
+    )
+
+
+def test_render_and_check_readme_with_stub_runner(tmp_path: Path) -> None:
+    template, pkg, target = _write_stub_template(tmp_path)
+    rendered = render_readme(template=template, package_json=pkg, runner=_stub_runner)
     assert rendered.attributed
     assert BANNER_MARKER not in rendered.content
     assert inject_banner("plain", art="CUSTOM") == "plain"
 
-    assert write_readme(template=template, package_json=pkg, target=target, runner=fake_runner) == 0
-    assert (
-        write_readme(
-            check=True,
-            template=template,
-            package_json=pkg,
-            target=target,
-            runner=fake_runner,
-        )
-        == 0
-    )
-
+    assert _write_check_readme(False, template, pkg, target, _stub_runner) == 0
+    assert _write_check_readme(True, template, pkg, target, _stub_runner) == 0
     target.write_text("stale\n", encoding="utf-8")
-    assert (
-        write_readme(
-            check=True,
-            template=template,
-            package_json=pkg,
-            target=target,
-            runner=fake_runner,
-        )
-        == 1
-    )
+    assert _write_check_readme(True, template, pkg, target, _stub_runner) == 1

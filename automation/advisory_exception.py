@@ -45,37 +45,40 @@ def _parse_audit_ignores(audit_toml: Path) -> set[str]:
     return {str(item).strip() for item in raw_items if str(item).strip()}
 
 
+def _verify_single_advisory(adv_id: str, reason: str, edges: dict[str, set[str]]) -> list[str]:
+    errors: list[str] = []
+    if not reason:
+        errors.append(f"{adv_id} in deny.toml must specify a non-empty reason")
+    mapping = EXPECTED_TRANSITIVE_SOURCE.get(adv_id)
+    if mapping is None:
+        errors.append(f"{adv_id} is not registered in EXPECTED_TRANSITIVE_SOURCE")
+        return errors
+    parent_pkg, target_pkg = mapping
+    if target_pkg not in edges:
+        errors.append(f"stale ignore {adv_id}: {target_pkg} is no longer in Cargo.lock")
+    elif target_pkg not in edges.get(parent_pkg, set()):
+        errors.append(f"stale ignore {adv_id}: {parent_pkg} no longer depends on {target_pkg}")
+    return errors
+
+
 def verify_advisory_exceptions(root: Path = REPO_ROOT) -> list[str]:
     """Validate synchronization and continued necessity of ignored RUSTSEC advisories."""
-    deny_path = root / "deny.toml"
-    audit_path = root / ".cargo" / "audit.toml"
-    lock_path = root / "Cargo.lock"
-    for required in (deny_path, audit_path, lock_path):
-        if not required.is_file():
-            return [f"missing required file: {required.relative_to(root).as_posix()}"]
+    required = (root / "deny.toml", root / ".cargo" / "audit.toml", root / "Cargo.lock")
+    for path in required:
+        if not path.is_file():
+            return [f"missing required file: {path.relative_to(root).as_posix()}"]
 
-    deny_ignores = _parse_deny_ignores(deny_path)
-    audit_ignores = _parse_audit_ignores(audit_path)
-    edges = _load_lock_edges(lock_path)
+    deny_ignores = _parse_deny_ignores(required[0])
+    audit_ignores = _parse_audit_ignores(required[1])
+    edges = _load_lock_edges(required[2])
     errors: list[str] = []
-
     if set(deny_ignores) != audit_ignores:
         errors.append(
             f"deny.toml ({sorted(deny_ignores)}) and .cargo/audit.toml ({sorted(audit_ignores)}) "
             "ignore sets must match"
         )
     for adv_id, reason in sorted(deny_ignores.items()):
-        if not reason:
-            errors.append(f"{adv_id} in deny.toml must specify a non-empty reason")
-        mapping = EXPECTED_TRANSITIVE_SOURCE.get(adv_id)
-        if mapping is None:
-            errors.append(f"{adv_id} is not registered in EXPECTED_TRANSITIVE_SOURCE")
-            continue
-        parent_pkg, target_pkg = mapping
-        if target_pkg not in edges:
-            errors.append(f"stale ignore {adv_id}: {target_pkg} is no longer in Cargo.lock")
-        elif target_pkg not in edges.get(parent_pkg, set()):
-            errors.append(f"stale ignore {adv_id}: {parent_pkg} no longer depends on {target_pkg}")
+        errors.extend(_verify_single_advisory(adv_id, reason, edges))
     return errors
 
 

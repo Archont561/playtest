@@ -30,8 +30,8 @@ semgrep = "==1.150.0"
 doit = ">=0.37,<0.38"
 pytest = ">=8.0.0,<10"
 mypy = ">=1.15.0,<3"
-rude = "==0.1a4"
-rude-clean-code = "==0.1.0"
+rude = ">=0.1a4, <0.2"
+rude-clean-code = ">=0.3.1, <0.4"
 
 [environments]
 default = { solve-group = "default" }
@@ -62,7 +62,7 @@ twine = ">=7.0.0,<8"
 sdk-build = "python3 -m automation.sdk_tasks py-build"
 sdk-test = { cmd = "pytest tests", cwd = "python", env = { PYTHONPATH = "src" } }
 sdk-coverage = { cmd = "mkdir -p coverage && pytest --cov=src --cov-report=term --cov-report=lcov:coverage/lcov-py.info tests", cwd = "python", env = { PYTHONPATH = "src" } }
-sdk-lint = { cmd = "ruff check src/ tests/", cwd = "python" }
+sdk-lint = { cmd = "ruff check src/ tests/ && python3 -m automation.rude_clean python/src python/tests", cwd = "python", env = { PYTHONPATH = ".." } }
 sdk-fmt = { cmd = "ruff format src/ tests/ && ruff check --fix src/ tests/", cwd = "python" }
 sdk-fmt-check = { cmd = "ruff format --check src/ tests/ && ruff check src/ tests/", cwd = "python" }
 sdk-package = { cmd = "twine check dist/*", cwd = "python", depends-on = [
@@ -72,6 +72,10 @@ sdk-package = { cmd = "twine check dist/*", cwd = "python", depends-on = [
   "sdk-build",
 ] }
 sdk-release = { depends-on = ["sdk-package"] }
+
+[feature.py.pypi-dependencies]
+rude = ">=0.1a4, <0.2"
+rude-clean-code = ">=0.3.1, <0.4"
 
 [feature.ts.dependencies]
 bun = ">=1.4.2,<1.5"
@@ -290,12 +294,21 @@ lint-csharp = "pixi run --frozen -e csharp sdk-lint"
 lint-go = "pixi run --frozen -e go sdk-lint"
 lint-java = "pixi run --frozen -e java sdk-lint"
 lint-r = "pixi run --frozen -e r sdk-lint"
+lint-clean-py = "python -m automation.rude_clean automation python/src python/tests"
+lint-automation = "ruff format --check automation python/src python/tests && ruff check automation python/src python/tests && mypy --config-file mypy.ini automation && python -m automation.rude_clean automation python/src python/tests"
 
-lint = { depends-on = ["fmt-check-rs", "clippy", "lint-toml", "actionlint"] }
+lint = { depends-on = [
+  "fmt-check-rs",
+  "clippy",
+  "lint-toml",
+  "actionlint",
+  "lint-clean-py",
+] }
 lint-all = { depends-on = [
   "fmt-check",
   "clippy",
   "actionlint",
+  "lint-clean-py",
   "lint-py",
   "lint-ts",
   "lint-cpp",

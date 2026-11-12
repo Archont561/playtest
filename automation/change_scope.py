@@ -15,6 +15,7 @@ DOC_ONLY_PREFIXES: tuple[str, ...] = ("backlog/", "docs/")
 GLOBAL_TRIGGERS: tuple[str, ...] = (
     "pixi.toml",
     "pixi.lock",
+    "rude.toml",
     ".github/workflows/ci.yml",
     "automation/",
 )
@@ -37,16 +38,31 @@ def _is_doc_only(rel_path: str) -> bool:
     return any(rel_path.startswith(prefix) for prefix in DOC_ONLY_PREFIXES)
 
 
+def _matches_any(rel: str, prefixes: Sequence[str]) -> bool:
+    return any(rel == prefix or rel.startswith(prefix) for prefix in prefixes)
+
+
+def _lanes_for_path(rel: str) -> set[str]:
+    if _matches_any(rel, GLOBAL_TRIGGERS):
+        return set(LANE_NAMES)
+    matched = {lane for lane, prefixes in LANE_PREFIXES.items() if _matches_any(rel, prefixes)}
+    return matched or {"rust"}
+
+
+def _format_lane_flags(active: set[str], *, saw_code: bool) -> dict[str, str]:
+    sdk_lanes = [lane for lane in LANE_NAMES if lane != "rust"]
+    result = {lane: ("true" if lane in active else "false") for lane in LANE_NAMES}
+    active_sdks = [lane for lane in sdk_lanes if lane in active]
+    result["any_code"] = "true" if (saw_code or active) else "false"
+    result["has_sdks"] = "true" if active_sdks else "false"
+    result["sdks"] = json.dumps(active_sdks)
+    return result
+
+
 def classify_paths(paths: Iterable[str], *, force_all: bool = False) -> dict[str, str]:
     """Map changed relative paths to `'true'` / `'false'` flags and active SDK list."""
-    sdk_lanes = tuple(lane for lane in LANE_NAMES if lane != "rust")
     if force_all:
-        flags = dict.fromkeys(LANE_NAMES, "true")
-        flags["any_code"] = "true"
-        flags["has_sdks"] = "true"
-        flags["sdks"] = json.dumps(list(sdk_lanes))
-        return flags
-
+        return _format_lane_flags(set(LANE_NAMES), saw_code=True)
     active: set[str] = set()
     saw_code = False
     for raw in paths:
@@ -54,23 +70,8 @@ def classify_paths(paths: Iterable[str], *, force_all: bool = False) -> dict[str
         if not rel or _is_doc_only(rel):
             continue
         saw_code = True
-        if any(rel == trig or rel.startswith(trig) for trig in GLOBAL_TRIGGERS):
-            active.update(LANE_NAMES)
-            continue
-        matched = False
-        for lane, prefixes in LANE_PREFIXES.items():
-            if any(rel == p or rel.startswith(p) for p in prefixes):
-                active.add(lane)
-                matched = True
-        if not matched:
-            active.add("rust")
-
-    result = {lane: ("true" if lane in active else "false") for lane in LANE_NAMES}
-    active_sdks = [lane for lane in sdk_lanes if lane in active]
-    result["any_code"] = "true" if (saw_code or active) else "false"
-    result["has_sdks"] = "true" if active_sdks else "false"
-    result["sdks"] = json.dumps(active_sdks)
-    return result
+        active.update(_lanes_for_path(rel))
+    return _format_lane_flags(active, saw_code=saw_code)
 
 
 def diff_paths(base_ref: str, head_ref: str = "HEAD", *, root: Path = REPO_ROOT) -> list[str]:

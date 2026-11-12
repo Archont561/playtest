@@ -91,13 +91,14 @@ def task_sandbox_check() -> dict[str, Any]:
 
 
 def task_lint_automation() -> dict[str, Any]:
-    """Check Python formatting and lint rules on automation/ and python/."""
+    """Check Python formatting, lint rules, and Clean Code bounds on automation/ and python/."""
     return {
         "actions": [
             ["ruff", "format", "--check", "automation", "python/src", "python/tests"],
             ["ruff", "check", "automation", "python/src", "python/tests"],
         ],
-        "doc": "Lint and format-check Python automation and SDK sources",
+        "task_dep": ["rude"],
+        "doc": "Lint, format-check, and Clean Code-check Python automation and SDK sources",
         "uptodate": [False],
     }
 

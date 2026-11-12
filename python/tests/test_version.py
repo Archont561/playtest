@@ -4,7 +4,8 @@ import re
 from pathlib import Path
 
 import pytest
-from playtest import VERSION, __version__, _discover_version
+from playtest import VERSION, __version__
+from playtest._version import _discover_version
 
 SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$")
 

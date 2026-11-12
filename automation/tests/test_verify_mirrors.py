@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from automation.verify_mirrors import _offline_env_without_cli, compare_mirror_hash_files, main
+from automation._mirror_installers import offline_env_without_cli
+from automation.verify_mirrors import compare_mirror_hash_files, main
 
 
 def _write_hash_manifest(path: Path, platform_name: str, artifacts: dict[str, str]) -> None:
@@ -57,7 +58,7 @@ def test_offline_env_preserves_host_loader_vars_and_removes_cli_dir(
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("VIRTUAL_ENV", "/tmp/stale-venv")
 
-    env = _offline_env_without_cli(cli_dir)
+    env = offline_env_without_cli(cli_dir)
     assert str(cli_dir) not in env["PATH"].split(os.pathsep)
     assert str(other_dir) in env["PATH"].split(os.pathsep)
     assert env["LD_LIBRARY_PATH"] == "/opt/hostedtoolcache/Python/3.12/x64/lib"

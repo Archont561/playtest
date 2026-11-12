@@ -4,7 +4,12 @@
 
 [languages.python]
 source_dir = "python"
-files = ["README.md", "pyproject.toml", "src/playtest/__init__.py"]
+files = [
+  "README.md",
+  "pyproject.toml",
+  "src/playtest/__init__.py",
+  "src/playtest/_version.py",
+]
 
 [languages.typescript]
 source_dir = "typescript"

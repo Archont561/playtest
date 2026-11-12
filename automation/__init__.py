@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-REPO_ROOT: Path = Path(__file__).resolve().parent.parent
+from automation._paths import REPO_ROOT
 
 __all__ = ["REPO_ROOT"]

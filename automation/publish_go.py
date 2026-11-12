@@ -21,62 +21,70 @@ from automation.stamp_version import extract_version_from_tag
 GO_PROXY_MODULE_PATH: str = "github.com/!archont561/playtest/go"
 
 
-def ensure_go_module_tag(
-    release_tag: str,
-    *,
-    root: Path = REPO_ROOT,
-    dry_run: bool = False,
-    require_binary_release: bool = True,
-    release_base_url: str = DEFAULT_RELEASE_DOWNLOAD_URL,
-) -> str:
-    """Verify GitHub Release `vX.Y.Z` exists, then create and push `go/vX.Y.Z`."""
+def _parse_go_release_version(release_tag: str) -> str:
     cleaned = release_tag.strip()
     if not UNIFIED_RELEASE_TAG_RE.match(cleaned):
         raise ValueError(
             f"Go module publication requires unified release tag vX.Y.Z, got {release_tag!r}"
         )
-    version = extract_version_from_tag(cleaned)
-    go_tag = f"go/v{version}"
-    if dry_run:
-        emit_line(f"[publish-go] DRY-RUN: would verify v{version} binaries and push {go_tag}")
-        return go_tag
+    return extract_version_from_tag(cleaned)
 
-    if require_binary_release:
-        verify_binary_release_exists(version, base_url=release_base_url)
 
+def _create_annotated_go_tag(root: Path, go_tag: str) -> None:
     existing = run_cmd(
         ["git", "rev-parse", "-q", "--verify", f"refs/tags/{go_tag}"], cwd=root, capture=True
     )
-    if existing.returncode != 0:
-        cfg_name = run_cmd(["git", "config", "user.name", "github-actions[bot]"], cwd=root)
-        cfg_mail = run_cmd(
-            [
-                "git",
-                "config",
-                "user.email",
-                "41898282+github-actions[bot]@users.noreply.github.com",
-            ],
-            cwd=root,
-        )
-        if cfg_name.returncode != 0 or cfg_mail.returncode != 0:
-            raise RuntimeError("failed to configure git identity for Go module tag")
-        tag_res = run_cmd(
-            ["git", "tag", "-a", go_tag, "-m", f"Go module release {go_tag}"], cwd=root
-        )
-        if tag_res.returncode != 0:
-            raise RuntimeError(f"failed to create tag {go_tag}")
+    if existing.returncode == 0:
+        return
+    cfg_name = run_cmd(["git", "config", "user.name", "github-actions[bot]"], cwd=root)
+    cfg_mail = run_cmd(
+        [
+            "git",
+            "config",
+            "user.email",
+            "41898282+github-actions[bot]@users.noreply.github.com",
+        ],
+        cwd=root,
+    )
+    if cfg_name.returncode != 0 or cfg_mail.returncode != 0:
+        raise RuntimeError("failed to configure git identity for Go module tag")
+    tag_res = run_cmd(["git", "tag", "-a", go_tag, "-m", f"Go module release {go_tag}"], cwd=root)
+    if tag_res.returncode != 0:
+        raise RuntimeError(f"failed to create tag {go_tag}")
+
+
+def preview_go_module_release(release_tag: str) -> str:
+    """Log the planned Go module tag and proxy index URL without mutating remotes."""
+    version = _parse_go_release_version(release_tag)
+    go_tag = f"go/v{version}"
+    url = f"https://proxy.golang.org/{GO_PROXY_MODULE_PATH}/@v/v{version}.info"
+    emit_line(f"[publish-go] DRY-RUN: would verify v{version} binaries and push {go_tag}")
+    emit_line(f"[publish-go] DRY-RUN: would GET {url}")
+    return go_tag
+
+
+def ensure_go_module_tag(
+    release_tag: str,
+    *,
+    root: Path = REPO_ROOT,
+    require_binary_release: bool = True,
+    release_base_url: str = DEFAULT_RELEASE_DOWNLOAD_URL,
+) -> str:
+    """Verify GitHub Release `vX.Y.Z` exists, then create and push `go/vX.Y.Z`."""
+    version = _parse_go_release_version(release_tag)
+    go_tag = f"go/v{version}"
+    if require_binary_release:
+        verify_binary_release_exists(version, base_url=release_base_url)
+    _create_annotated_go_tag(root, go_tag)
     push_res = run_cmd(["git", "push", "origin", f"refs/tags/{go_tag}"], cwd=root)
     if push_res.returncode != 0:
         raise RuntimeError(f"failed to push {go_tag} to origin")
     return go_tag
 
 
-def request_go_proxy_index(version: str, *, dry_run: bool = False) -> None:
+def request_go_proxy_index(version: str) -> None:
     """Ask proxy.golang.org to index `vX.Y.Z` for the `go/` subdirectory module."""
     url = f"https://proxy.golang.org/{GO_PROXY_MODULE_PATH}/@v/v{version}.info"
-    if dry_run:
-        emit_line(f"[publish-go] DRY-RUN: would GET {url}")
-        return
     req = urllib.request.Request(url, headers={"User-Agent": "playtest-release-automation"})
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
@@ -95,15 +103,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--root", type=Path, default=REPO_ROOT)
     args = parser.parse_args(list(argv) if argv is not None else None)
     try:
-        version = extract_version_from_tag(args.release_tag)
-        go_tag = ensure_go_module_tag(
-            args.release_tag,
-            root=args.root.resolve(),
-            dry_run=args.dry_run,
-            require_binary_release=not args.skip_release_check,
-            release_base_url=args.release_base_url,
-        )
-        request_go_proxy_index(version, dry_run=args.dry_run)
+        if args.dry_run:
+            go_tag = preview_go_module_release(args.release_tag)
+        else:
+            version = extract_version_from_tag(args.release_tag)
+            go_tag = ensure_go_module_tag(
+                args.release_tag,
+                root=args.root.resolve(),
+                require_binary_release=not args.skip_release_check,
+                release_base_url=args.release_base_url,
+            )
+            request_go_proxy_index(version)
     except (ValueError, RuntimeError) as err:
         emit_err(f"[publish-go] ERROR: {err}")
         return 1

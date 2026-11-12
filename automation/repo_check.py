@@ -95,6 +95,14 @@ def _verify_vendor_hashes(vendor_dir: Path, manifest_text: str) -> tuple[set[str
     return recorded, errors
 
 
+def _actual_vendor_files(vendor_dir: Path) -> set[str]:
+    actual: set[str] = set()
+    for path in vendor_dir.rglob("*"):
+        if path.is_file() and path.name != "VENDOR.sha256":
+            actual.add(path.relative_to(vendor_dir).as_posix())
+    return actual
+
+
 def _check_vendor_integrity(root: Path) -> list[str]:
     vendor_dir = root / "vendor" / "clean-code-presets"
     pin_file = vendor_dir / "UPSTREAM.pin"
@@ -105,14 +113,8 @@ def _check_vendor_integrity(root: Path) -> list[str]:
     if len(pin) != 40 or any(ch not in "0123456789abcdef" for ch in pin):
         return [f"invalid 40-char SHA in UPSTREAM.pin: {pin!r}"]
     recorded, errors = _verify_vendor_hashes(vendor_dir, manifest.read_text(encoding="utf-8"))
-    actual = {
-        p.relative_to(vendor_dir).as_posix()
-        for p in vendor_dir.rglob("*")
-        if p.is_file() and p.name != "VENDOR.sha256"
-    }
-    errors.extend(
-        f"untracked file in vendor/clean-code-presets: {u}" for u in sorted(actual - recorded)
-    )
+    untracked = sorted(_actual_vendor_files(vendor_dir) - recorded)
+    errors.extend(f"untracked file in vendor/clean-code-presets: {u}" for u in untracked)
     return errors
 
 
@@ -128,16 +130,31 @@ def _reachable_crates(graph: dict[str, set[str]], start: str) -> set[str]:
     return visited
 
 
-def _check_crate_dependency_boundaries(root: Path) -> list[str]:
-    lock_path = root / "Cargo.lock"
-    if not lock_path.is_file():
-        return []
+def _parse_dep_names(raw_deps: Sequence[object]) -> set[str]:
+    names: set[str] = set()
+    for raw in raw_deps:
+        text = str(raw).strip()
+        if text:
+            names.add(text.split()[0])
+    return names
+
+
+def _load_cargo_lock_graph(lock_path: Path) -> dict[str, set[str]]:
     lock_data = tomllib.loads(lock_path.read_text(encoding="utf-8"))
     graph: dict[str, set[str]] = {}
     for pkg in lock_data.get("package", []):
         name = str(pkg.get("name", ""))
-        deps = {str(raw).split()[0] for raw in pkg.get("dependencies", []) if str(raw).strip()}
+        raw_deps = pkg.get("dependencies", [])
+        deps = _parse_dep_names(raw_deps) if isinstance(raw_deps, list) else set()
         graph.setdefault(name, set()).update(deps)
+    return graph
+
+
+def _check_crate_dependency_boundaries(root: Path) -> list[str]:
+    lock_path = root / "Cargo.lock"
+    if not lock_path.is_file():
+        return []
+    graph = _load_cargo_lock_graph(lock_path)
     errors: list[str] = []
     for lib_crate in ("playtest", "playtest-core", "playtest-macros"):
         closure = _reachable_crates(graph, lib_crate)

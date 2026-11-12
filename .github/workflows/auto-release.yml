@@ -2,16 +2,17 @@ name: Auto-Release
 
 on:
   push:
-    tags:
-      - "milestone-v*"
-      - "milestone/*"
-      - "m-v*"
   workflow_dispatch:
     inputs:
       override_version:
         description: "Explicit target SemVer (e.g. 0.2.0); leave blank to detect automatically"
         required: false
         type: string
+      dry_run:
+        description: "Validate gates without pushing the unified release tag"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -27,30 +28,39 @@ env:
 jobs:
   prepare-and-tag:
     name: Validate Gates & Cut Unified Release Tag
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.ref == 'refs/heads/main' ||
+      startsWith(github.ref, 'refs/tags/milestone-v') ||
+      startsWith(github.ref, 'refs/tags/milestone/') ||
+      startsWith(github.ref, 'refs/tags/m-v')
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     permissions:
       contents: write
+      actions: write
     steps:
       - name: Checkout repository with full history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PUSH_TOKEN || github.token }}
-      - name: Set up Pixi workspace environments
-        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
-        with:
-          pixi-version: ${{ env.PIXI_VERSION }}
-          locked: true
-          cache: true
-      - name: Cache Rust build artifacts
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Detect target unified release version
         id: detect
         env:
           REF_NAME: ${{ github.ref_name }}
           OVERRIDE_VERSION: ${{ inputs.override_version }}
         run: python3 -m automation.release detect --ref-name "$REF_NAME" --override-version "$OVERRIDE_VERSION"
+      - name: Set up Pixi workspace environments
+        if: steps.detect.outputs.should_release == 'true'
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          pixi-version: ${{ env.PIXI_VERSION }}
+          locked: true
+          cache: true
+      - name: Cache Rust build artifacts
+        if: steps.detect.outputs.should_release == 'true'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Run fast governance and Clean Code gates
         if: steps.detect.outputs.should_release == 'true'
         run: pixi run --frozen doit fast
@@ -60,9 +70,31 @@ jobs:
       - name: Verify packaging across all ecosystems
         if: steps.detect.outputs.should_release == 'true'
         run: pixi run --frozen package-all
-      - name: Cut unified release tag or emit step summary
-        if: steps.detect.outputs.should_release == 'true'
+      - name: Write dry-run release summary
+        if: steps.detect.outputs.should_release == 'true' && inputs.dry_run == true
         env:
           TARGET_TAG: ${{ steps.detect.outputs.tag_name }}
-          HAVE_RELEASE_PUSH_TOKEN: ${{ secrets.RELEASE_PUSH_TOKEN != '' && 'true' || 'false' }}
         run: python3 -m automation.release cut-tag --tag "$TARGET_TAG"
+      - name: Cut and push unified release tag vX.Y.Z
+        if: steps.detect.outputs.should_release == 'true' && inputs.dry_run != true
+        env:
+          TARGET_TAG: ${{ steps.detect.outputs.tag_name }}
+        run: python3 -m automation.release cut-tag --tag "$TARGET_TAG" --push
+      - name: Dispatch release.yml when tag was pushed with GITHUB_TOKEN
+        if: >-
+          steps.detect.outputs.should_release == 'true' &&
+          inputs.dry_run != true &&
+          env.HAVE_PAT != 'true'
+        env:
+          HAVE_PAT: ${{ secrets.RELEASE_PUSH_TOKEN != '' && 'true' || 'false' }}
+          TARGET_TAG: ${{ steps.detect.outputs.tag_name }}
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'release.yml',
+              ref: `refs/tags/${process.env.TARGET_TAG}`,
+              inputs: { tag: process.env.TARGET_TAG },
+            });

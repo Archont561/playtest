@@ -52,13 +52,14 @@ r = { features = ["r"], no-default-feature = true }
 python = ">=3.12,<3.13"
 pytest = ">=8.0.0,<10"
 pytest-cov = ">=5.0.0,<8"
-python-build = ">=1.0.0,<2"
+maturin = ">=1.7.0,<2"
+rust = ">=1.88.0,<2"
+bun = ">=1.4.2,<1.5"
 ruff = ">=0.15.0,<1"
 twine = ">=7.0.0,<8"
-typer = ">=0.12.0,<1"
 
 [feature.py.tasks]
-sdk-build = { cmd = "pyproject-build --outdir dist/ .", cwd = "python" }
+sdk-build = "python3 -m automation.sdk_tasks py-build"
 sdk-test = { cmd = "pytest tests", cwd = "python", env = { PYTHONPATH = "src" } }
 sdk-coverage = { cmd = "mkdir -p coverage && pytest --cov=src --cov-report=term --cov-report=lcov:coverage/lcov-py.info tests", cwd = "python", env = { PYTHONPATH = "src" } }
 sdk-lint = { cmd = "ruff check src/ tests/", cwd = "python" }
@@ -80,10 +81,10 @@ biome = ">=2.6.2,<3"
 sdk-build = { cmd = "bun build src/index.ts --outdir dist --target node", cwd = "typescript" }
 sdk-test = { cmd = "bun test tests", cwd = "typescript" }
 sdk-coverage = { cmd = "bun test --coverage --coverage-reporter=lcov --coverage-dir=coverage tests", cwd = "typescript" }
-sdk-lint = { cmd = "biome lint src/ tests/ && bun test tests", cwd = "typescript" }
-sdk-fmt = { cmd = "biome format --write src/ tests/", cwd = "typescript" }
-sdk-fmt-check = { cmd = "biome format src/ tests/", cwd = "typescript" }
-sdk-package = { cmd = "bun pm pack --dry-run", cwd = "typescript", depends-on = [
+sdk-lint = { cmd = "biome lint src/ tests/ loader/ && bun test tests", cwd = "typescript" }
+sdk-fmt = { cmd = "biome format --write src/ tests/ loader/", cwd = "typescript" }
+sdk-fmt-check = { cmd = "biome format src/ tests/ loader/", cwd = "typescript" }
+sdk-package = { cmd = "bun pm pack", cwd = "typescript", depends-on = [
   "sdk-build",
   "sdk-test",
   "sdk-lint",
@@ -181,12 +182,11 @@ sdk-release = { depends-on = ["sdk-package"] }
 
 [feature.r.dependencies]
 r-base = ">=4.3.0,<5"
-r-optparse = ">=1.8.2,<2"
 
 [feature.r.tasks]
 sdk-build = { cmd = "R CMD build .", cwd = "r" }
-sdk-test = { cmd = "Rscript -e 'source(\"../../R/version.R\"); source(\"test-version.R\")'", cwd = "r/tests/testthat" }
-sdk-coverage = { cmd = "Rscript -e 'source(\"../../R/version.R\"); source(\"test-version.R\")'", cwd = "r/tests/testthat" }
+sdk-test = { cmd = "Rscript -e 'source(\"../../R/version.R\"); source(\"../../R/install_cli.R\"); source(\"test-version.R\"); source(\"test-install-cli.R\")'", cwd = "r/tests/testthat" }
+sdk-coverage = { cmd = "Rscript -e 'source(\"../../R/version.R\"); source(\"../../R/install_cli.R\"); source(\"test-version.R\"); source(\"test-install-cli.R\")'", cwd = "r/tests/testthat" }
 sdk-lint = { cmd = "test -f DESCRIPTION && test -f NAMESPACE", cwd = "r" }
 sdk-fmt = { cmd = "test -f DESCRIPTION", cwd = "r" }
 sdk-fmt-check = { cmd = "test -f DESCRIPTION", cwd = "r" }

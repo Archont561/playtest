@@ -1,4 +1,4 @@
-"""Unified SemVer release planning, milestone tag parsing, tag cutting, and changelog generation."""
+"""Unified SemVer release planning, milestone tag parsing, tag cutting, and CRAN gating."""
 
 from __future__ import annotations
 
@@ -6,6 +6,8 @@ import argparse
 import os
 import re
 import tomllib
+import urllib.error
+import urllib.request
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -17,8 +19,10 @@ MILESTONE_TAG_RE = re.compile(
     r"^(?:milestone-v|milestone/M\d+-v|milestone/v|m-v)(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$"
 )
 UNIFIED_RELEASE_TAG_RE = re.compile(r"^v(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$")
-GO_RELEASE_TAG_RE = re.compile(r"^go/v(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$")
-CRAN_RELEASE_TAG_RE = re.compile(r"^(?:v|r[-/]v|cran[-/]v)(\d+\.\d+\.\d+)$")
+STABLE_UNIFIED_TAG_RE = re.compile(r"^v(\d+\.\d+\.\d+)$")
+RETIRED_SCOPED_TAG_RE = re.compile(r"^(?:go/v|[a-z]+[-/]v)(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$")
+DEFAULT_RELEASE_DOWNLOAD_URL: str = "https://github.com/Archont561/playtest/releases/download"
+NON_RELEASE_PATH_PREFIXES: tuple[str, ...] = ("backlog/", ".agents/", ".devcontainer/")
 RELEASE_TARGETS: tuple[str, ...] = (
     "rust",
     "python",
@@ -39,26 +43,28 @@ def parse_milestone_tag(raw_tag: str) -> str | None:
 
 
 def plan_release_tag(raw_tag: str) -> dict[str, str]:
-    """Validate a release tag and return GitHub Actions planning outputs."""
+    """Validate a unified `vX.Y.Z` release tag and return GitHub Actions outputs."""
     tag = raw_tag.strip()
     if parse_milestone_tag(tag) is not None:
         raise ValueError(f"milestone trigger tag {tag!r} must be handled by auto-release.yml")
-
+    if RETIRED_SCOPED_TAG_RE.match(tag):
+        raise ValueError(
+            f"scoped release tag {tag!r} is retired (ADR 0010 / Spec 0012 §8); "
+            "cut unified `vX.Y.Z` so all SDKs and CLI binaries share one version"
+        )
     unified = UNIFIED_RELEASE_TAG_RE.match(tag)
     if unified:
         outputs = {"valid": "true", "tag_name": tag, "version": unified.group(1)}
         outputs.update(dict.fromkeys(RELEASE_TARGETS, "true"))
         return outputs
+    raise ValueError(f"unsupported release tag {tag!r}; expected unified vX.Y.Z")
 
-    go_only = GO_RELEASE_TAG_RE.match(tag)
-    if go_only:
-        outputs = {"valid": "true", "tag_name": tag, "version": go_only.group(1)}
-        outputs.update(
-            {target: ("true" if target == "go" else "false") for target in RELEASE_TARGETS}
-        )
-        return outputs
 
-    raise ValueError(f"unsupported release tag {tag!r}; expected vX.Y.Z (or go/vX.Y.Z)")
+def _is_releasable_path(rel_path: str) -> bool:
+    norm = rel_path.strip().replace("\\", "/")
+    if not norm or norm == ".codecov.yml" or norm.endswith(".md"):
+        return False
+    return not any(norm.startswith(prefix) for prefix in NON_RELEASE_PATH_PREFIXES)
 
 
 def _bump_semver(current: str, commits: Sequence[str]) -> tuple[str, bool]:
@@ -106,17 +112,24 @@ def detect_next_release(
         cwd=root,
         capture=True,
     )
-    rev_range = f"{last_tag.stdout.strip()}..HEAD" if last_tag.returncode == 0 else "HEAD"
-    log_res = run_cmd(["git", "log", "--format=%s", rev_range], cwd=root, capture=True)
-    subjects = [line for line in log_res.stdout.splitlines() if line.strip()]
     if last_tag.returncode != 0:
-        has_releasable = any(s.startswith(("feat", "fix", "perf")) or "!:" in s for s in subjects)
+        # Never auto-tag v0.1.0 accidentally on push to main before the first milestone release.
         return {
-            "should_release": "true" if has_releasable else "false",
+            "should_release": "false",
             "version": current_ver,
             "tag_name": f"v{current_ver}",
         }
-    next_ver, bump = _bump_semver(extract_version_from_tag(last_tag.stdout.strip()), subjects)
+
+    base_tag = last_tag.stdout.strip()
+    diff_res = run_cmd(["git", "diff", "--name-only", f"{base_tag}..HEAD"], cwd=root, capture=True)
+    changed = [line for line in diff_res.stdout.splitlines() if _is_releasable_path(line)]
+    if not changed:
+        base_ver = extract_version_from_tag(base_tag)
+        return {"should_release": "false", "version": base_ver, "tag_name": f"v{base_ver}"}
+
+    log_res = run_cmd(["git", "log", "--format=%s", f"{base_tag}..HEAD"], cwd=root, capture=True)
+    subjects = [line for line in log_res.stdout.splitlines() if line.strip()]
+    next_ver, bump = _bump_semver(extract_version_from_tag(base_tag), subjects)
     return {
         "should_release": "true" if bump else "false",
         "version": next_ver,
@@ -124,8 +137,31 @@ def detect_next_release(
     }
 
 
+def verify_binary_release_exists(
+    version_or_tag: str,
+    *,
+    base_url: str = DEFAULT_RELEASE_DOWNLOAD_URL,
+) -> None:
+    """Verify GitHub Release `vX.Y.Z` has published `sha256.sum` for all CLI archives."""
+    version = extract_version_from_tag(version_or_tag)
+    clean_base = base_url.rstrip("/")
+    sum_url = f"{clean_base}/v{version}/sha256.sum"
+    req = urllib.request.Request(sum_url, headers={"User-Agent": "playtest-release-guard"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+            status = resp.status
+    except (urllib.error.URLError, TimeoutError) as err:
+        msg = f"binary release v{version} is not published at {sum_url}: {err}"
+        raise RuntimeError(msg) from err
+    if status != 200 or "playtest-cli-" not in body:
+        raise RuntimeError(
+            f"binary release v{version} at {sum_url} is missing verified CLI checksums"
+        )
+
+
 def cut_or_summarize_tag(tag_name: str, *, root: Path = REPO_ROOT, push: bool = False) -> int:
-    """Push annotated `vX.Y.Z` when authorized, otherwise write manual tag summary."""
+    """Create and push annotated `vX.Y.Z` when `push=True`, otherwise write summary."""
     if not UNIFIED_RELEASE_TAG_RE.match(tag_name):
         emit_err(f"[release] ERROR: invalid unified release tag {tag_name!r}")
         return 1
@@ -133,8 +169,7 @@ def cut_or_summarize_tag(tag_name: str, *, root: Path = REPO_ROOT, push: bool = 
         summary_path = os.environ.get("GITHUB_STEP_SUMMARY", "").strip()
         note = (
             f"### Release Tag Ready: `{tag_name}`\n\n"
-            "`RELEASE_PUSH_TOKEN` is not configured (default `GITHUB_TOKEN` tag pushes do not "
-            "trigger `release.yml`). Push the verified tag manually:\n\n"
+            "Dry-run completed without pushing. To cut and publish manually:\n\n"
             f"```bash\ngit tag -a {tag_name} -m 'Release {tag_name}'\n"
             f"git push origin {tag_name}\n```\n"
         )
@@ -148,7 +183,10 @@ def cut_or_summarize_tag(tag_name: str, *, root: Path = REPO_ROOT, push: bool = 
         ["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"],
         cwd=root,
     )
-    if (
+    existing = run_cmd(
+        ["git", "rev-parse", "-q", "--verify", f"refs/tags/{tag_name}"], cwd=root, capture=True
+    )
+    if existing.returncode != 0 and (
         run_cmd(["git", "tag", "-a", tag_name, "-m", f"Release {tag_name}"], cwd=root).returncode
         != 0
     ):
@@ -167,12 +205,26 @@ def write_release_notes(tag_name: str, output_file: Path, *, root: Path = REPO_R
     return 0
 
 
-def validate_cran_tag(raw_tag: str) -> int:
-    """Verify that `raw_tag` is a non-prerelease R/unified SemVer tag for CRAN."""
-    match = CRAN_RELEASE_TAG_RE.match(raw_tag.strip())
+def validate_cran_tag(
+    raw_tag: str,
+    *,
+    require_binary_release: bool = True,
+    release_base_url: str = DEFAULT_RELEASE_DOWNLOAD_URL,
+) -> int:
+    """Verify `raw_tag` is unified `vX.Y.Z` and its GitHub Release binaries exist."""
+    match = STABLE_UNIFIED_TAG_RE.match(raw_tag.strip())
     if not match or not SEMVER_RE.match(match.group(1)):
-        emit_err(f"[release] ERROR: unsupported CRAN release tag {raw_tag!r} (expected vX.Y.Z).")
+        emit_err(
+            f"[release] ERROR: unsupported CRAN release tag {raw_tag!r} "
+            "(expected unified non-prerelease vX.Y.Z)."
+        )
         return 1
+    if require_binary_release:
+        try:
+            verify_binary_release_exists(match.group(1), base_url=release_base_url)
+        except RuntimeError as err:
+            emit_err(f"[release] ERROR: {err}")
+            return 1
     emit_line(f"[release] OK: CRAN release version {match.group(1)}")
     return 0
 
@@ -199,6 +251,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_cran = sub.add_parser("validate-cran-tag", help="Validate CRAN submission tag.")
     p_cran.add_argument("--tag", default=os.environ.get("RELEASE_TAG", ""))
+    p_cran.add_argument("--skip-release-check", action="store_true")
+    p_cran.add_argument("--release-base-url", default=DEFAULT_RELEASE_DOWNLOAD_URL)
     return parser
 
 
@@ -231,8 +285,8 @@ def _cmd_plan(args: argparse.Namespace, _root: Path) -> int:
 
 
 def _cmd_cut_tag(args: argparse.Namespace, root: Path) -> int:
-    has_token = bool(args.push or os.environ.get("HAVE_RELEASE_PUSH_TOKEN") == "true")
-    return cut_or_summarize_tag(args.tag, root=root, push=has_token)
+    should_push = bool(args.push or os.environ.get("HAVE_RELEASE_PUSH_TOKEN") == "true")
+    return cut_or_summarize_tag(args.tag, root=root, push=should_push)
 
 
 def _cmd_changelog(args: argparse.Namespace, root: Path) -> int:
@@ -253,7 +307,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     handler = handlers.get(args.command)
     if handler is not None:
         return handler(args, root)
-    return validate_cran_tag(args.tag)
+    return validate_cran_tag(
+        args.tag,
+        require_binary_release=not args.skip_release_check,
+        release_base_url=args.release_base_url,
+    )
 
 
 if __name__ == "__main__":

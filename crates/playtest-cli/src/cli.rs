@@ -1,5 +1,5 @@
 //! Private `clifacet`-backed command parser, input bridge, pin check, and dispatcher
-//! (`Spec 0008 §§3, 7`, `Spec 0012 §1`, `Spec 0013 §§1, 2, 6`).
+//! (`Spec 0008 §§3, 7`, `Spec 0012 §1`, `Spec 0013 §§1-6`).
 
 use std::ffi::OsString;
 use std::io::Write;
@@ -10,11 +10,13 @@ use clifacet::policy::{Capabilities, Policy, Request};
 use clifacet::prompt::{Collect, Scripted, Session};
 use clifacet::{Facet, Failure, Handler};
 use playtest_core::{
-    DiscoveredWorkspace, ExitStatus, VersionPinMismatch, discover_workspace, verify_workspace_pin,
+    DiscoveredWorkspace, ExitStatus, VersionPinMismatch, discover_workspace, require_workspace,
+    verify_workspace_pin,
 };
 
 use crate::RunEnvironment;
 use crate::commands::init::{execute_init, normalize_mirror_language};
+use crate::commands::sync::{execute_sync, execute_sync_check};
 use crate::commands::version::build_version_report;
 use crate::output::{CommandOutput, OutputFormat, WorkspacePinStatus};
 
@@ -27,6 +29,7 @@ Machine contract (Spec 0008 §7, Spec 0013 §§1-6):
 enum RawSubcommand {
     Version,
     Init { languages: Vec<String> },
+    Sync { check: bool },
 }
 
 /// Root CLI grammar bridged into [`ValidatedCli`] through [`clifacet::Facet`].
@@ -71,6 +74,18 @@ impl CommandFactory for Cli {
                             ),
                     ),
             )
+            .subcommand(
+                ClapCommand::new("sync")
+                    .about("Render deterministic SDK mirrors into .playtest/<lang>/")
+                    .arg(
+                        Arg::new("check")
+                            .long("check")
+                            .action(ArgAction::SetTrue)
+                            .help(
+                                "Verify .playtest/ mirrors and consumer manifest wiring without writing",
+                            ),
+                    ),
+            )
     }
 
     fn command_for_update() -> ClapCommand {
@@ -93,6 +108,9 @@ impl Cli {
                     .unwrap_or_default();
                 RawSubcommand::Init { languages }
             }
+            Some(("sync", sub_matches)) => RawSubcommand::Sync {
+                check: sub_matches.get_flag("check"),
+            },
             _ => RawSubcommand::Version,
         };
 
@@ -105,6 +123,9 @@ enum ValidatedAction {
     Version,
     Init {
         requested_languages: Option<Vec<String>>,
+    },
+    Sync {
+        check: bool,
     },
 }
 
@@ -136,6 +157,7 @@ fn bridge_cli(cli: Cli) -> Result<ValidatedCli, Failure> {
                 }
             }
         }
+        RawSubcommand::Sync { check } => ValidatedAction::Sync { check },
     };
     Ok(ValidatedCli { format, action })
 }
@@ -167,6 +189,21 @@ impl Handler<ExecContext<'_>> for CliDispatcher {
             )
             .map(CommandOutput::Init)
             .map_err(|err| Failure::execution(format!("failed to initialize workspace: {err}"))),
+            ValidatedAction::Sync { check } => {
+                let workspace = cx
+                    .existing_workspace
+                    .as_ref()
+                    .ok_or_else(|| Failure::execution("workspace manifest was not resolved"))?;
+                if check {
+                    execute_sync_check(workspace, &cx.env.cli_version)
+                        .map(CommandOutput::SyncCheck)
+                        .map_err(Failure::execution)
+                } else {
+                    execute_sync(workspace, &cx.env.cli_version)
+                        .map(CommandOutput::Sync)
+                        .map_err(Failure::execution)
+                }
+            }
         }
     }
 }
@@ -240,23 +277,39 @@ where
     };
 
     let output_format = validated.format;
-    let context = if matches!(validated.action, ValidatedAction::Version) {
-        let version_pin_status = inspect_workspace_for_version(env, err);
-        ExecContext {
-            env,
-            existing_workspace: None,
-            version_pin_status,
-        }
-    } else {
-        match verify_workspace_pin(&env.cwd, &env.cli_version, &env.binary_path) {
-            Ok(existing_workspace) => ExecContext {
+    let context = match &validated.action {
+        ValidatedAction::Version => {
+            let version_pin_status = inspect_workspace_for_version(env, err);
+            ExecContext {
                 env,
-                existing_workspace,
-                version_pin_status: None,
-            },
-            Err(ws_err) => {
-                let _ = writeln!(err, "playtest: {ws_err}");
-                return ExitStatus::EnvironmentFailure;
+                existing_workspace: None,
+                version_pin_status,
+            }
+        }
+        ValidatedAction::Sync { .. } => {
+            match require_workspace(&env.cwd, &env.cli_version, &env.binary_path) {
+                Ok(workspace) => ExecContext {
+                    env,
+                    existing_workspace: Some(workspace),
+                    version_pin_status: None,
+                },
+                Err(ws_err) => {
+                    let _ = writeln!(err, "playtest: {ws_err}");
+                    return ExitStatus::EnvironmentFailure;
+                }
+            }
+        }
+        ValidatedAction::Init { .. } => {
+            match verify_workspace_pin(&env.cwd, &env.cli_version, &env.binary_path) {
+                Ok(existing_workspace) => ExecContext {
+                    env,
+                    existing_workspace,
+                    version_pin_status: None,
+                },
+                Err(ws_err) => {
+                    let _ = writeln!(err, "playtest: {ws_err}");
+                    return ExitStatus::EnvironmentFailure;
+                }
             }
         }
     };
@@ -276,6 +329,21 @@ where
             return ExitStatus::EnvironmentFailure;
         }
     };
+
+    if let CommandOutput::SyncCheck(ref check_report) = command_output
+        && !check_report.ok
+    {
+        match output_format {
+            OutputFormat::Pretty => {
+                let _ = write!(err, "{rendered}");
+            }
+            OutputFormat::Json => {
+                let _ = write!(out, "{rendered}");
+                let _ = out.flush();
+            }
+        }
+        return ExitStatus::EnvironmentFailure;
+    }
 
     if write!(out, "{rendered}").is_err() || out.flush().is_err() {
         let _ = writeln!(err, "playtest: failed to write command output to stdout");

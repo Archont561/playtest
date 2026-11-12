@@ -57,6 +57,11 @@ def read_manifest_versions(root: Path = REPO_ROOT) -> dict[str, str]:
         versions["root_package_json"] = str(
             json.loads(root_pkg.read_text(encoding="utf-8"))["version"]
         )
+    conda_pixi = root / "conda/pixi.toml"
+    if conda_pixi.is_file():
+        versions["conda"] = str(
+            tomllib.loads(conda_pixi.read_text(encoding="utf-8"))["workspace"]["version"]
+        )
     return versions
 
 
@@ -74,6 +79,13 @@ def _stamp_rust(root: Path, version: str) -> None:
         r'(\[workspace\.package\][^\[]*?^version\s*=\s*)"[^"]+"',
         rf'\g<1>"{version}"',
     )
+    conda_pixi = root / "conda/pixi.toml"
+    if conda_pixi.is_file():
+        _replace_once(
+            conda_pixi,
+            r'(\[workspace\][^\[]*?^version\s*=\s*)"[^"]+"',
+            rf'\g<1>"{version}"',
+        )
 
 
 def _stamp_python(root: Path, version: str) -> None:

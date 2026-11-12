@@ -323,9 +323,36 @@ def _go_package(root: Path) -> int:
         "go.mod",
         *[p.name for p in sorted(go_dir.glob("*.go")) if not p.name.endswith("_test.go")],
     ]
+    cmd_dir = go_dir / "cmd" / "playtest"
+    if cmd_dir.is_dir():
+        entries.extend(
+            f"cmd/playtest/{p.name}"
+            for p in sorted(cmd_dir.glob("*.go"))
+            if not p.name.endswith("_test.go")
+        )
     archive = go_dir / "dist" / f"playtest-go-{ver}.tar.gz"
     _write_tarball(archive, go_dir, entries)
     emit_line(f"[sdk-tasks] packaged {archive.relative_to(root)}")
+    return 0
+
+
+def _py_build(root: Path) -> int:
+    py_dir = root / "python"
+    dist_dir = py_dir / "dist"
+    if dist_dir.exists():
+        shutil.rmtree(dist_dir)
+    dist_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        stage_assets(root, build_generated=True)
+        wheel_cmd = ["maturin", "build", "--locked", "--out", "dist"]
+        if os.environ.get("PIXI_OFFLINE", "").lower() in {"1", "true"}:
+            wheel_cmd.append("--offline")
+        if run_cmd(wheel_cmd, cwd=py_dir).returncode != 0:
+            return 1
+        if run_cmd(["maturin", "sdist", "--out", "dist"], cwd=py_dir).returncode != 0:
+            return 1
+    finally:
+        clean_staged_assets(root)
     return 0
 
 
@@ -475,6 +502,7 @@ ACTIONS: dict[str, Callable[[Path], int]] = {
     "java-test": _java_test,
     "java-coverage": _java_coverage,
     "java-package": _java_package,
+    "py-build": _py_build,
     "r-package": _r_package,
     "rs-package": _rs_package,
 }

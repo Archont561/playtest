@@ -887,7 +887,7 @@ tasks:
   - id: task_053
     title: playtest sync with Python and TypeScript mirrors
     description: "Implement Spec 0013 §§3-5 (ADR 0017): playtest sync writes committed, installer-native SDK mirrors for Python and TypeScript, and sync --check is the drift gate."
-    status: ready
+    status: done
     priority: P0
     milestone: M1-v0.1.0
     semver: "0.1.0"
@@ -907,7 +907,7 @@ tasks:
   - id: task_054
     title: Release binaries on GitHub Releases
     description: "Build the playtest binary for every supported platform and publish archives with checksums on an immutable GitHub Release (Spec 0012 §§3 and 8, ADR 0016)."
-    status: backlog
+    status: done
     priority: P0
     milestone: M1-v0.1.0
     semver: "0.1.0"
@@ -926,7 +926,7 @@ tasks:
   - id: task_055
     title: PyPI platform wheels with the binary and the Python SDK
     description: "Publish playtest-py as maturin platform wheels that hold the playtest binary and the Python SDK (Spec 0012 §4.2)."
-    status: backlog
+    status: done
     priority: P0
     milestone: M1-v0.1.0
     semver: "0.1.0"
@@ -944,7 +944,7 @@ tasks:
   - id: task_056
     title: npm platform packages, wrapper package, and loader
     description: "Publish the playtest binary to npm as per-platform packages behind the @archont561/playtest wrapper, which also carries the TypeScript SDK and Playtest's own loader (Spec 0012 §4.3)."
-    status: backlog
+    status: done
     priority: P0
     milestone: M1-v0.1.0
     semver: "0.1.0"
@@ -963,7 +963,7 @@ tasks:
   - id: task_057
     title: conda package and crates.io install path
     description: "Publish the playtest binary as a conda package built with pixi-build-rust, and verify the cargo install path (Spec 0012 §§4.1 and 4.4)."
-    status: backlog
+    status: done
     priority: P0
     milestone: M1-v0.1.0
     semver: "0.1.0"
@@ -979,7 +979,7 @@ tasks:
   - id: task_058
     title: Go and R download wrappers
     description: "Give Go and R repositories the binary through download wrappers that fetch only their own version from the GitHub Release (Spec 0012 §5, ADR 0016)."
-    status: backlog
+    status: done
     priority: P1
     milestone: M1-v0.1.0
     semver: "0.1.0"
@@ -997,7 +997,7 @@ tasks:
   - id: task_059
     title: "One version per release: scoped tags and the release chain"
     description: "Resolve the conflict between package-scoped release tags and the one-version rule of ADR 0015, and make the tag-to-release chain work end to end (Spec 0007, Spec 0012 §8)."
-    status: backlog
+    status: done
     priority: P0
     milestone: M1-v0.1.0
     semver: "0.1.0"

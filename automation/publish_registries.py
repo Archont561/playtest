@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import time
@@ -13,6 +14,7 @@ from pathlib import Path
 
 from automation import REPO_ROOT
 from automation._proc import emit_err, emit_line, run_cmd
+from automation.stage_assets import clean_staged_assets, stage_assets
 from automation.stamp_version import extract_version_from_tag, stamp_target
 
 CRATE_PUBLISH_ORDER: tuple[str, ...] = (
@@ -22,34 +24,100 @@ CRATE_PUBLISH_ORDER: tuple[str, ...] = (
     "playtest",
     "playtest-cli",
 )
+DEFAULT_CONDA_UPLOAD_URL: str = "https://prefix.dev/api/v1/upload/archont561/archont561"
 
 
 def publish_crates(root: Path = REPO_ROOT) -> int:
     """Publish all five workspace crates to crates.io in topological dependency order."""
-    for crate in CRATE_PUBLISH_ORDER:
-        res = run_cmd(["cargo", "publish", "-p", crate, "--locked"], cwd=root, timeout=600)
-        if res.returncode != 0:
-            emit_err(f"[publish] ERROR: cargo publish failed for {crate}")
-            return res.returncode
+    try:
+        stage_assets(root, build_generated=True)
+        for crate in CRATE_PUBLISH_ORDER:
+            res = run_cmd(
+                ["cargo", "publish", "-p", crate, "--allow-dirty", "--locked"],
+                cwd=root,
+                timeout=600,
+            )
+            if res.returncode != 0:
+                emit_err(f"[publish] ERROR: cargo publish failed for {crate}")
+                return res.returncode
+    finally:
+        clean_staged_assets(root)
     emit_line("[publish] OK: published 5 crates to crates.io.")
     return 0
 
 
+def _partition_npm_tarballs(tarballs: Sequence[Path]) -> tuple[list[Path], list[Path]]:
+    platform_suffixes = ("linux-x64", "linux-arm64", "darwin-x64", "darwin-arm64", "win32-x64")
+    platform_pkgs: list[Path] = []
+    wrapper_pkgs: list[Path] = []
+    for pkg in sorted(tarballs):
+        if any(f"playtest-{suf}-" in pkg.name for suf in platform_suffixes):
+            platform_pkgs.append(pkg)
+        else:
+            wrapper_pkgs.append(pkg)
+    return platform_pkgs, wrapper_pkgs
+
+
 def publish_npm(root: Path = REPO_ROOT) -> int:
-    """Publish built TypeScript tarballs to npm with OIDC provenance."""
-    ts_dir = root / "typescript"
-    tarballs = sorted(ts_dir.glob("*.tgz"))
+    """Publish platform npm tarballs first, then @archont561/playtest wrapper with provenance."""
+    npm_dist = root / "npm-dist"
+    search_dir = (
+        npm_dist if npm_dist.is_dir() and list(npm_dist.glob("*.tgz")) else (root / "typescript")
+    )
+    tarballs = sorted(search_dir.glob("*.tgz"))
     if not tarballs:
-        emit_err("[publish] ERROR: no typescript/*.tgz artifacts found to publish.")
+        emit_err(f"[publish] ERROR: no *.tgz artifacts found in {search_dir}.")
         return 1
-    for pkg in tarballs:
+    platform_pkgs, wrapper_pkgs = _partition_npm_tarballs(tarballs)
+    for pkg in [*platform_pkgs, *wrapper_pkgs]:
         res = run_cmd(
             ["npm", "publish", pkg.name, "--provenance", "--access", "public"],
-            cwd=ts_dir,
+            cwd=search_dir,
             timeout=300,
         )
         if res.returncode != 0:
+            emit_err(f"[publish] ERROR: npm publish failed for {pkg.name}")
             return res.returncode
+    emit_line(
+        f"[publish] OK: published {len(platform_pkgs)} platform and "
+        f"{len(wrapper_pkgs)} wrapper npm package(s)."
+    )
+    return 0
+
+
+def publish_conda(root: Path = REPO_ROOT) -> int:
+    """Upload Phase 1 `.conda` packages to prefix.dev channel `archont561/archont561`."""
+    token = os.environ.get("PREFIX_DEV_TOKEN", "").strip()
+    if not token:
+        emit_line("::warning::Conda publish skipped; PREFIX_DEV_TOKEN is not configured.")
+        return 0
+    conda_dir = root / "conda-dist"
+    packages = sorted(conda_dir.rglob("*.conda"))
+    if not packages:
+        emit_err("[publish] ERROR: no conda-dist/*.conda artifacts found to upload.")
+        return 1
+    upload_url = os.environ.get("PREFIX_DEV_UPLOAD_URL", DEFAULT_CONDA_UPLOAD_URL).strip()
+    for pkg in packages:
+        payload = pkg.read_bytes()
+        sha256_hex = hashlib.sha256(payload).hexdigest()
+        req = urllib.request.Request(
+            upload_url,
+            data=payload,
+            method="POST",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/octet-stream",
+                "X-File-Name": pkg.name,
+                "SHA-256": sha256_hex,
+                "User-Agent": "playtest-release-workflow",
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                emit_line(f"[publish] uploaded {pkg.name} -> HTTP {resp.status}")
+        except (urllib.error.URLError, TimeoutError) as err:
+            emit_err(f"[publish] ERROR: failed to upload {pkg.name}: {err}")
+            return 1
     return 0
 
 
@@ -72,25 +140,14 @@ def publish_conan(root: Path = REPO_ROOT) -> int:
         if run_cmd(cmd, cwd=root, timeout=180).returncode != 0:
             return 1
 
-    targets = (("cpp", "playtest-cpp"), ("c", "playtest-c"))
-    for subdir, pkg_name in targets:
+    for subdir, pkg_name in (("cpp", "playtest-cpp"), ("c", "playtest-c")):
         if os.environ.get(f"ENABLE_{subdir.upper()}", "true") != "true":
             continue
-        if (
-            run_cmd(
-                ["conan", "create", subdir, f"--version={version}", "-s", "build_type=Release"],
-                cwd=root,
-            ).returncode
-            != 0
-        ):
+        create_cmd = ["conan", "create", subdir, f"--version={version}", "-s", "build_type=Release"]
+        upload_cmd = ["conan", "upload", f"{pkg_name}/{version}", "--remote=playtest", "--confirm"]
+        if run_cmd(create_cmd, cwd=root).returncode != 0:
             return 1
-        if (
-            run_cmd(
-                ["conan", "upload", f"{pkg_name}/{version}", "--remote=playtest", "--confirm"],
-                cwd=root,
-            ).returncode
-            != 0
-        ):
+        if run_cmd(upload_cmd, cwd=root).returncode != 0:
             return 1
     return 0
 
@@ -204,6 +261,7 @@ def wait_runiverse(_root: Path = REPO_ROOT) -> int:
 PUBLISH_ACTIONS: dict[str, Callable[[Path], int]] = {
     "crates": publish_crates,
     "npm": publish_npm,
+    "conda": publish_conda,
     "conan": publish_conan,
     "nuget": publish_nuget,
     "maven": publish_maven,

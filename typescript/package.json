@@ -4,18 +4,17 @@
   "description": "Playwright-style testing framework for TypeScript with dependency-injected fixtures, strict LIFO teardown, property-based testing, and code-first BDD",
   "type": "module",
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": "./src/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     }
   },
   "files": [
     "dist",
-    "README.md",
-    "LICENSE"
+    "src/index.d.ts"
   ],
   "scripts": {
     "test": "bun test"
@@ -38,8 +37,5 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.2"
-  },
-  "dependencies": {
-    "commander": "^15.0.0"
   }
 }

@@ -64,9 +64,9 @@ The findings below were collected on 2026-11-11 from registry documentation and 
 
 ## Open Questions
 
-1. The supported platform matrix is not fixed (`task_054`).
-2. The conda channel that receives the package is not chosen (`task_057`). The root `pixi.toml` already lists the channel `https://prefix.dev/archont561/archont561`.
-3. `tools::sha256sum()` exists only from R 4.5. The R wrapper needs another way to verify on older R, or a higher R floor (`task_058`).
+1. **Settled (`task_054`):** The supported 5-platform matrix is `x86_64-unknown-linux-musl`, `aarch64-unknown-linux-musl`, `x86_64-apple-darwin`, `aarch64-apple-darwin`, and `x86_64-pc-windows-msvc` ([Spec 0012 §3](../specs/0012-workspace-crates-and-cli-distribution.md)).
+2. **Settled (`task_057`):** The receiving conda channel is `https://prefix.dev/archont561/archont561` ([Spec 0012 §4.4](../specs/0012-workspace-crates-and-cli-distribution.md)).
+3. **Settled (`task_058`):** `playtest::install_cli()` keeps `Depends: R (>= 4.3.0)`, using `tools::sha256sum()` on R >= 4.5 and a pure base-R FIPS 180-4 SHA-256 fallback on R 4.3–4.4 ([Spec 0012 §5.3](../specs/0012-workspace-crates-and-cli-distribution.md)).
 4. CRAN has not reviewed the R wrapper. A download that the user starts by calling a function is a different case from the install-time download that the policy restricts, but acceptance is not confirmed, and the package has not been submitted.
-5. Whether every channel carries the same compiled file. cargo-npm copies binaries that are already compiled, so the npm packages can reuse the GitHub Release builds. maturin and `pixi-build-rust` are build tools that compile the crate, so the PyPI wheels and the conda package may hold separately compiled binaries of the same source (`task_055`, `task_057`). This was not tested.
+5. **Settled (`task_055`, `task_056`, `task_057`):** npm platform packages repackage the exact Phase 1 `build-cli` binaries via `cargo-npm` `0.1.5`; `maturin` (`build-python`) and `pixi-build-rust` (`build-conda`) compile the same tagged commit in Phase 1 ([Spec 0012 §8](../specs/0012-workspace-crates-and-cli-distribution.md)).
 6. Whether Conan, Maven Central, and NuGet later get binary packages. A Conan package built with `export-pkg` and consumed through `tool_requires` worked in a prototype. Per-platform executables on Maven Central (as `com.google.protobuf:protoc` publishes them) and .NET tool packages per runtime identifier were researched but not tested.

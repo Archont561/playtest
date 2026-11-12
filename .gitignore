@@ -25,6 +25,9 @@ coverage.out
 
 # Node & TypeScript
 node_modules/
+npm/
+npm-dist/
+conda-dist/
 
 # Python, Automation & Package Builds
 dist/

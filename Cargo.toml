@@ -99,4 +99,4 @@ trybuild = "1.0"
 # Procedural macro development
 proc-macro2 = "1.0"
 quote = "1.0"
-syn = { version = "2.0", features = ["extra-traits", "full"] }
+syn = { version = "3.0", features = ["extra-traits", "full"] }

@@ -107,7 +107,7 @@ def _write_platform_package_dir(
 
 def _copy_sdk_assets_to_wrapper(root: Path, wrapper_dir: Path) -> None:
     ts_dir = root / "typescript"
-    for rel in ("dist/index.js", "src/index.d.ts"):
+    for rel in ("dist/index.js", "dist/index.d.ts"):
         src = ts_dir / rel
         if not src.is_file():
             raise FileNotFoundError(f"missing built TypeScript SDK file: {src}")
@@ -129,7 +129,7 @@ def _write_wrapper_manifest(
     base_pkg["type"] = "module"
     base_pkg["version"] = version
     base_pkg["bin"] = {"playtest": "bin/playtest.js"}
-    base_pkg["files"] = ["bin", "dist", "src/index.d.ts", "LICENSE", "README.md"]
+    base_pkg["files"] = ["bin", "dist", "LICENSE", "README.md"]
     base_pkg["engines"] = {"node": ">=18"}
     base_pkg["optionalDependencies"] = {spec.package_name: version for spec in platforms}
     (wrapper_dir / "package.json").write_text(

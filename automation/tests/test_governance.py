@@ -133,6 +133,9 @@ def _copy_real_alint_base(dst_root: Path) -> Path:
         "deny.toml",
         ".cargo/audit.toml",
         "pixi-sandbox.toml",
+        "typescript/bunup.config.ts",
+        "typescript/package.json",
+        "typescript/tsconfig.json",
         "vendor/clean-code-presets/UPSTREAM.pin",
         "vendor/clean-code-presets/VENDOR.sha256",
     ):
@@ -142,6 +145,40 @@ def _copy_real_alint_base(dst_root: Path) -> Path:
     cfg = dst_root / ".alint.yml"
     shutil.copy2(REPO_ROOT / ".alint.yml", cfg)
     return cfg
+
+
+def test_alint_enforces_ts_bunup_and_forbids_relative_imports(tmp_path: Path) -> None:
+    if shutil.which("alint") is None:
+        return
+    scripts_dir = tmp_path / "scripts"
+    scripts_dir.mkdir(parents=True)
+    (scripts_dir / "restore.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+    cfg = _copy_real_alint_base(tmp_path)
+
+    good_src = tmp_path / "typescript/src/index.ts"
+    good_test = tmp_path / "typescript/tests/version.test.ts"
+    good_src.parent.mkdir(parents=True, exist_ok=True)
+    good_test.parent.mkdir(parents=True, exist_ok=True)
+    good_src.write_text(
+        'import { v } from "@/src/version";\nexport const X = v;\n', encoding="utf-8"
+    )
+    good_test.write_text('import { X } from "@/src/index";\n', encoding="utf-8")
+    assert (
+        run_cmd(["alint", "check", "--config", str(cfg), str(tmp_path)], capture=True).returncode
+        == 0
+    )
+
+    for target, bad_stmt in (
+        (good_src, 'import { v } from "./version";\n'),
+        (good_src, 'import { v } from "../other";\n'),
+        (good_test, 'import { X } from "../src/index";\n'),
+        (good_test, 'import { X } from "../../nested/index";\n'),
+    ):
+        target.write_text(bad_stmt, encoding="utf-8")
+        res = run_cmd(["alint", "check", "--config", str(cfg), str(tmp_path)], capture=True)
+        assert res.returncode != 0
+        assert "forbid-ts-relative-imports" in (res.stdout + res.stderr)
+        target.write_text('import { X } from "@/src/index";\n', encoding="utf-8")
 
 
 def test_scripts_directory_allows_only_restore_sh(tmp_path: Path) -> None:

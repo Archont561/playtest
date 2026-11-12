@@ -80,13 +80,24 @@ def test_verify_version_alignment_detects_manifest_drift() -> None:
     assert len(drift) >= 9
 
 
+def _ensure_ts_dist_stubs() -> list[Path]:
+    ts_dist_dir = REPO_ROOT / "typescript" / "dist"
+    created: list[Path] = []
+    stubs = {
+        "index.js": 'export const VERSION = "0.1.0";\n',
+        "index.d.ts": "export declare const VERSION: string;\n",
+    }
+    for name, body in stubs.items():
+        candidate = ts_dist_dir / name
+        if not candidate.is_file():
+            ts_dist_dir.mkdir(parents=True, exist_ok=True)
+            candidate.write_text(body, encoding="utf-8")
+            created.append(candidate)
+    return created
+
+
 def test_npm_tarball_generation_no_lifecycle_scripts_and_publish_order(tmp_path: Path) -> None:
-    ts_dist = REPO_ROOT / "typescript" / "dist" / "index.js"
-    created_dist = False
-    if not ts_dist.is_file():
-        ts_dist.parent.mkdir(parents=True, exist_ok=True)
-        ts_dist.write_text('export const VERSION = "0.1.0";\n', encoding="utf-8")
-        created_dist = True
+    created = _ensure_ts_dist_stubs()
     try:
         fake_bin = tmp_path / "playtest"
         fake_bin.write_bytes(b"#!/usr/bin/env sh\nexit 0\n")
@@ -110,8 +121,8 @@ def test_npm_tarball_generation_no_lifecycle_scripts_and_publish_order(tmp_path:
         assert "scripts" not in pkg_data
         assert len(pkg_data["optionalDependencies"]) == 5
     finally:
-        if created_dist and ts_dist.parent.exists():
-            ts_dist.unlink(missing_ok=True)
+        for created_file in created:
+            created_file.unlink(missing_ok=True)
 
     bad_pkg = tmp_path / "bad-package.json"
     bad_pkg.write_text('{"name":"x","scripts":{"postinstall":"node dl.js"}}', encoding="utf-8")

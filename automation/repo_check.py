@@ -221,6 +221,7 @@ SDK_AUTODISCOVERY_SOURCES: tuple[str, ...] = (
     "crates/playtest-cli/src/lib.rs",
     "python/src/playtest/__init__.py",
     "typescript/src/index.ts",
+    "typescript/src/version.ts",
     "cpp/include/playtest/playtest.hpp",
     "cpp/conanfile.py",
     "c/include/playtest/playtest.h",

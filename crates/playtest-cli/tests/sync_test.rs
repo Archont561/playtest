@@ -145,7 +145,7 @@ fn test_sync_renders_deterministic_valid_wheel_and_tarball_without_editing_consu
                 assert!(parsed.get("dependencies").is_none());
             }
             "package/dist/index.js" => saw_dist_js = true,
-            "package/src/index.d.ts" => saw_dts = true,
+            "package/dist/index.d.ts" => saw_dts = true,
             _ => {}
         }
     }

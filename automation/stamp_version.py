@@ -148,6 +148,11 @@ def stamp_target(
     """Stamp `version_or_tag` into `target` (`'all'` or a single ecosystem name)."""
     version = extract_version_from_tag(version_or_tag)
     if target == "all":
+        root_pkg = root / "package.json"
+        if root_pkg.is_file():
+            pkg_data = json.loads(root_pkg.read_text(encoding="utf-8"))
+            pkg_data["version"] = version
+            root_pkg.write_text(json.dumps(pkg_data, indent=2) + "\n", encoding="utf-8")
         for fn in STAMPERS.values():
             fn(root, version)
         _stamp_r(root, version, author_email=author_email)

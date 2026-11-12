@@ -1,22 +1,46 @@
 {
-  "name": "playtest-workspace",
-  "private": true,
+  "name": "playtest",
   "version": "0.1.0",
-  "description": "Developer workspace manifest for the Playtest polyglot monorepo",
-  "author": "Archont561",
-  "license": "MIT OR Apache-2.0",
+  "private": true,
+  "description": "Universal testing framework targeting consistent fixtures, failure-safe LIFO teardown, code-first BDD, and property-based testing across nine language ecosystems.",
+  "keywords": [
+    "testing",
+    "fixtures",
+    "bdd",
+    "property-based-testing",
+    "polyglot",
+    "rust",
+    "python",
+    "typescript",
+    "developer-tools"
+  ],
   "homepage": "https://github.com/Archont561/playtest#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Archont561/playtest.git"
   },
-  "packageManager": "bun@1.4.2",
-  "devDependencies": {
-    "backlog.md": "1.55.3"
+  "bugs": {
+    "url": "https://github.com/Archont561/playtest/issues"
   },
+  "license": "MIT OR Apache-2.0",
+  "author": {
+    "name": "Playtest contributors",
+    "url": "https://github.com/Archont561"
+  },
+  "engines": {
+    "rust": ">=1.88",
+    "python": ">=3.12"
+  },
+  "packageManager": "bun@1.4.2",
   "scripts": {
+    "readme": "python -m automation.readme",
+    "readme:check": "python -m automation.readme --check",
     "check": "pixi run --frozen doit fast",
     "clean-code": "pixi run --frozen doit clean_code",
-    "test": "pixi run --frozen doit test_automation"
+    "test": "pixi run test-all"
+  },
+  "devDependencies": {
+    "backlog.md": "1.55.3",
+    "readme-md-generator": "1.0.0"
   }
 }

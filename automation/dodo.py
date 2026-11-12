@@ -128,6 +128,16 @@ def task_advisory_check() -> dict[str, Any]:
     )
 
 
+def task_readme() -> dict[str, Any]:
+    """Regenerate README.md from automation/readme/README.ejs."""
+    return _task("Regenerate README.md", [PYTHON, "-m", "automation.readme"])
+
+
+def task_readme_check() -> dict[str, Any]:
+    """Verify README.md matches a fresh render of automation/readme/README.ejs."""
+    return _task("Verify README.md freshness", [PYTHON, "-m", "automation.readme", "--check"])
+
+
 def task_audit_local() -> dict[str, Any]:
     """Run offline Rust dependency bans, licenses, sources, and advisory checks."""
     return _task(
@@ -141,6 +151,7 @@ def task_fast() -> dict[str, Any]:
         "actions": None,
         "task_dep": [
             "repo_check",
+            "readme_check",
             "clean_code",
             "lint_workflows",
             "lint_toml",

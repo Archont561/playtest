@@ -57,7 +57,9 @@ def test_real_repository_hygiene_passes() -> None:
 
 def test_automation_modules_obey_doit_print_and_shell_boundaries() -> None:
     automation_dir = REPO_ROOT / "automation"
-    for py_file in sorted(automation_dir.glob("*.py")):
+    for py_file in sorted(automation_dir.rglob("*.py")):
+        if "tests" in py_file.parts:
+            continue
         tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
         for node in ast.walk(tree):
             if py_file.name != "dodo.py" and isinstance(node, (ast.Import, ast.ImportFrom)):

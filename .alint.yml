@@ -45,6 +45,14 @@ rules:
     level: error
     message: Required scripts/restore.sh launcher is missing.
 
+  - id: forbid-non-restore-scripts
+    kind: file_absent
+    paths:
+      - scripts/**
+      - "!scripts/restore.sh"
+    level: error
+    message: Only scripts/restore.sh is permitted in scripts/; place all other repository automation in automation/.
+
   - id: require-clean-code-vendor-pin
     kind: file_exists
     paths: vendor/clean-code-presets/UPSTREAM.pin

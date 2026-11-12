@@ -3,14 +3,20 @@
 from __future__ import annotations
 
 import ast
+import shutil
 from pathlib import Path
 
 import pytest
 
 from automation import REPO_ROOT
+from automation._proc import run_cmd
 from automation.advisory_exception import verify_advisory_exceptions
 from automation.merge_lcov import merge_lcov_files
-from automation.repo_check import _check_crate_dependency_boundaries, check_repository
+from automation.repo_check import (
+    _check_crate_dependency_boundaries,
+    _check_required_and_forbidden,
+    check_repository,
+)
 from automation.rude_clean import WARNING_SUMMARY_RE
 
 
@@ -93,5 +99,35 @@ def test_clean_code_preset_configs_and_rude_warning_detector() -> None:
     assert (REPO_ROOT / "vendor/clean-code-presets/semgrep/pedantic.yml").is_file()
     assert (REPO_ROOT / "vendor/clean-code-presets/ast-grep/pedantic/sgconfig.yml").is_file()
     assert (REPO_ROOT / "vendor/clean-code-presets/vale/strict.ini").is_file()
+    alint_text = (REPO_ROOT / ".alint.yml").read_text(encoding="utf-8")
+    assert "id: forbid-non-restore-scripts" in alint_text
+    assert "!scripts/restore.sh" in alint_text
     assert WARNING_SUMMARY_RE.search("Found 0 error(s) and 1 warning(s)") is not None
     assert WARNING_SUMMARY_RE.search("Found 0 error(s) and 0 warning(s)") is None
+
+
+def test_scripts_directory_allows_only_restore_sh(tmp_path: Path) -> None:
+    scripts_dir = tmp_path / "scripts"
+    scripts_dir.mkdir(parents=True)
+    (scripts_dir / "restore.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+    (scripts_dir / "extra.py").write_text("# forbidden\n", encoding="utf-8")
+    errors = _check_required_and_forbidden(tmp_path)
+    assert "unexpected file in scripts/ (use automation/): extra.py" in errors
+    if shutil.which("alint") is not None:
+        cfg = tmp_path / ".alint-scripts.yml"
+        cfg.write_text(
+            "version: 1\nrules:\n"
+            "  - id: forbid-non-restore-scripts\n"
+            "    kind: file_absent\n"
+            "    paths:\n"
+            "      - scripts/**\n"
+            '      - "!scripts/restore.sh"\n'
+            "    level: error\n"
+            "    message: Only restore.sh allowed.\n",
+            encoding="utf-8",
+        )
+        res = run_cmd(["alint", "check", "--config", str(cfg), str(tmp_path)], capture=True)
+        assert res.returncode != 0
+        (scripts_dir / "extra.py").unlink()
+        ok_res = run_cmd(["alint", "check", "--config", str(cfg), str(tmp_path)], capture=True)
+        assert ok_res.returncode == 0

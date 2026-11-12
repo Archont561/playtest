@@ -40,13 +40,11 @@ REQUIRED_FILES: tuple[str, ...] = (
     "package.json",
     "bun.lock",
     "scripts/restore.sh",
-    "scripts/stage_assets.py",
+    "automation/stage_assets.py",
     "crates/playtest-assets/assets_manifest.toml",
     "vendor/clean-code-presets/UPSTREAM.pin",
     "vendor/clean-code-presets/VENDOR.sha256",
 )
-
-ALLOWED_SCRIPTS: frozenset[str] = frozenset({"restore.sh", "stage_assets.py"})
 
 FORBIDDEN_PATHS: tuple[str, ...] = (
     "cpp/test_cov",
@@ -73,7 +71,7 @@ def _check_required_and_forbidden(root: Path) -> list[str]:
     scripts_dir = root / "scripts"
     if scripts_dir.is_dir():
         for script in sorted(scripts_dir.iterdir()):
-            if script.name not in ALLOWED_SCRIPTS:
+            if script.name != "restore.sh":
                 errors.append(f"unexpected file in scripts/ (use automation/): {script.name}")
     return errors
 

@@ -91,11 +91,26 @@ def task_sandbox_check() -> dict[str, Any]:
 
 
 def task_lint_automation() -> dict[str, Any]:
-    """Check Python formatting and lint rules on automation/ and python/."""
+    """Check Python formatting and lint rules on automation/, scripts/, and python/."""
     return {
         "actions": [
-            ["ruff", "format", "--check", "automation", "python/src", "python/tests"],
-            ["ruff", "check", "automation", "python/src", "python/tests"],
+            [
+                "ruff",
+                "format",
+                "--check",
+                "automation",
+                "scripts/stage_assets.py",
+                "python/src",
+                "python/tests",
+            ],
+            [
+                "ruff",
+                "check",
+                "automation",
+                "scripts/stage_assets.py",
+                "python/src",
+                "python/tests",
+            ],
         ],
         "doc": "Lint and format-check Python automation and SDK sources",
         "uptodate": [False],
@@ -103,10 +118,10 @@ def task_lint_automation() -> dict[str, Any]:
 
 
 def task_typecheck_automation() -> dict[str, Any]:
-    """Run strict mypy type checking across automation/."""
+    """Run strict mypy type checking across automation/ and scripts/stage_assets.py."""
     return _task(
         "Type-check automation package with mypy",
-        ["mypy", "--config-file", "mypy.ini", "automation"],
+        ["mypy", "--config-file", "mypy.ini", "automation", "scripts/stage_assets.py"],
     )
 
 

@@ -1,0 +1,45 @@
+# Explicit published-file manifest for every embedded language SDK (Spec 0012 §2).
+# Only files published by each SDK's own package belong here.
+# Tests, lockfiles, caches, and editor configuration files must never be listed.
+
+[languages.python]
+source_dir = "python"
+files = ["README.md", "pyproject.toml", "src/playtest/__init__.py"]
+
+[languages.typescript]
+source_dir = "typescript"
+generated = ["dist/index.js"]
+files = ["dist/index.js", "package.json"]
+
+[languages.cpp]
+source_dir = "cpp"
+files = ["CMakeLists.txt", "conanfile.py", "include/playtest/playtest.hpp"]
+
+[languages.c]
+source_dir = "c"
+files = [
+  "CMakeLists.txt",
+  "conanfile.py",
+  "include/playtest/playtest.h",
+  "src/playtest.c",
+]
+
+[languages.csharp]
+source_dir = "csharp"
+files = [
+  "src/Playtest/Playtest.cs",
+  "src/Playtest/Playtest.csproj",
+  "src/Playtest/README.md",
+]
+
+[languages.go]
+source_dir = "go"
+files = ["go.mod", "playtest.go"]
+
+[languages.java]
+source_dir = "java"
+files = ["pom.xml", "src/main/java/io/github/archont561/playtest/Playtest.java"]
+
+[languages.r]
+source_dir = "r"
+files = ["DESCRIPTION", "LICENSE", "NAMESPACE", "R/version.R", "man/VERSION.Rd"]

@@ -36,15 +36,6 @@ playtest-core = { path = "crates/playtest-core", version = "0.1.0" }
 playtest-macros = { path = "crates/playtest-macros", version = "0.1.0" }
 
 # CLI framework & argument grammar (playtest-cli only; Spec 0012 §1)
-clap = { version = "4.6.7", default-features = false, features = [
-  "derive",
-  "env",
-  "error-context",
-  "help",
-  "std",
-  "string",
-  "usage",
-] }
 clifacet = { version = "=0.5.0", default-features = false, features = [
   "serde",
   "settings-toml",

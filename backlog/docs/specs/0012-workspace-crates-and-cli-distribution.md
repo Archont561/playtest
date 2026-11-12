@@ -28,7 +28,7 @@ Rules:
 2. `playtest` must not depend on `playtest-assets` or `playtest-cli`, directly or transitively. A test or lint enforces this.
 3. Every crate exports `VERSION`, and all five carry the workspace version.
 4. Crates are published in dependency order: `playtest-macros`, `playtest-core`, `playtest-assets`, `playtest`, `playtest-cli`.
-5. Building `playtest-cli` needs Rust 1.88 or newer, the floor of `clifacet` 0.5.0. The minimum Rust version of `playtest`, `playtest-macros`, and `playtest-core` is declared separately and may be lower.
+5. Building `playtest-cli` needs Rust `1.88` or newer, the floor of `clifacet` `0.5.0`. Each library crate declares its minimum Rust version separately in its own `Cargo.toml`: `playtest` declares `1.88` (the floor of `proptest` `1.12`), while `playtest-macros`, `playtest-core`, and `playtest-assets` declare `1.85` (the Rust 2024 edition floor).
 6. `clifacet` types appear neither in `playtest-core` nor in documented CLI output. The output and exit-status contract is [Spec 0008 §7](./0008-cross-language-cli-and-toolchain-detection.md).
 
 ## 2. Embedded SDK Assets (`playtest-assets`)

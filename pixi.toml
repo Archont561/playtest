@@ -229,7 +229,7 @@ fmt-rs = "cargo fmt --all"
 fmt-check-rs = "cargo fmt --all -- --check"
 fmt-toml = "taplo fmt"
 lint-toml = "taplo fmt --check"
-fmt-automation = "ruff format automation python/src python/tests && ruff check --fix automation python/src python/tests"
+fmt-automation = "ruff format automation scripts/stage_assets.py python/src python/tests && ruff check --fix automation scripts/stage_assets.py python/src python/tests"
 fmt-py = "pixi run --frozen -e py sdk-fmt"
 fmt-check-py = "pixi run --frozen -e py sdk-fmt-check"
 fmt-ts = "pixi run --frozen -e ts sdk-fmt"
@@ -266,7 +266,10 @@ fmt-check = { depends-on = [
 ] }
 
 # --- Linting ---
-clippy = "cargo clippy --workspace --all-targets --all-features --locked -- -D warnings"
+build-ts-dist = { cmd = "bun build src/index.ts --outdir dist --target node", cwd = "typescript" }
+clippy = { cmd = "cargo clippy --workspace --all-targets --all-features --locked -- -D warnings", depends-on = [
+  "build-ts-dist",
+] }
 lint-py = "pixi run --frozen -e py sdk-lint"
 lint-ts = "pixi run --frozen -e ts sdk-lint"
 lint-cpp = "pixi run --frozen -e cpp sdk-lint"
@@ -292,8 +295,12 @@ lint-all = { depends-on = [
 ] }
 
 # --- Testing ---
-test-rs = "cargo nextest run --workspace --all-features --locked"
-test-doc = "cargo test --doc --workspace --locked"
+test-rs = { cmd = "cargo nextest run --workspace --all-features --locked", depends-on = [
+  "build-ts-dist",
+] }
+test-doc = { cmd = "cargo test --doc --workspace --locked", depends-on = [
+  "build-ts-dist",
+] }
 offline-rs = { depends-on = ["fmt-check-rs", "clippy", "test-rs", "test-doc"] }
 test-py = "pixi run --frozen -e py sdk-test"
 test-ts = "pixi run --frozen -e ts sdk-test"
@@ -319,7 +326,9 @@ test-all = { depends-on = [
 ] }
 
 # --- Coverage ---
-coverage-rs = "mkdir -p coverage && cargo llvm-cov nextest --workspace --all-features --locked --lcov --output-path coverage/lcov-rs.info"
+coverage-rs = { cmd = "mkdir -p coverage && cargo llvm-cov nextest --workspace --all-features --locked --lcov --output-path coverage/lcov-rs.info", depends-on = [
+  "build-ts-dist",
+] }
 coverage-py = "pixi run --frozen -e py sdk-coverage"
 coverage-ts = "pixi run --frozen -e ts sdk-coverage"
 coverage-cpp = "pixi run --frozen -e cpp sdk-coverage"
@@ -346,7 +355,9 @@ coverage-all = { depends-on = [
 
 # --- Release & Packaging ---
 detect-release = "python -m automation.release detect"
-package-rs = "python -m automation.sdk_tasks rs-package"
+package-rs = { cmd = "python -m automation.sdk_tasks rs-package", depends-on = [
+  "build-ts-dist",
+] }
 publish-rs = "python -m automation.publish_registries crates"
 release-rs = { depends-on = ["publish-rs"] }
 package-py = "pixi run --frozen -e py sdk-package"

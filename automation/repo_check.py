@@ -1,15 +1,23 @@
-"""Repository hygiene, vendor integrity, and layout verification checks."""
+"""Repository hygiene, vendor integrity, dependency-boundary, and asset manifest checks."""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
 import shutil
+import tomllib
+from collections import deque
 from collections.abc import Sequence
 from pathlib import Path
 
 from automation import REPO_ROOT
 from automation._proc import emit_err, emit_line, run_cmd
+from automation.stage_assets import (
+    MANIFEST_REL,
+    is_forbidden_asset_path,
+    load_assets_manifest,
+    validate_no_symlink_components,
+)
 
 REQUIRED_FILES: tuple[str, ...] = (
     "Cargo.toml",
@@ -32,9 +40,13 @@ REQUIRED_FILES: tuple[str, ...] = (
     "package.json",
     "bun.lock",
     "scripts/restore.sh",
+    "scripts/stage_assets.py",
+    "crates/playtest-assets/assets_manifest.toml",
     "vendor/clean-code-presets/UPSTREAM.pin",
     "vendor/clean-code-presets/VENDOR.sha256",
 )
+
+ALLOWED_SCRIPTS: frozenset[str] = frozenset({"restore.sh", "stage_assets.py"})
 
 FORBIDDEN_PATHS: tuple[str, ...] = (
     "cpp/test_cov",
@@ -61,7 +73,7 @@ def _check_required_and_forbidden(root: Path) -> list[str]:
     scripts_dir = root / "scripts"
     if scripts_dir.is_dir():
         for script in sorted(scripts_dir.iterdir()):
-            if script.name != "restore.sh":
+            if script.name not in ALLOWED_SCRIPTS:
                 errors.append(f"unexpected file in scripts/ (use automation/): {script.name}")
     return errors
 
@@ -103,6 +115,70 @@ def _check_vendor_integrity(root: Path) -> list[str]:
     return errors
 
 
+def _reachable_crates(graph: dict[str, set[str]], start: str) -> set[str]:
+    visited: set[str] = set()
+    queue: deque[str] = deque(graph.get(start, ()))
+    while queue:
+        node = queue.popleft()
+        if node in visited:
+            continue
+        visited.add(node)
+        queue.extend(child for child in graph.get(node, ()) if child not in visited)
+    return visited
+
+
+def _check_crate_dependency_boundaries(root: Path) -> list[str]:
+    lock_path = root / "Cargo.lock"
+    if not lock_path.is_file():
+        return []
+    lock_data = tomllib.loads(lock_path.read_text(encoding="utf-8"))
+    graph: dict[str, set[str]] = {}
+    for pkg in lock_data.get("package", []):
+        name = str(pkg.get("name", ""))
+        deps = {str(raw).split()[0] for raw in pkg.get("dependencies", []) if str(raw).strip()}
+        graph.setdefault(name, set()).update(deps)
+    errors: list[str] = []
+    for lib_crate in ("playtest", "playtest-core", "playtest-macros"):
+        closure = _reachable_crates(graph, lib_crate)
+        for forbidden in ("playtest-assets", "playtest-cli", "clifacet"):
+            if forbidden in closure:
+                errors.append(
+                    f"Spec 0012 §1 violation: `{lib_crate}` depends on `{forbidden}` in Cargo.lock"
+                )
+    for non_cli in ("playtest", "playtest-core", "playtest-macros", "playtest-assets"):
+        direct = graph.get(non_cli, set())
+        for cli_only in ("playtest-assets", "clifacet"):
+            if cli_only in direct:
+                errors.append(
+                    f"Spec 0012 §1 violation: only `playtest-cli` may depend on `{cli_only}` "
+                    f"(found on `{non_cli}`)"
+                )
+    return errors
+
+
+def _check_assets_manifest(root: Path) -> list[str]:
+    if not (root / MANIFEST_REL).is_file():
+        return []
+    try:
+        languages = load_assets_manifest(root)
+    except ValueError as exc:
+        return [str(exc)]
+    errors: list[str] = []
+    for lang, spec in sorted(languages.items()):
+        source_dir = root / str(spec.get("source_dir", ""))
+        generated = {str(item) for item in spec.get("generated", [])}
+        for rel_str in (str(item) for item in spec.get("files", [])):
+            if is_forbidden_asset_path(rel_str):
+                errors.append(f"forbidden test/lockfile/cache asset in {lang}: {rel_str}")
+                continue
+            if rel_str in generated and not (source_dir / rel_str).exists():
+                continue
+            err = validate_no_symlink_components(source_dir, Path(rel_str))
+            if err is not None:
+                errors.append(f"invalid SDK asset in {lang}: {err}")
+    return errors
+
+
 def _check_utf8_bom(root: Path) -> list[str]:
     errors: list[str] = []
     patterns = ("*.toml", "*.yml", "*.yaml", "*.json", "*.csproj", "*.xml")
@@ -137,9 +213,11 @@ def _check_restore_shell(root: Path, *, skip_shellcheck: bool) -> list[str]:
 
 
 def check_repository(root: Path = REPO_ROOT, *, skip_shellcheck: bool = False) -> list[str]:
-    """Return all repository structure, vendor checksum, and BOM errors."""
+    """Return all repository structure, vendor checksum, boundary, and BOM errors."""
     errors = _check_required_and_forbidden(root)
     errors.extend(_check_vendor_integrity(root))
+    errors.extend(_check_crate_dependency_boundaries(root))
+    errors.extend(_check_assets_manifest(root))
     errors.extend(_check_utf8_bom(root))
     errors.extend(_check_restore_shell(root, skip_shellcheck=skip_shellcheck))
     return errors
@@ -156,7 +234,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         for err in errors:
             emit_err(f"[repo-check] ERROR: {err}")
         return 1
-    emit_line("[repo-check] OK: repository layout, vendor checksums, and scripts verified.")
+    emit_line("[repo-check] OK: repository layout, boundaries, assets, and scripts verified.")
     return 0
 
 

@@ -1,0 +1,25 @@
+id: pcc-s07-empty-catch-ts
+language: TypeScript
+severity: error
+message: '[PCC-S07] Handle, translate or rethrow a caught error; an empty catch hides the failure.'
+note: 'PCC-S07 — No empty TypeScript catch blocks. Canonical severity: error. Evidence: doc-2 CC309 broad
+  exception swallowed and fail-fast family.'
+rule:
+  any:
+  - pattern: |-
+      try { $$$TRY } catch ($ERROR) {}
+  - pattern: |-
+      try { $$$TRY } catch {}
+files:
+- '**/*.ts'
+- '**/*.tsx'
+- '**/*.js'
+- '**/*.jsx'
+ignores:
+- '**/.pixi/**'
+- '**/node_modules/**'
+- '**/rule-tests/**'
+- '**/fixtures/**'
+- '**/tests/**'
+- '**/test_*.py'
+- '**/automation/**'

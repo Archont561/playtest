@@ -1,0 +1,7 @@
+id: pcc-s05-nested-ternary-ts
+valid:
+- 'const value = ready ? 1 : 2;'
+- const value = pick(ready, ok);
+invalid:
+- 'const value = ready ? (ok ? 1 : 2) : 3;'
+- 'const value = ready ? 1 : (ok ? 2 : 3);'

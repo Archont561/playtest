@@ -3,34 +3,38 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
-      - "*-v*"
-      - "*/*v*"
+      - "v[0-9]*"
+      - "go/v[0-9]*"
+      - "!milestone-v*"
+      - "!milestone/**"
+      - "!m-v*"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to publish (e.g. v0.1.0, python-v0.1.0 or go/v0.1.0)"
+        description: "Unified release tag to publish (e.g. v0.2.0 or go/v0.2.0)"
         required: false
         type: string
+
+permissions:
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
-permissions:
-  contents: write
-  id-token: write
+env:
+  PIXI_VERSION: v0.84.1
+  CARGO_INCREMENTAL: "0"
 
 jobs:
-  # ============================================================================
-  # 1. Inspect Tag & Plan Targets
-  # ============================================================================
   plan:
-    name: Inspect Tag & Target Planning
-    runs-on: ubuntu-latest
+    name: Inspect Tag & Plan Targets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     outputs:
       valid: ${{ steps.parse.outputs.valid }}
       tag_name: ${{ steps.parse.outputs.tag_name }}
+      version: ${{ steps.parse.outputs.version }}
       rust: ${{ steps.parse.outputs.rust }}
       python: ${{ steps.parse.outputs.python }}
       typescript: ${{ steps.parse.outputs.typescript }}
@@ -41,134 +45,70 @@ jobs:
       csharp: ${{ steps.parse.outputs.csharp }}
       r: ${{ steps.parse.outputs.r }}
     steps:
-      - name: Parse and Validate Release Tag
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Parse and validate release tag
         id: parse
-        run: |
-          RAW_TAG="${{ inputs.tag || github.ref_name }}"
-          VALID="false"
-          RUST="false"
-          PYTHON="false"
-          TYPESCRIPT="false"
-          GO="false"
-          JAVA="false"
-          CPP="false"
-          C="false"
-          CSHARP="false"
-          R="false"
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: python3 -m automation.release plan --tag "$RELEASE_TAG"
 
-          echo "Inspecting release tag: $RAW_TAG"
-
-          # 1. General SemVer tag: vX.Y.Z (triggers all targets)
-          if [[ "$RAW_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+.* ]]; then
-            VALID="true"
-            RUST="true"
-            PYTHON="true"
-            TYPESCRIPT="true"
-            GO="true"
-            JAVA="true"
-            CPP="true"
-            C="true"
-            CSHARP="true"
-            R="true"
-            echo "Detected general release tag: triggering all polyglot targets."
-
-          # 2. Scoped release tag: <scope>-vX.Y.Z or <scope>/vX.Y.Z
-          elif [[ "$RAW_TAG" =~ ^([a-zA-Z0-9_\+-]+)[/-]v[0-9]+\.[0-9]+\.[0-9]+.* ]]; then
-            SCOPE="${BASH_REMATCH[1]}"
-            VALID="true"
-
-            [[ "$SCOPE" =~ ^(rust|crates|rs|playtest-rs|playtest-macros)$ ]] && RUST="true"
-            [[ "$SCOPE" =~ ^(python|py|playtest-py)$ ]] && PYTHON="true"
-            [[ "$SCOPE" =~ ^(typescript|ts|playtest-ts|bun)$ ]] && TYPESCRIPT="true"
-            [[ "$SCOPE" =~ ^(go|playtest-go)$ ]] && GO="true"
-            [[ "$SCOPE" =~ ^(java|maven|mvn|playtest-java)$ ]] && JAVA="true"
-            [[ "$SCOPE" =~ ^(cpp|conan|playtest-cpp)$ ]] && CPP="true"
-            [[ "$SCOPE" =~ ^(c|playtest-c)$ ]] && C="true"
-            [[ "$SCOPE" =~ ^(csharp|dotnet|cs|playtest-csharp)$ ]] && CSHARP="true"
-            [[ "$SCOPE" =~ ^(r|cran|playtest-r)$ ]] && R="true"
-
-            # Check if at least one valid scope matched
-            if [ "$RUST" = "false" ] && [ "$PYTHON" = "false" ] && [ "$TYPESCRIPT" = "false" ] && \
-               [ "$GO" = "false" ] && [ "$JAVA" = "false" ] && [ "$CPP" = "false" ] && \
-               [ "$C" = "false" ] && [ "$CSHARP" = "false" ] && [ "$R" = "false" ]; then
-              VALID="false"
-              echo "::error:: Unknown scope '$SCOPE' in tag '$RAW_TAG'."
-            else
-              echo "Detected scoped tag for target: $SCOPE"
-            fi
-          fi
-
-          if [ "$VALID" != "true" ]; then
-            echo "::error:: Invalid tag format '$RAW_TAG'."
-            echo "Supported formats:"
-            echo "  - General: 'vX.Y.Z' (e.g. v0.1.0)"
-            echo "  - Scoped:  '<scope>-vX.Y.Z' (e.g. python-v0.1.0, ts-v0.1.0, rust-v0.1.0, c-v0.1.0, csharp-v0.1.0)"
-            echo "  - Go:      'go/vX.Y.Z' (e.g. go/v0.1.0)"
-            exit 1
-          fi
-
-          {
-            echo "valid=$VALID"
-            echo "tag_name=$RAW_TAG"
-            echo "rust=$RUST"
-            echo "python=$PYTHON"
-            echo "typescript=$TYPESCRIPT"
-            echo "go=$GO"
-            echo "java=$JAVA"
-            echo "cpp=$CPP"
-            echo "c=$C"
-            echo "csharp=$CSHARP"
-            echo "r=$R"
-          } >> "$GITHUB_OUTPUT"
-
-  # ============================================================================
-  # 2. Monorepo Quality Gate
-  # ============================================================================
   gate:
     name: Monorepo Quality Gate
     needs: [plan]
     if: needs.plan.outputs.valid == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.plan.outputs.tag_name }}
-
-      - name: Setup Pixi environment
-        uses: prefix-dev/setup-pixi@v0.8.3
+      - name: Set up Pixi workspace environments
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
         with:
-          pixi-version: v0.83.0
+          pixi-version: ${{ env.PIXI_VERSION }}
+          locked: true
           cache: true
-          frozen: true
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - name: Stamp unified release version across manifests
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
+        run: python3 -m automation.stamp_version all "$RELEASE_TAG"
+      - name: Run Clean Code and governance gates
+        run: pixi run --frozen doit fast
+      - name: Run polyglot test suites
+        run: pixi run --frozen test-all
 
-      - name: Check Formatting & Linters
-        run: pixi run lint-all
-
-      - name: Run Polyglot Tests
-        run: pixi run test-all
-
-  # ============================================================================
-  # 3. Build & Package Phase (Produces GitHub Artifacts)
-  # ============================================================================
   build-rust:
     name: Build & Package (Rust)
     needs: [plan, gate]
     if: needs.plan.outputs.rust == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.plan.outputs.tag_name }}
-      - uses: prefix-dev/setup-pixi@v0.8.3
+      - name: Set up Pixi default environment
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
         with:
-          pixi-version: v0.83.0
+          pixi-version: ${{ env.PIXI_VERSION }}
+          environments: default
+          locked: true
           cache: true
-          frozen: true
-      - name: Package Rust Crates
-        run: pixi run package-rs
-      - name: Upload Rust Artifacts
-        uses: actions/upload-artifact@v4
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - name: Stamp Rust workspace version
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
+        run: python3 -m automation.stamp_version rust "$RELEASE_TAG"
+      - name: Package all 5 Rust crates
+        run: pixi run --frozen package-rs
+      - name: Upload Rust crate artifacts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-rust
           path: target/package/*.crate
@@ -178,20 +118,28 @@ jobs:
     name: Build & Package (Python)
     needs: [plan, gate]
     if: needs.plan.outputs.python == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.plan.outputs.tag_name }}
-      - uses: prefix-dev/setup-pixi@v0.8.3
+      - name: Set up Pixi py environment
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
         with:
-          pixi-version: v0.83.0
+          pixi-version: ${{ env.PIXI_VERSION }}
+          environments: py
+          locked: true
           cache: true
-          frozen: true
-      - name: Build Python Distribution (.whl & .tar.gz)
-        run: pixi run release-py
-      - name: Upload Python Artifacts
-        uses: actions/upload-artifact@v4
+      - name: Stamp Python SDK version
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
+        run: python3 -m automation.stamp_version python "$RELEASE_TAG"
+      - name: Build Python wheel and sdist
+        run: pixi run --frozen -e py sdk-release
+      - name: Upload Python artifacts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-python
           path: python/dist/*
@@ -201,20 +149,28 @@ jobs:
     name: Build & Package (TypeScript)
     needs: [plan, gate]
     if: needs.plan.outputs.typescript == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.plan.outputs.tag_name }}
-      - uses: prefix-dev/setup-pixi@v0.8.3
+      - name: Set up Pixi ts environment
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
         with:
-          pixi-version: v0.83.0
+          pixi-version: ${{ env.PIXI_VERSION }}
+          environments: ts
+          locked: true
           cache: true
-          frozen: true
-      - name: Build TypeScript Tarball (.tgz)
-        run: pixi run release-ts
-      - name: Upload TypeScript Artifacts
-        uses: actions/upload-artifact@v4
+      - name: Stamp TypeScript SDK version
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
+        run: python3 -m automation.stamp_version typescript "$RELEASE_TAG"
+      - name: Build TypeScript npm tarball
+        run: pixi run --frozen -e ts sdk-release
+      - name: Upload TypeScript artifacts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-typescript
           path: typescript/*.tgz
@@ -224,134 +180,63 @@ jobs:
     name: Build & Package (C++)
     needs: [plan, gate]
     if: needs.plan.outputs.cpp == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.plan.outputs.tag_name }}
-      - uses: prefix-dev/setup-pixi@v0.8.3
+      - name: Set up Pixi cpp environment
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
         with:
-          pixi-version: v0.83.0
+          pixi-version: ${{ env.PIXI_VERSION }}
+          environments: cpp
+          locked: true
           cache: true
-          frozen: true
-      - name: Package C++ Header Archive
+      - name: Stamp C++ SDK version
         env:
           RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
-        run: |
-          export PLAYTEST_VERSION="${RELEASE_TAG##*v}"
-          pixi run release-cpp
-      - name: Upload C++ Artifacts
-        uses: actions/upload-artifact@v4
+        run: python3 -m automation.stamp_version cpp "$RELEASE_TAG"
+      - name: Package C++ header archive
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
+        run: pixi run --frozen -e cpp sdk-release
+      - name: Upload C++ artifacts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-cpp
           path: cpp/dist/*
-          if-no-files-found: error
-
-  build-go:
-    name: Build & Package (Go)
-    needs: [plan, gate]
-    if: needs.plan.outputs.go == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.plan.outputs.tag_name }}
-      - uses: prefix-dev/setup-pixi@v0.8.3
-        with:
-          pixi-version: v0.83.0
-          cache: true
-          frozen: true
-      - name: Package Go Module Archive
-        run: pixi run release-go
-      - name: Upload Go Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: package-go
-          path: go/dist/*
-          if-no-files-found: error
-
-  build-java:
-    name: Build & Package (Java)
-    needs: [plan, gate]
-    if: needs.plan.outputs.java == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.plan.outputs.tag_name }}
-      - uses: prefix-dev/setup-pixi@v0.8.3
-        with:
-          pixi-version: v0.83.0
-          cache: true
-          frozen: true
-      - name: Build Java Distribution (.jar)
-        env:
-          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
-        run: |
-          VERSION="${RELEASE_TAG##*v}"
-          python scripts/stamp_release_version.py java "$VERSION"
-          export PLAYTEST_VERSION="$VERSION"
-          pixi run release-java
-      - name: Upload Java Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: package-java
-          path: java/dist/*
-          if-no-files-found: error
-
-  build-r:
-    name: Build & Package (R)
-    needs: [plan, gate]
-    if: needs.plan.outputs.r == 'true'
-    runs-on: ubuntu-latest
-    environment: cran
-    env:
-      AUTHOR_EMAIL: ${{ vars.AUTHOR_EMAIL || secrets.AUTHOR_EMAIL }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.plan.outputs.tag_name }}
-      - uses: prefix-dev/setup-pixi@v0.8.3
-        with:
-          pixi-version: v0.83.0
-          cache: true
-          frozen: true
-      - name: Set R package version from release tag and package
-        env:
-          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
-        run: |
-          VERSION="${RELEASE_TAG##*v}"
-          python scripts/stamp_release_version.py r "$VERSION" --author-email "$AUTHOR_EMAIL"
-          pixi run release-r
-      - name: Upload R Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: package-r
-          path: r/dist/*
           if-no-files-found: error
 
   build-c:
     name: Build & Package (C)
     needs: [plan, gate]
     if: needs.plan.outputs.c == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.plan.outputs.tag_name }}
-      - uses: prefix-dev/setup-pixi@v0.8.3
+      - name: Set up Pixi c environment
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
         with:
-          pixi-version: v0.83.0
+          pixi-version: ${{ env.PIXI_VERSION }}
+          environments: c
+          locked: true
           cache: true
-          frozen: true
-      - name: Package C Source Tarball
+      - name: Stamp C SDK version
         env:
           RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
-        run: |
-          export PLAYTEST_VERSION="${RELEASE_TAG##*v}"
-          pixi run release-c
-      - name: Upload C Artifacts
-        uses: actions/upload-artifact@v4
+        run: python3 -m automation.stamp_version c "$RELEASE_TAG"
+      - name: Package C source archive
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
+        run: pixi run --frozen -e c sdk-release
+      - name: Upload C artifacts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-c
           path: c/dist/*
@@ -361,78 +246,184 @@ jobs:
     name: Build & Package (C#)
     needs: [plan, gate]
     if: needs.plan.outputs.csharp == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.plan.outputs.tag_name }}
-      - uses: prefix-dev/setup-pixi@v0.8.3
+      - name: Set up Pixi csharp environment
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
         with:
-          pixi-version: v0.83.0
+          pixi-version: ${{ env.PIXI_VERSION }}
+          environments: csharp
+          locked: true
           cache: true
-          frozen: true
-      - name: Package C# NuGet Package (.nupkg)
+      - name: Stamp C# SDK version
         env:
           RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
-        run: |
-          export PLAYTEST_VERSION="${RELEASE_TAG##*v}"
-          python scripts/stamp_release_version.py csharp "$PLAYTEST_VERSION"
-          pixi run release-csharp
-      - name: Upload C# Artifacts
-        uses: actions/upload-artifact@v4
+        run: python3 -m automation.stamp_version csharp "$RELEASE_TAG"
+      - name: Build C# NuGet package
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
+        run: pixi run --frozen -e csharp sdk-release
+      - name: Upload C# artifacts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-csharp
           path: csharp/dist/*
           if-no-files-found: error
 
-  # ============================================================================
-  # 4. Publish Phase (Independent Jobs Downloading Specific Artifacts)
-  # ============================================================================
+  build-go:
+    name: Build & Package (Go)
+    needs: [plan, gate]
+    if: needs.plan.outputs.go == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.tag_name }}
+      - name: Set up Pixi go environment
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          pixi-version: ${{ env.PIXI_VERSION }}
+          environments: go
+          locked: true
+          cache: true
+      - name: Stamp Go SDK version
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
+        run: python3 -m automation.stamp_version go "$RELEASE_TAG"
+      - name: Package Go module archive
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
+        run: pixi run --frozen -e go sdk-release
+      - name: Upload Go artifacts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-go
+          path: go/dist/*
+          if-no-files-found: error
+
+  build-java:
+    name: Build & Package (Java)
+    needs: [plan, gate]
+    if: needs.plan.outputs.java == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.tag_name }}
+      - name: Set up Pixi java environment
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          pixi-version: ${{ env.PIXI_VERSION }}
+          environments: java
+          locked: true
+          cache: true
+      - name: Stamp Java SDK version
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
+        run: python3 -m automation.stamp_version java "$RELEASE_TAG"
+      - name: Build Java JAR distribution
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
+        run: pixi run --frozen -e java sdk-release
+      - name: Upload Java artifacts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-java
+          path: java/dist/*
+          if-no-files-found: error
+
+  build-r:
+    name: Build & Package (R)
+    needs: [plan, gate]
+    if: needs.plan.outputs.r == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: cran
+    env:
+      AUTHOR_EMAIL: ${{ vars.AUTHOR_EMAIL || secrets.AUTHOR_EMAIL }}
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.tag_name }}
+      - name: Set up Pixi r environment
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          pixi-version: ${{ env.PIXI_VERSION }}
+          environments: r
+          locked: true
+          cache: true
+      - name: Stamp R package version and maintainer email
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
+        run: python3 -m automation.stamp_version r "$RELEASE_TAG" --author-email "$AUTHOR_EMAIL"
+      - name: Build R source package
+        run: pixi run --frozen -e r sdk-release
+      - name: Upload R artifacts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-r
+          path: r/dist/*
+          if-no-files-found: error
+
   publish-crates:
     name: Publish to crates.io (Rust)
     needs: [plan, build-rust]
     if: needs.plan.outputs.rust == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
     environment: crates
     permissions:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.plan.outputs.tag_name }}
-      - uses: prefix-dev/setup-pixi@v0.8.3
+      - name: Set up Pixi default environment
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
         with:
-          pixi-version: v0.83.0
+          pixi-version: ${{ env.PIXI_VERSION }}
+          environments: default
+          locked: true
           cache: true
-          frozen: true
-      - name: Download Rust Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: package-rust
-          path: target/package/
+      - name: Stamp Rust workspace version
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
+        run: python3 -m automation.stamp_version rust "$RELEASE_TAG"
       - name: Authenticate with crates.io via OIDC
-        uses: rust-lang/crates-io-auth-action@v1
-      - name: Publish Rust Crates to crates.io
-        run: pixi run release-rs
+        uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
+      - name: Publish 5 workspace crates in topological order
+        run: pixi run --frozen publish-rs
 
   publish-pypi:
     name: Publish to PyPI (Python)
     needs: [plan, build-python]
     if: needs.plan.outputs.python == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     environment: pypi
     permissions:
       id-token: write
       contents: read
     steps:
-      - name: Download Python Artifacts
-        uses: actions/download-artifact@v4
+      - name: Download Python artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: package-python
           path: python/dist/
       - name: Publish to PyPI via OIDC
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
         with:
           packages-dir: python/dist/
 
@@ -440,140 +431,112 @@ jobs:
     name: Publish to npm (TypeScript)
     needs: [plan, build-typescript]
     if: needs.plan.outputs.typescript == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     environment: npm
     permissions:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.plan.outputs.tag_name }}
-      - uses: actions/setup-node@v4
+      - name: Set up Node.js for npm OIDC provenance
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
-      - name: Download TypeScript Artifacts
-        uses: actions/download-artifact@v4
+          node-version: "22"
+      - name: Download TypeScript artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: package-typescript
           path: typescript/
-      - name: Publish Tarball to npm with Provenance
-        run: |
-          cd typescript
-          for pkg in ./*.tgz; do
-            [ -f "$pkg" ] || continue
-            npm publish "$pkg" --provenance --access public
-          done
+      - name: Publish TypeScript tarball to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: python3 -m automation.publish_registries npm
 
   publish-go:
     name: Tag & Register Go Module (pkg.go.dev)
     needs: [plan, build-go]
     if: needs.plan.outputs.go == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
-      - name: Checkout release source
-        uses: actions/checkout@v4
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.plan.outputs.tag_name }}
-      # Go resolves the module in go/ only from a go/vX.Y.Z tag, so a general vX.Y.Z
-      # release gets that tag here before the proxy is asked to index the version.
-      - name: Push Go Module Tag & Trigger Go Proxy Indexing
+      - name: Push Go subdirectory tag and warm Go module proxy
         env:
           RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
-        run: python3 scripts/publish_go_module.py "$RELEASE_TAG"
+        run: python3 -m automation.publish_go "$RELEASE_TAG"
 
   publish-conan:
-    name: Publish C and C++ to configured Conan remote
+    name: Publish C and C++ to Conan
     needs: [plan, build-cpp, build-c]
     if: >-
       always() && needs.plan.outputs.valid == 'true' &&
       (needs.plan.outputs.cpp == 'true' || needs.plan.outputs.c == 'true') &&
       (needs.plan.outputs.cpp != 'true' || needs.build-cpp.result == 'success') &&
       (needs.plan.outputs.c != 'true' || needs.build-c.result == 'success')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     environment: conan
-    permissions:
-      contents: read
     env:
       CONAN_REMOTE_URL: ${{ secrets.CONAN_REMOTE_URL }}
       CONAN_USERNAME: ${{ secrets.CONAN_USERNAME }}
       CONAN_PASSWORD: ${{ secrets.CONAN_PASSWORD }}
       RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
+      ENABLE_CPP: ${{ needs.plan.outputs.cpp }}
+      ENABLE_C: ${{ needs.plan.outputs.c }}
     steps:
-      - name: Checkout release source
-        uses: actions/checkout@v4
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.plan.outputs.tag_name }}
-      - name: Skip registry publish when remote credentials are not configured
-        if: env.CONAN_REMOTE_URL == '' || env.CONAN_USERNAME == '' || env.CONAN_PASSWORD == ''
-        run: echo "::warning::Conan publish skipped; configure CONAN_REMOTE_URL, CONAN_USERNAME, and CONAN_PASSWORD in the conan environment. GitHub Release source archives remain available."
-      - name: Install Conan 2
+      - name: Install Conan 2 when remote credentials are configured
         if: env.CONAN_REMOTE_URL != '' && env.CONAN_USERNAME != '' && env.CONAN_PASSWORD != ''
-        run: python -m pip install --disable-pip-version-check 'conan>=2,<3'
-      - name: Create and upload selected Conan packages
-        if: env.CONAN_REMOTE_URL != '' && env.CONAN_USERNAME != '' && env.CONAN_PASSWORD != ''
-        shell: bash
-        run: |
-          set -euo pipefail
-          VERSION="${RELEASE_TAG##*v}"
-          conan profile detect --force
-          conan remote add playtest "$CONAN_REMOTE_URL" --force
-          conan remote login playtest "$CONAN_USERNAME" --password "$CONAN_PASSWORD"
-          if [[ "${{ needs.plan.outputs.cpp }}" == "true" ]]; then
-            conan create cpp --version="$VERSION" -s build_type=Release
-            conan upload "playtest-cpp/$VERSION" --remote=playtest --confirm
-          fi
-          if [[ "${{ needs.plan.outputs.c }}" == "true" ]]; then
-            conan create c --version="$VERSION" -s build_type=Release
-            conan upload "playtest-c/$VERSION" --remote=playtest --confirm
-          fi
+        run: python3 -m pip install --disable-pip-version-check "conan>=2,<3"
+      - name: Publish selected Conan recipes or emit skip warning
+        run: python3 -m automation.publish_registries conan
 
   publish-nuget:
-    name: Publish to NuGet
+    name: Publish to NuGet (C#)
     needs: [plan, build-csharp]
     if: needs.plan.outputs.csharp == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     environment: nuget
-    permissions:
-      contents: read
     env:
       NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
     steps:
-      - name: Download NuGet package
-        uses: actions/download-artifact@v4
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.tag_name }}
+      - name: Download NuGet package artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: package-csharp
           path: csharp/dist/
-      - name: Skip registry publish when API key is not configured
-        if: env.NUGET_API_KEY == ''
-        run: echo "::warning::NuGet publish skipped; configure NUGET_API_KEY in the nuget environment. The package will still be attached to the GitHub Release."
-      - name: Set up .NET SDK
+      - name: Set up .NET SDK when API key is configured
         if: env.NUGET_API_KEY != ''
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
-          dotnet-version: '10.0.x'
-      - name: Publish package to NuGet.org
-        if: env.NUGET_API_KEY != ''
-        shell: bash
-        run: |
-          set -euo pipefail
-          dotnet nuget push csharp/dist/*.nupkg \
-            --api-key "$NUGET_API_KEY" \
-            --source https://api.nuget.org/v3/index.json \
-            --skip-duplicate
+          dotnet-version: "10.0.x"
+      - name: Publish NuGet package or emit skip warning
+        run: python3 -m automation.publish_registries nuget
 
   publish-maven-central:
-    name: Publish Java package to Maven Central
+    name: Publish to Maven Central (Java)
     needs: [plan, build-java]
     if: needs.plan.outputs.java == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     environment: maven
-    permissions:
-      contents: read
     env:
       CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
       CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
@@ -581,20 +544,16 @@ jobs:
       MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
       RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
     steps:
-      - name: Skip registry publish when Portal credentials or signing key are not configured
-        if: env.CENTRAL_USERNAME == '' || env.CENTRAL_PASSWORD == '' || env.MAVEN_GPG_PRIVATE_KEY == '' || env.MAVEN_GPG_PASSPHRASE == ''
-        run: echo "::warning::Maven Central publish skipped; configure the four MAVEN_CENTRAL_*/MAVEN_GPG_* secrets in the maven environment. The JAR remains available on the GitHub Release."
-      - name: Checkout release source
-        if: env.CENTRAL_USERNAME != '' && env.CENTRAL_PASSWORD != '' && env.MAVEN_GPG_PRIVATE_KEY != '' && env.MAVEN_GPG_PASSPHRASE != ''
-        uses: actions/checkout@v4
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.plan.outputs.tag_name }}
       - name: Set up Java, Maven credentials, and GPG signing
         if: env.CENTRAL_USERNAME != '' && env.CENTRAL_PASSWORD != '' && env.MAVEN_GPG_PRIVATE_KEY != '' && env.MAVEN_GPG_PASSPHRASE != ''
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           distribution: temurin
-          java-version: '11'
+          java-version: "21"
           server-id: central
           server-username: CENTRAL_USERNAME
           server-password: CENTRAL_PASSWORD
@@ -602,59 +561,37 @@ jobs:
           gpg-passphrase: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
           cache: maven
           cache-dependency-path: java/pom.xml
-      - name: Publish signed Java artifacts to Maven Central
-        if: env.CENTRAL_USERNAME != '' && env.CENTRAL_PASSWORD != '' && env.MAVEN_GPG_PRIVATE_KEY != '' && env.MAVEN_GPG_PASSPHRASE != ''
-        working-directory: java
-        shell: bash
-        run: |
-          set -euo pipefail
-          VERSION="${RELEASE_TAG##*v}"
-          python ../scripts/stamp_release_version.py java "$VERSION"
-          mvn --batch-mode org.codehaus.mojo:versions-maven-plugin:2.18.0:set \
-            -DnewVersion="$VERSION" -DgenerateBackupPoms=false
-          mvn --batch-mode --activate-profiles release -DskipTests \
-            -Dgpg.passphrase="$MAVEN_GPG_PASSPHRASE" deploy
+      - name: Publish signed Java artifacts or emit skip warning
+        run: python3 -m automation.publish_registries maven
 
   prepare-cran:
-    name: Validate CRAN source package
+    name: Validate CRAN Source Package
     needs: [plan, build-r]
     if: needs.plan.outputs.r == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
     steps:
-      - name: Checkout release source
-        uses: actions/checkout@v4
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.plan.outputs.tag_name }}
       - name: Download R source package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: package-r
           path: r/dist/
       - name: Set up R
-        uses: r-lib/actions/setup-r@v2
+        uses: r-lib/actions/setup-r@73ce8628fe8c47fb7ee9598fd6fcbcd40511dd7b # v2-branch
         with:
           r-version: release
-      - name: Install package check dependencies
-        uses: r-lib/actions/setup-r-dependencies@v2
+      - name: Install R check dependencies
+        uses: r-lib/actions/setup-r-dependencies@73ce8628fe8c47fb7ee9598fd6fcbcd40511dd7b # v2-branch
         with:
           working-directory: r
           extra-packages: any::testthat
-      - name: Run CRAN-style package check
-        shell: bash
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          packages=(r/dist/*.tar.gz)
-          if (( ${#packages[@]} != 1 )); then
-            echo "Expected exactly one R source package in r/dist; found ${#packages[@]}" >&2
-            exit 1
-          fi
-          R CMD check --as-cran --no-manual "${packages[0]}"
-  # ============================================================================
-  # 5. GitHub Release (Collects All Artifacts & Convco Changelog)
-  # ============================================================================
+      - name: Run CRAN-style R package check
+        run: python3 -m automation.publish_registries check-cran
+
   github-release:
     name: Create GitHub Release
     needs:
@@ -676,38 +613,39 @@ jobs:
       - publish-conan
       - publish-nuget
       - prepare-cran
-    if: |
+    if: >-
       always() &&
       needs.plan.outputs.valid == 'true' &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout tagged source with history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           ref: ${{ needs.plan.outputs.tag_name }}
-
-      - uses: prefix-dev/setup-pixi@v0.8.3
+      - name: Set up Pixi default environment
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
         with:
-          pixi-version: v0.83.0
+          pixi-version: ${{ env.PIXI_VERSION }}
+          environments: default
+          locked: true
           cache: true
-          frozen: true
-
-      - name: Download All Built Package Artifacts
-        uses: actions/download-artifact@v4
+      - name: Download all built release artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: dist/
           merge-multiple: true
-
-      - name: Generate Changelog via convco
-        run: |
-          pixi run changelog > RELEASE_NOTES.md || echo "Release ${{ needs.plan.outputs.tag_name }}" > RELEASE_NOTES.md
-
-      - name: Create GitHub Release with Attached Artifacts
-        uses: softprops/action-gh-release@v2
+      - name: Generate release notes via convco
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
+        run: pixi run --frozen python -m automation.release changelog --tag "$RELEASE_TAG" --output RELEASE_NOTES.md
+      - name: Publish GitHub Release with attached artifacts
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           tag_name: ${{ needs.plan.outputs.tag_name }}
           body_path: RELEASE_NOTES.md
@@ -715,47 +653,18 @@ jobs:
           files: dist/*
 
   publish-runiverse:
-    name: Wait for R-universe auto-publication
+    name: Verify R-universe Auto-Publication
     needs: [plan, github-release]
     if: needs.plan.outputs.r == 'true' && vars.RUNIVERSE_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 70
-    permissions:
-      contents: read
     env:
       RUNIVERSE_OWNER: ${{ vars.RUNIVERSE_OWNER || github.repository_owner }}
       RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
     steps:
-      - name: Wait for R-universe to index and build this release
-        shell: bash
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          import sys
-          import time
-          import urllib.error
-          import urllib.request
-
-          owner = os.environ["RUNIVERSE_OWNER"].lower()
-          version = os.environ["RELEASE_TAG"].rsplit("v", 1)[-1]
-          url = f"https://{owner}.r-universe.dev/api/packages/playtest"
-          request = urllib.request.Request(url, headers={"User-Agent": "playtest-release-workflow"})
-
-          for attempt in range(60):
-              try:
-                  with urllib.request.urlopen(request, timeout=5) as response:
-                      package = json.load(response)
-                  published = str(package.get("Version", ""))
-                  status = package.get("_status", "unknown")
-                  if published == version and status == "success":
-                      print(f"R-universe published playtest {published} successfully: {url}")
-                      sys.exit(0)
-                  print(f"R-universe reports version={published!r}, status={status!r}; waiting for {version} (attempt {attempt + 1}/60).")
-              except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as error:
-                  print(f"R-universe API not ready yet ({error}); waiting (attempt {attempt + 1}/60).")
-              if attempt < 59:
-                  time.sleep(60)
-
-          raise SystemExit(f"R-universe did not report successful playtest {version} within 70 minutes. Check the registry manifest, R-universe app installation, and source version at the release tag: {url}")
-          PY
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.tag_name }}
+      - name: Poll R-universe API until published version succeeds
+        run: python3 -m automation.publish_registries wait-runiverse

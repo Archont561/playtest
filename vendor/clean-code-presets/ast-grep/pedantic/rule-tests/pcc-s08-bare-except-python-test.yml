@@ -1,0 +1,7 @@
+id: pcc-s08-bare-except-python
+valid:
+- "try:\n    work()\nexcept ValueError as error:\n    raise RuntimeError('invalid') from error"
+- "try:\n    work()\nexcept ValueError:\n    logger.exception('invalid')"
+invalid:
+- "try:\n    work()\nexcept:\n    pass"
+- "try:\n    do_one()\n    do_two()\nexcept:\n    pass"

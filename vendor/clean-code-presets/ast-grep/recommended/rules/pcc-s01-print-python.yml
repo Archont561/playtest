@@ -1,0 +1,18 @@
+id: pcc-s01-print-python
+language: Python
+severity: warning
+message: '[PCC-S01] Replace debug printing in library code with the project''s logger.'
+note: 'PCC-S01 — Structured logging instead of debug prints in library code. Canonical severity: warning.
+  Evidence: Archont561 explicit-output convention; doc-2 CC9xx documentation/observability rules.'
+rule:
+  pattern: print($$$ARGS)
+files:
+- '**/*.py'
+ignores:
+- '**/.pixi/**'
+- '**/node_modules/**'
+- '**/rule-tests/**'
+- '**/fixtures/**'
+- '**/tests/**'
+- '**/test_*.py'
+- '**/automation/**'

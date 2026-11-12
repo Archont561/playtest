@@ -1,0 +1,22 @@
+# Numeric Clean Code policy enforced through `rude` + `rude-clean-code` via `automation/rude_clean.py`.
+# `ruff` already enforces syntax, imports, and style (`ruff.toml`), so only Clean Code
+# complexity thresholds (`CC101`-`CC104`, `CC303`) are enabled here.
+
+[tool.rude]
+ignore = ["E", "W", "F", "C", "CC201", "CC202", "CC301", "CC302"]
+plugins = ["rude_clean_code"]
+
+[tool.rude.rules.CC101]
+max_lines = 55
+
+[tool.rude.rules.CC102]
+max_parameters = 6
+
+[tool.rude.rules.CC103]
+max_returns = 6
+
+[tool.rude.rules.CC104]
+max_locals = 16
+
+[tool.rude.rules.CC303]
+max_branches = 14

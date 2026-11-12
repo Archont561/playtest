@@ -8,9 +8,9 @@ A polyglot testing framework targeting consistent core testing behavior across n
 
 | Language | Ecosystem | Directory | Package / Artifact |
 | :--- | :--- | :--- | :--- |
-| **Rust** | Cargo / crates.io | `crates/playtest`, `crates/playtest-macros` | `playtest`, `playtest-macros` |
+| **Rust** | Cargo / crates.io | `crates/` | `playtest`, `playtest-macros`, `playtest-core`, `playtest-assets`, `playtest-cli` |
 | **Python** | PyPI / pytest | `python/` | `playtest-py` (wheel & sdist) |
-| **TypeScript** | npm / bun | `typescript/` | `@archont561/playtest` |
+| **TypeScript** | npm / Bun | `typescript/` | `@archont561/playtest` |
 | **C++** | CMake / Conan 2 | `cpp/` | `playtest-cpp` (configured Conan remote; GitHub Release fallback) |
 | **C** | CMake / Conan 2 | `c/` | `playtest-c` (configured Conan remote; GitHub Release fallback) |
 | **C#** | .NET / NuGet | `csharp/` | `Playtest` (.nupkg; NuGet publish when configured) |
@@ -69,19 +69,29 @@ pixi run fmt-check
 
 ## Tooling & Verification
 
-All quality gates run via Pixi. A passing aggregate command verifies the configured targets; consult the parity specification and milestone status before assuming a particular feature has shipped in every language.
+All quality gates run through Pixi and the `doit` task graph in [`automation/dodo.py`](automation/dodo.py). A passing aggregate command verifies the configured targets; consult the parity specification and milestone status before assuming a particular feature has shipped in every language.
 
 | Command | Action |
 |:--|:--|
+| `pixi run do fast` | Run repository structure, Clean Code, workflow, TOML, and automation gates |
+| `pixi run do clean_code` | Run vendored Alint, Semgrep, ast-grep, Vale, and `rude-clean-code` checks |
+| `pixi run do test_automation` | Run unit tests and strict `mypy` type checking for `automation/` |
 | `pixi run fmt-check` | Check formatting across the configured language targets |
 | `pixi run lint-all` | Run repository and per-language lint checks |
 | `pixi run test-all` | Run the configured test suites across all language targets |
 | `pixi run coverage-all` | Aggregate polyglot coverage into unified `coverage/lcov.info` |
-| `pixi run package-all` | Build release packages across the configured ecosystems |
-| `pixi run detect-release` | Dry-run conventional-commit change and release-scope detection |
-| `pixi run audit` | Audit Rust dependencies via `cargo-audit` |
-| `pixi run sandbox-plan` | Verify the offline sandbox packaging plan |
-| `pixi run automation <args>` | Execute repository automation via Python |
+| `pixi run package-all` | Dry-run release packaging across the configured ecosystems |
+| `pixi run audit-local` | Run offline Rust policy checks (`cargo-deny` + advisory expiry check) |
+| `pixi run sandbox-check` | Verify `pixi-sandbox` generated workflows and `scripts/restore.sh` |
+
+## Documentation
+
+- [Documentation Index](docs/README.md)
+- [Development Setup](docs/guides/development-setup.md)
+- [Clean Code Rule Register](docs/concepts/rule-register.md)
+- [Contributing Guide](CONTRIBUTING.md)
+- [Agent Directives](AGENTS.md)
+- [Architecture Decision Records](backlog/docs/adr/README.md) & [Specifications](backlog/docs/specs/README.md)
 
 ## Development Container
 

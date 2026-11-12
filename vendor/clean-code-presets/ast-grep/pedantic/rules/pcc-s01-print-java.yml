@@ -1,0 +1,23 @@
+id: pcc-s01-print-java
+language: Java
+severity: error
+message: '[PCC-S01] Replace debug printing in library code with the project''s logger.'
+note: 'PCC-S01 — Structured logging instead of debug prints in library code. Canonical severity: error.
+  Evidence: Archont561 explicit-output convention; doc-2 CC9xx documentation/observability rules.
+  printStackTrace is included because it writes a stack trace to stderr instead of the logger.'
+rule:
+  any:
+  - pattern: System.out.print($$$ARGS)
+  - pattern: System.out.println($$$ARGS)
+  - pattern: System.err.print($$$ARGS)
+  - pattern: System.err.println($$$ARGS)
+  - pattern: $EXCEPTION.printStackTrace()
+files:
+- '**/*.java'
+ignores:
+- '**/.pixi/**'
+- '**/build/**'
+- '**/rule-tests/**'
+- '**/fixtures/**'
+- '**/src/test/**'
+- '**/src/integrationTest/**'

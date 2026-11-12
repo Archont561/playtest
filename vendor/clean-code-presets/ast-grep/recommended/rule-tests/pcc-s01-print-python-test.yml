@@ -1,0 +1,7 @@
+id: pcc-s01-print-python
+valid:
+- logger.info('ready')
+- "def emit():\n    return 'ready'"
+invalid:
+- print('ready')
+- "def emit():\n    print('ready')"

@@ -1,0 +1,7 @@
+id: pcc-s01-console-log-ts
+valid:
+- logger.info('ready');
+- const emit = () => 'ready';
+invalid:
+- console.log('ready');
+- function emit() { console.log('ready'); }

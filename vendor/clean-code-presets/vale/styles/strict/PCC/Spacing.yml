@@ -1,0 +1,10 @@
+# PCC-D02: One space after sentence punctuation. Evidence: rude-clean-code/.vale/styles/Microsoft/Spacing.yml.
+extends: existence
+message: '[PCC-D02] ''%s'' should have one space.'
+level: error
+ignorecase: false
+nonword: true
+tokens:
+- '[a-z][.?!] {2,}[A-Z]'
+- \b[a-z]\w*\.[A-Z]
+- \w[?!][A-Z]

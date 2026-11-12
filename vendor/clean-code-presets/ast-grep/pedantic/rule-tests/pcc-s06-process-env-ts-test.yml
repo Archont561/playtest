@@ -1,0 +1,7 @@
+id: pcc-s06-process-env-ts
+valid:
+- const port = config.port;
+- 'function read(config: Config) { return config.port; }'
+invalid:
+- const port = process.env.PORT;
+- function read() { return process.env.PORT; }

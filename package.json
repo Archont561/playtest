@@ -1,0 +1,22 @@
+{
+  "name": "playtest-workspace",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Developer workspace manifest for the Playtest polyglot monorepo",
+  "author": "Archont561",
+  "license": "MIT OR Apache-2.0",
+  "homepage": "https://github.com/Archont561/playtest#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Archont561/playtest.git"
+  },
+  "packageManager": "bun@1.4.2",
+  "devDependencies": {
+    "backlog.md": "1.55.3"
+  },
+  "scripts": {
+    "check": "pixi run --frozen doit fast",
+    "clean-code": "pixi run --frozen doit clean_code",
+    "test": "pixi run --frozen doit test_automation"
+  }
+}

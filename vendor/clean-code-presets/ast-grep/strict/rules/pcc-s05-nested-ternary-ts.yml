@@ -1,0 +1,24 @@
+id: pcc-s05-nested-ternary-ts
+language: TypeScript
+severity: info
+message: '[PCC-S05] Extract nested conditional expressions into a named decision function or explicit
+  branches.'
+note: 'PCC-S05 — No nested conditional expressions. Canonical severity: info. Evidence: rude-clean-code
+  doc-2 CC306 nested ternary and CC301 excessive nesting.'
+rule:
+  all:
+  - pattern: '$COND ? $A : $B'
+  - inside:
+      kind: ternary_expression
+      stopBy: end
+files:
+- '**/*.ts'
+- '**/*.tsx'
+ignores:
+- '**/.pixi/**'
+- '**/node_modules/**'
+- '**/rule-tests/**'
+- '**/fixtures/**'
+- '**/tests/**'
+- '**/test_*.py'
+- '**/automation/**'

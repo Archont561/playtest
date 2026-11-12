@@ -1,0 +1,10 @@
+# PCC-D04: Secure, portable links. Evidence: Archont561 CI link checks and vendored documentation conventions.
+extends: existence
+message: '[PCC-D04] ''%s'' is not a portable HTTPS link.'
+level: error
+scope: raw
+ignorecase: true
+tokens:
+- http://
+- localhost
+- 127\.0\.0\.1

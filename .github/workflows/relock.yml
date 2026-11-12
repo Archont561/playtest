@@ -11,6 +11,16 @@ name: relock
 
 on:
   pull_request:
+    paths:
+      - "**/Cargo.toml"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "bun.lock"
+      - "package.json"
+      - "pixi-sandbox.toml"
+      - "pixi.lock"
+      - "pixi.toml"
+
   workflow_dispatch:
     inputs:
       repaired_sha:

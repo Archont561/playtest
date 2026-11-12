@@ -1,0 +1,15 @@
+# PCC-D01: Canonical product and tool names. Evidence: rude-clean-code/.vale/styles/Project/Terms.yml and accept.txt.
+extends: substitution
+message: '[PCC-D01] Use ''%s'' instead of ''%s''.'
+level: error
+ignorecase: false
+swap:
+  (?i:github[ ]actions): GitHub Actions
+  (?i:astgrep): ast-grep
+  (?i:semgrep): Semgrep
+  (?i:vale): Vale
+  (?i:alint): Alint
+  (?i:pixi): Pixi
+  (?i:bun): Bun
+  (?i:pytest): pytest
+  (?i:backlog[.]md): Backlog.md

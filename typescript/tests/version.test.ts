@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test";
+import pkg from "../package.json";
 import { VERSION } from "../src/index.js";
 
-test("version is exposed and matches 0.1.0", () => {
-	expect(VERSION).toBe("0.1.0");
+test("version is valid semver and matches package.json", () => {
+	expect(VERSION).toMatch(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
+	expect(VERSION).toBe(pkg.version);
 });

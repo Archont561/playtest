@@ -1,68 +1,252 @@
 [workspace]
 name = "playtest"
 version = "0.1.0"
+description = "Universal testing framework with dependency-injected fixtures, code-first BDD, and property-based testing."
 channels = ["https://prefix.dev/archont561/archont561", "conda-forge"]
 platforms = ["linux-64"]
 
 [dependencies]
-rust = ">=1.88.0"
-cargo-nextest = ">=0.9.70"
-cargo-llvm-cov = ">=0.6.14"
-cargo-audit = ">=0.20.0"
-convco = ">=0.5.1"
-actionlint = ">=1.7.1"
-shellcheck = ">=0.10.0"
-lefthook = ">=1.7.0"
-taplo = ">=0.9.0"
-pixi-sandbox = ">=0.9.0"
-bun = ">=1.3.0"
-python = ">=3.11"
-pytest = ">=8.0.0"
-ruff = ">=0.6.0"
+python = ">=3.12,<3.13"
+rust = ">=1.88.0,<2"
+cargo-nextest = ">=0.9.70,<1"
+cargo-llvm-cov = ">=0.6.14,<1"
+cargo-audit = ">=0.20.0,<1"
+cargo-deny = ">=0.18.0,<1"
+convco = ">=0.7.2,<1"
+actionlint = ">=1.7.1,<2"
+shellcheck = ">=0.10.0,<1"
+lefthook = ">=2.2.0,<3"
+taplo = ">=0.9.0,<1"
+pixi-sandbox = ">=0.9.0,<1"
+bun = ">=1.4.2,<1.5"
+pytest = ">=8.0.0,<10"
+ruff = ">=0.15.0,<1"
+mypy = ">=1.15.0,<3"
+vale = ">=3.0.0,<4"
+ast-grep = ">=0.51.0,<1"
+git = ">=2.40.0,<3"
+
+[pypi-dependencies]
+alint = ">=0.22,<0.23"
+semgrep = "==1.150.0"
+doit = ">=0.37,<0.38"
+rude = "==0.1a4"
+rude-clean-code = "==0.1.0"
+
+[environments]
+default = { solve-group = "default" }
+py = { features = ["py"], no-default-feature = true }
+ts = { features = ["ts"], no-default-feature = true }
+cpp = { features = ["cpp"], no-default-feature = true }
+c = { features = ["c"], no-default-feature = true }
+csharp = { features = ["csharp"], no-default-feature = true }
+go = { features = ["go"], no-default-feature = true }
+java = { features = ["java"], no-default-feature = true }
+r = { features = ["r"], no-default-feature = true }
+
+# ==============================================================================
+# Isolated Language SDK Feature Environments
+# ==============================================================================
+
+[feature.py.dependencies]
+python = ">=3.12,<3.13"
+pytest = ">=8.0.0,<10"
+pytest-cov = ">=5.0.0,<8"
+python-build = ">=1.0.0,<2"
+ruff = ">=0.15.0,<1"
 twine = ">=7.0.0,<8"
-clang-tools = ">=23.1.4,<24"
-clang-format = ">=23.1.4,<24"
-lcov = ">=2.5,<3"
-golangci-lint = ">=2.15.0,<3"
+typer = ">=0.12.0,<1"
+
+[feature.py.tasks]
+sdk-build = { cmd = "pyproject-build --outdir dist/ .", cwd = "python" }
+sdk-test = { cmd = "pytest tests", cwd = "python", env = { PYTHONPATH = "src" } }
+sdk-coverage = { cmd = "mkdir -p coverage && pytest --cov=src --cov-report=term --cov-report=lcov:coverage/lcov-py.info tests", cwd = "python", env = { PYTHONPATH = "src" } }
+sdk-lint = { cmd = "ruff check src/ tests/", cwd = "python" }
+sdk-fmt = { cmd = "ruff format src/ tests/ && ruff check --fix src/ tests/", cwd = "python" }
+sdk-fmt-check = { cmd = "ruff format --check src/ tests/ && ruff check src/ tests/", cwd = "python" }
+sdk-package = { cmd = "twine check dist/*", cwd = "python", depends-on = [
+  "sdk-fmt-check",
+  "sdk-lint",
+  "sdk-test",
+  "sdk-build",
+] }
+sdk-release = { depends-on = ["sdk-package"] }
+
+[feature.ts.dependencies]
+bun = ">=1.4.2,<1.5"
 biome = ">=2.6.2,<3"
 
+[feature.ts.tasks]
+sdk-build = { cmd = "bun build src/index.ts --outdir dist --target node", cwd = "typescript" }
+sdk-test = { cmd = "bun test tests", cwd = "typescript" }
+sdk-coverage = { cmd = "bun test --coverage --coverage-reporter=lcov --coverage-dir=coverage tests", cwd = "typescript" }
+sdk-lint = { cmd = "biome lint src/ tests/ && bun test tests", cwd = "typescript" }
+sdk-fmt = { cmd = "biome format --write src/ tests/", cwd = "typescript" }
+sdk-fmt-check = { cmd = "biome format src/ tests/", cwd = "typescript" }
+sdk-package = { cmd = "bun pm pack --dry-run", cwd = "typescript", depends-on = [
+  "sdk-build",
+  "sdk-test",
+  "sdk-lint",
+] }
+sdk-release = { cmd = "bun pm pack", cwd = "typescript", depends-on = [
+  "sdk-build",
+  "sdk-test",
+  "sdk-lint",
+] }
+
+[feature.cpp.dependencies]
+cxx-compiler = ">=1.7.0,<2"
+clang-format = ">=23.1.4,<24"
+lcov = ">=2.5,<3"
+cli11 = ">=2.7.2,<3"
+
+[feature.cpp.tasks]
+sdk-build = "python3 -m automation.sdk_tasks cpp-test"
+sdk-test = "python3 -m automation.sdk_tasks cpp-test"
+sdk-coverage = "python3 -m automation.sdk_tasks cpp-coverage"
+sdk-lint = "python3 -m automation.sdk_tasks cpp-lint"
+sdk-fmt = { cmd = "clang-format -i include/playtest/playtest.hpp tests/test_version.cpp", cwd = "cpp" }
+sdk-fmt-check = { cmd = "clang-format --dry-run --Werror include/playtest/playtest.hpp tests/test_version.cpp", cwd = "cpp" }
+sdk-package = { cmd = "python3 -m automation.sdk_tasks cpp-package", depends-on = [
+  "sdk-lint",
+  "sdk-test",
+] }
+sdk-release = { depends-on = ["sdk-package"] }
+
+[feature.c.dependencies]
+c-compiler = ">=1.7.0,<2"
+clang-format = ">=23.1.4,<24"
+lcov = ">=2.5,<3"
+
+[feature.c.tasks]
+sdk-build = "python3 -m automation.sdk_tasks c-test"
+sdk-test = "python3 -m automation.sdk_tasks c-test"
+sdk-coverage = "python3 -m automation.sdk_tasks c-coverage"
+sdk-lint = "python3 -m automation.sdk_tasks c-lint"
+sdk-fmt = { cmd = "clang-format -i include/playtest/playtest.h src/playtest.c tests/test_version.c", cwd = "c" }
+sdk-fmt-check = { cmd = "clang-format --dry-run --Werror include/playtest/playtest.h src/playtest.c tests/test_version.c", cwd = "c" }
+sdk-package = { cmd = "python3 -m automation.sdk_tasks c-package", depends-on = [
+  "sdk-lint",
+  "sdk-test",
+] }
+sdk-release = { depends-on = ["sdk-package"] }
+
+[feature.csharp.dependencies]
+dotnet = ">=10.0.0,<11"
+
+[feature.csharp.tasks]
+sdk-build = { cmd = "dotnet build", cwd = "csharp" }
+sdk-test = { cmd = "dotnet test", cwd = "csharp" }
+sdk-coverage = "python3 -m automation.sdk_tasks csharp-coverage"
+sdk-lint = { cmd = "dotnet format --verify-no-changes", cwd = "csharp" }
+sdk-fmt = { cmd = "dotnet format", cwd = "csharp" }
+sdk-fmt-check = { cmd = "dotnet format --verify-no-changes", cwd = "csharp" }
+sdk-package = { cmd = "python3 -m automation.sdk_tasks csharp-package", depends-on = [
+  "sdk-lint",
+  "sdk-test",
+] }
+sdk-release = { depends-on = ["sdk-package"] }
+
+[feature.go.dependencies]
+go = ">=1.23.0,<2"
+golangci-lint = ">=2.15.0,<3"
+
+[feature.go.tasks]
+sdk-build = { cmd = "go build ./...", cwd = "go" }
+sdk-test = { cmd = "go test -v ./...", cwd = "go" }
+sdk-coverage = { cmd = "mkdir -p coverage && go test -coverprofile=coverage/cover.out ./... && go run ./cmd/cover2lcov coverage/cover.out coverage/lcov.info", cwd = "go" }
+sdk-lint = { cmd = "go vet ./... && golangci-lint run ./...", cwd = "go" }
+sdk-fmt = { cmd = "go fmt ./...", cwd = "go" }
+sdk-fmt-check = "python3 -m automation.sdk_tasks go-fmt-check"
+sdk-package = { cmd = "python3 -m automation.sdk_tasks go-package", depends-on = [
+  "sdk-lint",
+  "sdk-test",
+] }
+sdk-release = { depends-on = ["sdk-package"] }
+
+[feature.java.dependencies]
+openjdk = ">=21.0.0,<22"
+
+[feature.java.tasks]
+sdk-build = "python3 -m automation.sdk_tasks java-compile"
+sdk-test = "python3 -m automation.sdk_tasks java-test"
+sdk-coverage = "python3 -m automation.sdk_tasks java-coverage"
+sdk-lint = "python3 -m automation.sdk_tasks java-compile"
+sdk-fmt = "python3 -m automation.sdk_tasks java-compile"
+sdk-fmt-check = "python3 -m automation.sdk_tasks java-compile"
+sdk-package = { cmd = "python3 -m automation.sdk_tasks java-package", depends-on = [
+  "sdk-test",
+] }
+sdk-release = { depends-on = ["sdk-package"] }
+
+[feature.r.dependencies]
+r-base = ">=4.3.0,<5"
+r-optparse = ">=1.8.2,<2"
+
+[feature.r.tasks]
+sdk-build = { cmd = "R CMD build .", cwd = "r" }
+sdk-test = { cmd = "Rscript -e 'source(\"../../R/version.R\"); source(\"test-version.R\")'", cwd = "r/tests/testthat" }
+sdk-coverage = { cmd = "Rscript -e 'source(\"../../R/version.R\"); source(\"test-version.R\")'", cwd = "r/tests/testthat" }
+sdk-lint = { cmd = "test -f DESCRIPTION && test -f NAMESPACE", cwd = "r" }
+sdk-fmt = { cmd = "test -f DESCRIPTION", cwd = "r" }
+sdk-fmt-check = { cmd = "test -f DESCRIPTION", cwd = "r" }
+sdk-package = { cmd = "python3 -m automation.sdk_tasks r-package", depends-on = [
+  "sdk-lint",
+  "sdk-test",
+] }
+sdk-release = { depends-on = ["sdk-package"] }
+
+# ==============================================================================
+# Root Governance, Rust Workspace & Polyglot Aggregator Tasks
+# ==============================================================================
+
 [tasks]
-# --- Conventional Commits, Changelog & Git Hooks ---
+# --- Doit Task Graph & Governance ---
+do = "doit"
+bun-install = "bun install --frozen-lockfile"
+backlog = { cmd = "bun x --bun --no-install backlog task list --plain", depends-on = [
+  "bun-install",
+] }
+
+# --- Conventional Commits & Git Hooks ---
 commit-check = "convco check --from-stdin"
 lint-commit = "convco check --from-stdin"
 changelog = "convco changelog"
 changelog-unreleased = "convco changelog --unreleased"
 install-hooks = "lefthook install"
 
-# --- Repository Tooling & Auditing ---
+# --- Repository Tooling, Sandbox & Security ---
 actionlint = "actionlint"
-audit = "cargo audit --no-fetch || cargo audit"
-automation = "python scripts/automation.py"
+sandbox-check = "pixi-sandbox init --check --script-path scripts/restore.sh"
 sandbox-plan = "pixi-sandbox plan --config pixi-sandbox.toml"
 sandbox-restore = "pixi-sandbox restore --config pixi-sandbox.toml"
-bunx = "bunx"
+audit-local = "python -m automation.audit_local"
+audit-live = "cargo deny check advisories bans licenses sources && cargo audit"
+audit = { depends-on = ["audit-local"] }
 
 # --- Formatting ---
 fmt-rs = "cargo fmt --all"
 fmt-check-rs = "cargo fmt --all -- --check"
-fmt-toml = "taplo fmt Cargo.toml pixi.toml pixi-sandbox.toml crates/playtest/Cargo.toml crates/playtest-assets/Cargo.toml crates/playtest-cli/Cargo.toml crates/playtest-core/Cargo.toml crates/playtest-macros/Cargo.toml python/pixi.toml typescript/pixi.toml cpp/pixi.toml go/pixi.toml java/pixi.toml r/pixi.toml c/pixi.toml csharp/pixi.toml"
-lint-toml = "taplo fmt --check Cargo.toml pixi.toml pixi-sandbox.toml crates/playtest/Cargo.toml crates/playtest-assets/Cargo.toml crates/playtest-cli/Cargo.toml crates/playtest-core/Cargo.toml crates/playtest-macros/Cargo.toml python/pixi.toml typescript/pixi.toml cpp/pixi.toml go/pixi.toml java/pixi.toml r/pixi.toml c/pixi.toml csharp/pixi.toml"
-fmt-py = "pixi run --manifest-path python/pixi.toml fmt"
-fmt-check-py = "pixi run --manifest-path python/pixi.toml fmt-check"
-fmt-ts = "pixi run --manifest-path typescript/pixi.toml fmt"
-fmt-check-ts = "pixi run --manifest-path typescript/pixi.toml fmt-check"
-fmt-cpp = "pixi run --manifest-path cpp/pixi.toml fmt"
-fmt-check-cpp = "pixi run --manifest-path cpp/pixi.toml fmt-check"
-fmt-c = "pixi run --manifest-path c/pixi.toml fmt"
-fmt-check-c = "pixi run --manifest-path c/pixi.toml fmt-check"
-fmt-csharp = "pixi run --manifest-path csharp/pixi.toml fmt"
-fmt-check-csharp = "pixi run --manifest-path csharp/pixi.toml fmt-check"
-fmt-go = "pixi run --manifest-path go/pixi.toml fmt"
-fmt-check-go = "pixi run --manifest-path go/pixi.toml fmt-check"
+fmt-toml = "taplo fmt"
+lint-toml = "taplo fmt --check"
+fmt-automation = "ruff format automation python/src python/tests && ruff check --fix automation python/src python/tests"
+fmt-py = "pixi run --frozen -e py sdk-fmt"
+fmt-check-py = "pixi run --frozen -e py sdk-fmt-check"
+fmt-ts = "pixi run --frozen -e ts sdk-fmt"
+fmt-check-ts = "pixi run --frozen -e ts sdk-fmt-check"
+fmt-cpp = "pixi run --frozen -e cpp sdk-fmt"
+fmt-check-cpp = "pixi run --frozen -e cpp sdk-fmt-check"
+fmt-c = "pixi run --frozen -e c sdk-fmt"
+fmt-check-c = "pixi run --frozen -e c sdk-fmt-check"
+fmt-csharp = "pixi run --frozen -e csharp sdk-fmt"
+fmt-check-csharp = "pixi run --frozen -e csharp sdk-fmt-check"
+fmt-go = "pixi run --frozen -e go sdk-fmt"
+fmt-check-go = "pixi run --frozen -e go sdk-fmt-check"
 
 fmt = { depends-on = [
   "fmt-rs",
   "fmt-toml",
+  "fmt-automation",
   "fmt-py",
   "fmt-ts",
   "fmt-cpp",
@@ -82,28 +266,20 @@ fmt-check = { depends-on = [
 ] }
 
 # --- Linting ---
-clippy = "cargo clippy --workspace --all-targets --all-features -- -D warnings"
-lint-py = "pixi run --manifest-path python/pixi.toml lint"
-lint-ts = "pixi run --manifest-path typescript/pixi.toml lint"
-lint-cpp = "pixi run --manifest-path cpp/pixi.toml lint"
-lint-c = "pixi run --manifest-path c/pixi.toml lint"
-lint-csharp = "pixi run --manifest-path csharp/pixi.toml lint"
-lint-go = "pixi run --manifest-path go/pixi.toml lint"
-lint-java = "pixi run --manifest-path java/pixi.toml lint"
-lint-r = "pixi run --manifest-path r/pixi.toml lint"
+clippy = "cargo clippy --workspace --all-targets --all-features --locked -- -D warnings"
+lint-py = "pixi run --frozen -e py sdk-lint"
+lint-ts = "pixi run --frozen -e ts sdk-lint"
+lint-cpp = "pixi run --frozen -e cpp sdk-lint"
+lint-c = "pixi run --frozen -e c sdk-lint"
+lint-csharp = "pixi run --frozen -e csharp sdk-lint"
+lint-go = "pixi run --frozen -e go sdk-lint"
+lint-java = "pixi run --frozen -e java sdk-lint"
+lint-r = "pixi run --frozen -e r sdk-lint"
 
-# Default lint gate (CI / pre-push)
-lint = { depends-on = [
-  "fmt-check",
-  "clippy",
-  "lint-toml",
-  "actionlint",
-  "lint-py",
-] }
+lint = { depends-on = ["fmt-check-rs", "clippy", "lint-toml", "actionlint"] }
 lint-all = { depends-on = [
   "fmt-check",
   "clippy",
-  "lint-toml",
   "actionlint",
   "lint-py",
   "lint-ts",
@@ -116,18 +292,18 @@ lint-all = { depends-on = [
 ] }
 
 # --- Testing ---
-test-rs = "cargo nextest run --workspace --all-features"
-test-doc = "cargo test --doc --workspace"
-test-py = "pixi run --manifest-path python/pixi.toml test"
-test-ts = "pixi run --manifest-path typescript/pixi.toml test"
-test-cpp = "pixi run --manifest-path cpp/pixi.toml test"
-test-c = "pixi run --manifest-path c/pixi.toml test"
-test-csharp = "pixi run --manifest-path csharp/pixi.toml test"
-test-go = "pixi run --manifest-path go/pixi.toml test"
-test-java = "pixi run --manifest-path java/pixi.toml test"
-test-r = "pixi run --manifest-path r/pixi.toml test"
+test-rs = "cargo nextest run --workspace --all-features --locked"
+test-doc = "cargo test --doc --workspace --locked"
+offline-rs = { depends-on = ["fmt-check-rs", "clippy", "test-rs", "test-doc"] }
+test-py = "pixi run --frozen -e py sdk-test"
+test-ts = "pixi run --frozen -e ts sdk-test"
+test-cpp = "pixi run --frozen -e cpp sdk-test"
+test-c = "pixi run --frozen -e c sdk-test"
+test-csharp = "pixi run --frozen -e csharp sdk-test"
+test-go = "pixi run --frozen -e go sdk-test"
+test-java = "pixi run --frozen -e java sdk-test"
+test-r = "pixi run --frozen -e r sdk-test"
 
-# Default test task (Rust core) & all-targets suite
 test = { depends-on = ["test-rs", "test-doc"] }
 test-all = { depends-on = [
   "test-rs",
@@ -143,16 +319,16 @@ test-all = { depends-on = [
 ] }
 
 # --- Coverage ---
-coverage-rs = "mkdir -p coverage && cargo llvm-cov nextest --workspace --all-features --lcov --output-path coverage/lcov-rs.info"
-coverage-py = "pixi run --manifest-path python/pixi.toml coverage"
-coverage-ts = "pixi run --manifest-path typescript/pixi.toml coverage"
-coverage-cpp = "pixi run --manifest-path cpp/pixi.toml coverage"
-coverage-c = "pixi run --manifest-path c/pixi.toml coverage"
-coverage-csharp = "pixi run --manifest-path csharp/pixi.toml coverage"
-coverage-go = "pixi run --manifest-path go/pixi.toml coverage"
-coverage-java = "pixi run --manifest-path java/pixi.toml coverage"
-coverage-r = "pixi run --manifest-path r/pixi.toml coverage"
-coverage-merge = "python scripts/merge_lcov.py -o coverage/lcov.info"
+coverage-rs = "mkdir -p coverage && cargo llvm-cov nextest --workspace --all-features --locked --lcov --output-path coverage/lcov-rs.info"
+coverage-py = "pixi run --frozen -e py sdk-coverage"
+coverage-ts = "pixi run --frozen -e ts sdk-coverage"
+coverage-cpp = "pixi run --frozen -e cpp sdk-coverage"
+coverage-c = "pixi run --frozen -e c sdk-coverage"
+coverage-csharp = "pixi run --frozen -e csharp sdk-coverage"
+coverage-go = "pixi run --frozen -e go sdk-coverage"
+coverage-java = "pixi run --frozen -e java sdk-coverage"
+coverage-r = "pixi run --frozen -e r sdk-coverage"
+coverage-merge = "python -m automation.merge_lcov -o coverage/lcov.info"
 
 coverage = { depends-on = ["coverage-rs", "coverage-merge"] }
 coverage-all = { depends-on = [
@@ -167,59 +343,38 @@ coverage-all = { depends-on = [
   "coverage-r",
   "coverage-merge",
 ] }
-coverage-html = "cargo llvm-cov nextest --workspace --all-features --html --output-dir coverage/html --open"
-
-# --- Building ---
-build-rs = "cargo build --workspace --all-targets"
-build-py = "pixi run --manifest-path python/pixi.toml build"
-build-ts = "pixi run --manifest-path typescript/pixi.toml build"
-build-cpp = "pixi run --manifest-path cpp/pixi.toml build"
-build-c = "pixi run --manifest-path c/pixi.toml build"
-build-csharp = "pixi run --manifest-path csharp/pixi.toml build"
-build-go = "pixi run --manifest-path go/pixi.toml build"
-build-java = "pixi run --manifest-path java/pixi.toml build"
-build-r = "pixi run --manifest-path r/pixi.toml build"
-
-build = { depends-on = ["build-rs"] }
-build-all = { depends-on = [
-  "build-rs",
-  "build-py",
-  "build-ts",
-  "build-cpp",
-  "build-c",
-  "build-csharp",
-  "build-go",
-  "build-java",
-  "build-r",
-] }
 
 # --- Release & Packaging ---
-detect-release = "python scripts/detect_release.py"
-package-rs = "cargo package -p playtest-macros --no-verify --allow-dirty && cargo package -p playtest-core --no-verify --allow-dirty && cargo package -p playtest-assets --no-verify --allow-dirty && (cargo package -p playtest --no-verify --allow-dirty || cargo package -p playtest --list --allow-dirty) && (cargo package -p playtest-cli --no-verify --allow-dirty || cargo package -p playtest-cli --list --allow-dirty)"
-publish-rs = "cargo publish -p playtest-macros --locked && cargo publish -p playtest-core --locked && cargo publish -p playtest-assets --locked && cargo publish -p playtest --locked && cargo publish -p playtest-cli --locked"
-release-rs = "cargo publish -p playtest-macros --locked && cargo publish -p playtest-core --locked && cargo publish -p playtest-assets --locked && cargo publish -p playtest --locked && cargo publish -p playtest-cli --locked"
-
-release-py = "pixi run --manifest-path python/pixi.toml release"
-release-ts = "pixi run --manifest-path typescript/pixi.toml release"
-publish-ts = "pixi run --manifest-path typescript/pixi.toml publish"
-release-cpp = "pixi run --manifest-path cpp/pixi.toml release"
-release-c = "pixi run --manifest-path c/pixi.toml release"
-release-csharp = "pixi run --manifest-path csharp/pixi.toml release"
-release-go = "pixi run --manifest-path go/pixi.toml release"
-release-java = "pixi run --manifest-path java/pixi.toml release"
-release-r = "pixi run --manifest-path r/pixi.toml release"
+detect-release = "python -m automation.release detect"
+package-rs = "python -m automation.sdk_tasks rs-package"
+publish-rs = "python -m automation.publish_registries crates"
+release-rs = { depends-on = ["publish-rs"] }
+package-py = "pixi run --frozen -e py sdk-package"
+release-py = "pixi run --frozen -e py sdk-release"
+package-ts = "pixi run --frozen -e ts sdk-package"
+release-ts = "pixi run --frozen -e ts sdk-release"
+package-cpp = "pixi run --frozen -e cpp sdk-package"
+release-cpp = "pixi run --frozen -e cpp sdk-release"
+package-c = "pixi run --frozen -e c sdk-package"
+release-c = "pixi run --frozen -e c sdk-release"
+package-csharp = "pixi run --frozen -e csharp sdk-package"
+release-csharp = "pixi run --frozen -e csharp sdk-release"
+package-go = "pixi run --frozen -e go sdk-package"
+release-go = "pixi run --frozen -e go sdk-release"
+package-java = "pixi run --frozen -e java sdk-package"
+release-java = "pixi run --frozen -e java sdk-release"
+package-r = "pixi run --frozen -e r sdk-package"
+release-r = "pixi run --frozen -e r sdk-release"
 
 package-all = { depends-on = [
   "package-rs",
-  "release-py",
-  "release-ts",
-  "release-cpp",
-  "release-c",
-  "release-csharp",
-  "release-go",
-  "release-java",
-  "release-r",
+  "package-py",
+  "package-ts",
+  "package-cpp",
+  "package-c",
+  "package-csharp",
+  "package-go",
+  "package-java",
+  "package-r",
 ] }
-
-release = { depends-on = ["release-rs"] }
 release-all = { depends-on = ["package-all"] }

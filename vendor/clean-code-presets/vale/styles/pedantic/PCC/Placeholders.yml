@@ -1,0 +1,10 @@
+# PCC-D05: No placeholder prose. Evidence: doc-2 CC903 (markers need a reference) and Archont561 backlog-first documentation.
+extends: existence
+message: '[PCC-D05] ''%s'' is placeholder prose; add a concrete decision.'
+level: warning
+ignorecase: true
+tokens:
+- TBD
+- Lorem ipsum
+- coming soon
+- FILL ME

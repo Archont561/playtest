@@ -1,0 +1,14 @@
+id: pcc-s07-empty-catch-java
+valid:
+- |-
+  try { work(); } catch (IOException error) { logger.error("work failed", error); }
+- |-
+  try { work(); } catch (IOException error) {
+    throw new UncheckedIOException(error);
+  }
+invalid:
+- |-
+  try { work(); } catch (IOException error) {}
+- |-
+  try { work(); } catch (IOException error) {
+  }

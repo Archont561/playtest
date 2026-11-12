@@ -1,0 +1,6 @@
+line-length = 100
+target-version = "py312"
+extend-exclude = [".pixi", ".pixi-sandbox", "node_modules", "target", "vendor"]
+
+[lint]
+select = ["E", "F", "W", "B", "UP", "I", "PTH"]

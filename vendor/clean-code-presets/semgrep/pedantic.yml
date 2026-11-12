@@ -1,0 +1,166 @@
+rules:
+- id: pcc-p01-swallowed-exception-python
+  languages:
+  - python
+  severity: ERROR
+  message: '[PCC-P01] Handle, translate or rethrow the exception; pass in an except block hides the failure.'
+  metadata:
+    pcc_id: PCC-P01
+    pcc_title: Swallowed exceptions
+    pcc_preset: pedantic
+    pcc_confidence: critical
+    pcc_canonical_severity: error
+    pcc_source: doc-2 CC309 broad exception swallowed; Archont561 fail-fast automation
+    category: maintainability
+  pattern-either:
+  - pattern: |-
+      try:
+          ...
+      except $EXC:
+          pass
+  - pattern: |-
+      try:
+          ...
+      except:
+          pass
+- id: pcc-p02-unsafe-dynamic-python
+  languages:
+  - python
+  severity: ERROR
+  message: '[PCC-P02] Avoid eval, exec, pickle and unsafe YAML loading; use a typed parser such as ast.literal_eval
+    or yaml.safe_load.'
+  metadata:
+    pcc_id: PCC-P02
+    pcc_title: No dynamic execution or unsafe deserialization
+    pcc_preset: pedantic
+    pcc_confidence: critical
+    pcc_canonical_severity: error
+    pcc_source: Semgrep security baseline and Archont561 explicitness/locked-dependency principle
+    category: maintainability
+  pattern-either:
+  - pattern: eval(...)
+  - pattern: exec(...)
+  - pattern: pickle.loads(...)
+  - pattern: pickle.load(...)
+  - pattern: yaml.load(...)
+- id: pcc-p03-shell-true-python
+  languages:
+  - python
+  severity: ERROR
+  message: '[PCC-P03] Pass an argument list without shell=True so command arguments cannot be reinterpreted
+    by a shell.'
+  metadata:
+    pcc_id: PCC-P03
+    pcc_title: No shell=True subprocess calls
+    pcc_preset: pedantic
+    pcc_confidence: critical
+    pcc_canonical_severity: error
+    pcc_source: Semgrep security baseline and Archont561 fail-fast command automation
+    category: maintainability
+  pattern: subprocess.$CALL(..., shell=True, ...)
+- id: pcc-p04-requests-timeout-python
+  languages:
+  - python
+  severity: ERROR
+  message: '[PCC-P04] Set an explicit timeout on requests calls so a stalled dependency cannot hang the
+    process.'
+  metadata:
+    pcc_id: PCC-P04
+    pcc_title: Network calls declare a timeout
+    pcc_preset: pedantic
+    pcc_confidence: deterministic
+    pcc_canonical_severity: error
+    pcc_source: Archont561 fail-fast automation and doc-2 CC310/CC311 error-boundary rules
+    category: maintainability
+  patterns:
+  - pattern: requests.$METHOD(...)
+  - pattern-not: requests.$METHOD(..., timeout=..., ...)
+- id: pcc-p05-exception-chaining-python
+  languages:
+  - python
+  severity: ERROR
+  message: '[PCC-P05] Use raise ... from ... when translating an exception so the original cause remains
+    visible.'
+  metadata:
+    pcc_id: PCC-P05
+    pcc_title: Preserve exception causes
+    pcc_preset: pedantic
+    pcc_confidence: deterministic
+    pcc_canonical_severity: error
+    pcc_source: doc-2 CC310 missing raise ... from; rude-clean-code BDD diagnostics
+    category: maintainability
+  patterns:
+  - pattern-inside: |-
+      try:
+          ...
+      except $EXC as $ERR:
+          ...
+  - pattern-regex: ^\s*raise\s+.*$
+  - pattern-not-regex: ^\s*raise\s+.*\bfrom\b.*$
+- id: pcc-p06-unreferenced-markers
+  languages:
+  - generic
+  severity: WARNING
+  message: '[PCC-P06] Attach a task or issue reference to an unfinished-work marker so it can be tracked.'
+  metadata:
+    pcc_id: PCC-P06
+    pcc_title: Task markers carry a reference
+    pcc_preset: pedantic
+    pcc_confidence: heuristic
+    pcc_canonical_severity: warning
+    pcc_source: doc-2 CC903 TODO without reference and Archont561 Backlog.md convention
+    category: maintainability
+  patterns:
+  - pattern-regex: \b(?:TODO|FIXME|XXX)\b
+  - pattern-not-regex: \b(?:TODO|FIXME|XXX)\b.*(?:#[0-9]+|PCC-[A-Z]?[0-9]+)
+  paths:
+    include:
+    - '*.py'
+    - '*.ts'
+    - '*.tsx'
+    - '*.js'
+    - '*.jsx'
+    - '*.rs'
+    - '*.go'
+    - '*.md'
+    - '*.txt'
+- id: pcc-p07-immutable-references
+  languages:
+  - generic
+  severity: ERROR
+  message: '[PCC-P07] Replace wildcard dependency versions and mutable action tags with a lockfile or
+    full commit SHA.'
+  metadata:
+    pcc_id: PCC-P07
+    pcc_title: Immutable dependency and action references
+    pcc_preset: pedantic
+    pcc_confidence: critical
+    pcc_canonical_severity: error
+    pcc_source: gh-meta/deny.toml bans wildcards; Archont561 workflows pin actions to full SHAs
+    category: maintainability
+  pattern-either:
+  - pattern-regex: ^\s*[A-Za-z0-9_.-]+\s*=\s*["']\*["']\s*$
+  - pattern-regex: ^\s*(?:-\s*)?uses:\s*[^\s#]+@(?:v\d+(?:\.\d+)*|main|master)\s*$
+  paths:
+    include:
+    - '*.toml'
+    - '*.yml'
+    - '*.yaml'
+- id: pcc-p08-rust-unsafe-lint
+  languages:
+  - generic
+  severity: ERROR
+  message: '[PCC-P08] Keep unsafe_code forbidden in Rust workspace lints; do not downgrade it to warn
+    or allow.'
+  metadata:
+    pcc_id: PCC-P08
+    pcc_title: Rust workspace lints stay forbidding
+    pcc_preset: pedantic
+    pcc_confidence: critical
+    pcc_canonical_severity: error
+    pcc_source: gh-meta/Cargo.toml and playtest/Cargo.toml [workspace.lints.rust] unsafe_code = "forbid"
+    category: maintainability
+  pattern-regex: ^\s*unsafe_code\s*=\s*["'](?:warn|allow)["']\s*$
+  paths:
+    include:
+    - '*.toml'

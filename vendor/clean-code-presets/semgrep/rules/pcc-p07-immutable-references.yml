@@ -1,0 +1,23 @@
+rules:
+- id: pcc-p07-immutable-references
+  languages:
+  - generic
+  severity: ERROR
+  message: '[PCC-P07] Replace wildcard dependency versions and mutable action tags with a lockfile or
+    full commit SHA.'
+  metadata:
+    pcc_id: PCC-P07
+    pcc_title: Immutable dependency and action references
+    pcc_preset: pedantic
+    pcc_confidence: critical
+    pcc_canonical_severity: error
+    pcc_source: gh-meta/deny.toml bans wildcards; Archont561 workflows pin actions to full SHAs
+    category: maintainability
+  pattern-either:
+  - pattern-regex: ^\s*[A-Za-z0-9_.-]+\s*=\s*["']\*["']\s*$
+  - pattern-regex: ^\s*(?:-\s*)?uses:\s*[^\s#]+@(?:v\d+(?:\.\d+)*|main|master)\s*$
+  paths:
+    include:
+    - '*.toml'
+    - '*.yml'
+    - '*.yaml'

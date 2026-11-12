@@ -1,0 +1,7 @@
+id: pcc-s04-global-python
+valid:
+- "def load(state):\n    return state"
+- STATE = object()
+invalid:
+- "def load():\n    global STATE\n    STATE = object()"
+- global STATE

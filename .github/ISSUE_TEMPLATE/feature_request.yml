@@ -1,0 +1,18 @@
+name: Feature request
+description: Propose a capability aligned with the Playtest architecture and specifications.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: Describe the testing workflow or gap this proposal addresses.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Expected CLI or SDK contract and affected milestones or specs.
+    validations:
+      required: true

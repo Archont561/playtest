@@ -1,0 +1,20 @@
+include = [
+  "Cargo.toml",
+  "deny.toml",
+  "pixi.toml",
+  "pixi-sandbox.toml",
+  "rude.toml",
+  "ruff.toml",
+  "taplo.toml",
+  ".cargo/audit.toml",
+  "backlog/config.toml",
+  "crates/*/Cargo.toml",
+  "python/pyproject.toml",
+]
+exclude = [
+  ".pixi/**",
+  ".pixi-sandbox/**",
+  "node_modules/**",
+  "target/**",
+  "vendor/**",
+]

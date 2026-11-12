@@ -1,0 +1,26 @@
+name: Bug report
+description: Report a reproducible defect in the Playtest CLI, Rust crates, or language SDKs.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Concise description of the observed defect and expected behavior.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Target & version
+      description: Affected crate or language SDK, OS, and commit or release version.
+      placeholder: "playtest-cli 0.1.0 on Linux x86_64"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Minimal commands or test case that triggers the failure.
+    validations:
+      required: true

@@ -4,8 +4,9 @@
 #include <string.h>
 
 int main(void) {
-  assert(strcmp(PLAYTEST_VERSION, "0.1.0") == 0);
-  assert(strcmp(playtest_version(), "0.1.0") == 0);
+  assert(strlen(PLAYTEST_VERSION) >= 5);
+  assert(strchr(PLAYTEST_VERSION, '.') != NULL);
+  assert(strcmp(playtest_version(), PLAYTEST_VERSION) == 0);
   printf("C test_version passed: %s\n", playtest_version());
   return 0;
 }

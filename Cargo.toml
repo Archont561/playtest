@@ -21,6 +21,12 @@ description = "A Playwright-style testing framework for Rust with dependency-inj
 keywords = ["testing", "bdd", "fixtures", "playwright", "test-framework"]
 categories = ["development-tools::testing"]
 
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+
 [workspace.dependencies]
 # Internal workspace crates (ADR 0015 / Spec 0012 §1)
 playtest = { path = "crates/playtest", version = "0.1.0" }

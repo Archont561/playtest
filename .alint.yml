@@ -1,0 +1,78 @@
+# yaml-language-server: $schema=https://alint.org/_alint/configuration/schema.json
+# Repository-specific Alint rules complementing vendor/clean-code-presets/alint/strict.yml.
+version: 1
+
+rules:
+  - id: require-license-mit
+    kind: file_exists
+    paths: LICENSE-MIT
+    level: error
+    message: Root LICENSE-MIT file is required by Cargo.toml (MIT OR Apache-2.0).
+
+  - id: require-license-apache
+    kind: file_exists
+    paths: LICENSE-APACHE
+    level: error
+    message: Root LICENSE-APACHE file is required by Cargo.toml (MIT OR Apache-2.0).
+
+  - id: require-cargo-workspace
+    kind: file_exists
+    paths: Cargo.toml
+    level: error
+    message: Root Cargo.toml workspace manifest is missing.
+
+  - id: require-cargo-lock
+    kind: file_exists
+    paths: Cargo.lock
+    level: error
+    message: Root Cargo.lock is missing.
+
+  - id: require-deny-toml
+    kind: file_exists
+    paths: deny.toml
+    level: error
+    message: Root deny.toml dependency policy is missing.
+
+  - id: require-audit-toml
+    kind: file_exists
+    paths: .cargo/audit.toml
+    level: error
+    message: Required .cargo/audit.toml is missing.
+
+  - id: require-sandbox-config
+    kind: file_exists
+    paths: pixi-sandbox.toml
+    level: error
+    message: Required pixi-sandbox.toml is missing.
+
+  - id: require-sandbox-restore
+    kind: file_exists
+    paths: scripts/restore.sh
+    level: error
+    message: Required scripts/restore.sh launcher is missing.
+
+  - id: require-clean-code-vendor-pin
+    kind: file_exists
+    paths: vendor/clean-code-presets/UPSTREAM.pin
+    level: error
+    message: Vendored polyglot-clean-code UPSTREAM.pin is missing.
+
+  - id: require-clean-code-vendor-manifest
+    kind: file_exists
+    paths: vendor/clean-code-presets/VENDOR.sha256
+    level: error
+    message: Vendored polyglot-clean-code VENDOR.sha256 integrity manifest is missing.
+
+  - id: forbid-subproject-pixi-manifests
+    kind: file_absent
+    paths:
+      - python/pixi.toml
+      - typescript/pixi.toml
+      - cpp/pixi.toml
+      - c/pixi.toml
+      - csharp/pixi.toml
+      - go/pixi.toml
+      - java/pixi.toml
+      - r/pixi.toml
+    level: error
+    message: All Pixi environments belong in the single root pixi.toml workspace.

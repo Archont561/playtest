@@ -1,0 +1,8 @@
+# PCC-D06: Meaningful headings. Evidence: Archont561 documentation tree and doc-2 explicitness principle.
+extends: existence
+message: '[PCC-D06] ''%s'' is too generic for a maintained heading.'
+level: error
+scope: raw
+ignorecase: true
+tokens:
+- ^#+\s+(Misc|Stuff|Notes|Other)\s*$

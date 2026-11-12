@@ -1,0 +1,7 @@
+id: pcc-s02-unsafe-rust
+valid:
+- fn work() { do_work(); }
+- fn work() -> usize { 1 }
+invalid:
+- fn work() { unsafe { do_work(); } }
+- fn work() { unsafe {} }

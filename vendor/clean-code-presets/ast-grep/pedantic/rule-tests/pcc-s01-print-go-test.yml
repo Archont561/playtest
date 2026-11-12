@@ -1,0 +1,27 @@
+id: pcc-s01-print-go
+valid:
+- |-
+  func start(port int) {
+  	slog.Info("starting", "port", port)
+  }
+- |-
+  func wrap(err error) error {
+  	return fmt.Errorf("connect: %w", err)
+  }
+- |-
+  func report(w io.Writer) {
+  	fmt.Fprintf(w, "ready\n")
+  }
+invalid:
+- |-
+  func start() {
+  	fmt.Println("starting")
+  }
+- |-
+  func start(port int) {
+  	fmt.Printf("port %d\n", port)
+  }
+- |-
+  func start() {
+  	fmt.Print("starting")
+  }

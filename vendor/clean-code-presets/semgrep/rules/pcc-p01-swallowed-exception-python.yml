@@ -1,0 +1,25 @@
+rules:
+- id: pcc-p01-swallowed-exception-python
+  languages:
+  - python
+  severity: ERROR
+  message: '[PCC-P01] Handle, translate or rethrow the exception; pass in an except block hides the failure.'
+  metadata:
+    pcc_id: PCC-P01
+    pcc_title: Swallowed exceptions
+    pcc_preset: pedantic
+    pcc_confidence: critical
+    pcc_canonical_severity: error
+    pcc_source: doc-2 CC309 broad exception swallowed; Archont561 fail-fast automation
+    category: maintainability
+  pattern-either:
+  - pattern: |-
+      try:
+          ...
+      except $EXC:
+          pass
+  - pattern: |-
+      try:
+          ...
+      except:
+          pass

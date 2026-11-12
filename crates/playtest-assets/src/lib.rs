@@ -19,7 +19,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const BROTLI_DECODE_BUFFER_SIZE: usize = 4096;
 
-static EMBEDDED_SDKS_TAR_BR: &[u8] =
+const EMBEDDED_SDKS_TAR_BR: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/embedded_sdks.tar.br"));
 
 static DECODED_SDKS: OnceLock<BTreeMap<SdkLanguage, Vec<DecodedAsset>>> = OnceLock::new();

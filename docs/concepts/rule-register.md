@@ -6,7 +6,7 @@ Playtest vendors the curated native presets from `Archont561/polyglot-clean-code
 
 | Engine | Config Path | Scope | Canonical Rules |
 | :--- | :--- | :--- | :--- |
-| **Alint** | `vendor/clean-code-presets/alint/strict.yml` + `.alint.yml` | Repository structure, workflows, issue templates, dual licenses | `PCC-R01`–`PCC-R06` + Playtest file invariants |
+| **Alint** | `vendor/clean-code-presets/alint/strict.yml` + `.alint.yml` | Repository structure, workflows, issue templates, MIT license, `scripts/restore.sh`-only boundary | `PCC-R01`–`PCC-R06` + Playtest file invariants |
 | **Vale** | `vendor/clean-code-presets/vale/strict.ini` | `README.md`, `AGENTS.md`, `CONTRIBUTING.md`, `docs/` | `PCC-D01`–`PCC-D04` |
 | **ast-grep** | `vendor/clean-code-presets/ast-grep/pedantic/sgconfig.yml` | `crates/`, `python/`, `typescript/`, `go/`, `java/` | `PCC-S01`–`PCC-S08` |
 | **Semgrep** | `vendor/clean-code-presets/semgrep/pedantic.yml` | Repository-wide (excluding `vendor/clean-code-presets/`) | `PCC-P01`–`PCC-P08` |

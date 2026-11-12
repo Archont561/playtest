@@ -37,7 +37,7 @@ Rules:
 2. An explicit file list per language decides what is embedded. The list names the files that the SDK's own package publishes. Tests, lockfiles, caches, and editor files are never listed.
 3. Where a package publishes build output, that output is built before `playtest-assets`. The TypeScript package publishes `dist/`, so the TypeScript build precedes the Rust build in a release.
 4. `build.rs` copies the listed files into `OUT_DIR`, and the crate embeds that directory with `include_dir`. The crate creates no symbolic link and follows none.
-5. `cargo package` includes only files inside the crate directory. Before packaging, a Python script under `scripts/` ([ADR 0009](../adr/0009-python-only-repo-automation.md)) copies the listed files into the crate directory. The packaged crate must build without the rest of the repository.
+5. `cargo package` includes only files inside the crate directory. Before packaging, a Python module under `automation/` (`automation/stage_assets.py`; [ADR 0009](../adr/0009-python-only-repo-automation.md)) copies the listed files into the crate directory. The packaged crate must build without the rest of the repository.
 6. The crate exposes, per language, the embedded files with their relative paths, and the SDK version. That version equals the workspace version.
 7. A test fails when an embedded file differs from its source or when a listed file is missing.
 8. The crate embeds files, not installable artifacts. The CLI renders wheels, tarballs, and module directories from them when `playtest sync` runs ([Spec 0013 §3](./0013-workspace-configuration-and-sdk-mirrors.md)).

@@ -11,12 +11,7 @@ from pathlib import Path
 from automation import REPO_ROOT
 from automation._proc import emit_err, emit_line, run_cmd
 
-DEFAULT_TARGETS: tuple[str, ...] = (
-    "automation",
-    "scripts/stage_assets.py",
-    "python/src",
-    "python/tests",
-)
+DEFAULT_TARGETS: tuple[str, ...] = ("automation", "python/src", "python/tests")
 WARNING_SUMMARY_RE = re.compile(r"Found\s+\d+\s+error\(s\)\s+and\s+([1-9]\d*)\s+warning\(s\)")
 
 

@@ -859,7 +859,7 @@ tasks:
     acceptance_criteria:
       - "An explicit file list per language names the files that the SDK's own package publishes; tests, lockfiles, caches, and editor files are never listed"
       - "build.rs copies the listed files into OUT_DIR and include_dir embeds that directory; the crate creates no symbolic link and follows none"
-      - "A Python script under scripts/ stages the listed files for cargo package, and the packaged crate builds outside the repository"
+      - "A Python module under automation/ stages the listed files for cargo package, and the packaged crate builds outside the repository"
       - "Build output that a package publishes (the TypeScript dist/) is built before playtest-assets in the release order"
       - "The crate exposes, per language, the embedded files with their relative paths and the SDK version, equal to the workspace version"
       - "A test fails when an embedded file differs from its source or a listed file is missing"

@@ -1,0 +1,1 @@
+These styles are curated beside the backlog rule register in `backlog/tasks/`; no `vale sync` is needed. The terminology, spacing and vocabulary conventions are derived from `Archont561/rude-clean-code/.vale/styles`. Each preset owns a style tree so the same rule ID can carry a different native severity without editing the consumer's global Vale configuration.

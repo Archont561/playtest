@@ -1,30 +1,40 @@
-# Lefthook Git hooks
-# https://github.com/evilmartians/lefthook
+# Lefthook Git hooks — every hook delegates to locked, offline-safe Pixi / doit tasks.
+# https://lefthook.dev
+min_version: "2.2.0"
 
 commit-msg:
-  commands:
-    convco:
-      run: pixi run --frozen lint-commit < {1}
+  jobs:
+    - name: convco
+      run: pixi run --frozen --no-install lint-commit < {1}
 
 pre-commit:
   parallel: true
-  commands:
-    fmt:
-      run: pixi run --frozen fmt-check
-    lint:
-      run: pixi run --frozen lint
-    actionlint:
-      glob: ".github/workflows/*.{yml,yaml}"
-      run: pixi run --frozen actionlint
-    toml:
+  jobs:
+    - name: rust-fmt
+      glob: "*.rs"
+      run: CARGO_NET_OFFLINE=true pixi run --frozen --no-install fmt-rs
+      stage_fixed: true
+    - name: toml-fmt
       glob: "*.toml"
-      run: pixi run --frozen lint-toml
+      run: pixi run --frozen --no-install fmt-toml
+      stage_fixed: true
+    - name: python-fmt
+      glob: "*.py"
+      run: pixi run --frozen --no-install fmt-automation
+      stage_fixed: true
+    - name: actionlint
+      glob: ".github/workflows/*.{yml,yaml}"
+      run: pixi run --frozen --no-install actionlint
+    - name: sandbox-check
+      glob: ["pixi-sandbox.toml", "scripts/restore.sh", ".github/workflows/*.yml"]
+      run: pixi run --frozen --no-install sandbox-check
+    - name: clean-code
+      run: pixi run --frozen --no-install doit clean_code
 
 pre-push:
-  parallel: false
-  commands:
-    audit:
-      run: pixi run --frozen audit
-    test-all:
-      run: pixi run --frozen test-all
-
+  piped: true
+  jobs:
+    - name: fast-and-automation-tests
+      run: pixi run --frozen --no-install doit pre_push
+    - name: rust-offline-gates
+      run: CARGO_NET_OFFLINE=true pixi run --frozen --no-install offline-rs

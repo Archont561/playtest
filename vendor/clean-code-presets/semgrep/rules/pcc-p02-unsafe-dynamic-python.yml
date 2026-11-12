@@ -1,0 +1,21 @@
+rules:
+- id: pcc-p02-unsafe-dynamic-python
+  languages:
+  - python
+  severity: ERROR
+  message: '[PCC-P02] Avoid eval, exec, pickle and unsafe YAML loading; use a typed parser such as ast.literal_eval
+    or yaml.safe_load.'
+  metadata:
+    pcc_id: PCC-P02
+    pcc_title: No dynamic execution or unsafe deserialization
+    pcc_preset: pedantic
+    pcc_confidence: critical
+    pcc_canonical_severity: error
+    pcc_source: Semgrep security baseline and Archont561 explicitness/locked-dependency principle
+    category: maintainability
+  pattern-either:
+  - pattern: eval(...)
+  - pattern: exec(...)
+  - pattern: pickle.loads(...)
+  - pattern: pickle.load(...)
+  - pattern: yaml.load(...)

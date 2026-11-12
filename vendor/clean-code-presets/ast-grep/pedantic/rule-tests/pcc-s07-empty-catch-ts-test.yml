@@ -1,0 +1,7 @@
+id: pcc-s07-empty-catch-ts
+valid:
+- try { work(); } catch (error) { logger.error(error); }
+- try { work(); } catch (error) { throw error; }
+invalid:
+- try { work(); } catch (error) {}
+- try { work(); } catch { }

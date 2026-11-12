@@ -1,0 +1,11 @@
+# ok: pcc-p06-unreferenced-markers
+# Follow-up: PCC-42 reference recorded
+
+# ok: pcc-p06-unreferenced-markers
+# TODO: PCC-42 add coverage
+
+# ruleid: pcc-p06-unreferenced-markers
+# TODO: add coverage later
+
+# ruleid: pcc-p06-unreferenced-markers
+# FIXME: repair this

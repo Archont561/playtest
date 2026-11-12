@@ -1,0 +1,44 @@
+[graph]
+targets = [
+  "x86_64-unknown-linux-gnu",
+  "x86_64-unknown-linux-musl",
+  "aarch64-unknown-linux-gnu",
+  "aarch64-unknown-linux-musl",
+  "x86_64-apple-darwin",
+  "aarch64-apple-darwin",
+  "x86_64-pc-windows-msvc",
+]
+all-features = true
+
+[advisories]
+ignore = [
+  # `rstest-bdd` 0.6.0 (dev-dependency only) transitively pulls `basic-toml` 0.1.10.
+  # Verified against Cargo.lock on every run by `automation/advisory_exception.py`.
+  { id = "RUSTSEC-2026-0374", reason = "dev-dependency only via rstest-bdd 0.6.0 -> basic-toml" },
+]
+
+[licenses]
+allow = [
+  "0BSD",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "CC0-1.0",
+  "ISC",
+  "MIT",
+  "MIT-0",
+  "Unicode-3.0",
+  "Unlicense",
+  "Zlib",
+]
+confidence-threshold = 0.8
+
+[bans]
+multiple-versions = "allow"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

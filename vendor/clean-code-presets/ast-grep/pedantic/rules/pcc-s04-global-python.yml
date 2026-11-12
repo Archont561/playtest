@@ -1,0 +1,18 @@
+id: pcc-s04-global-python
+language: Python
+severity: error
+message: '[PCC-S04] Pass state explicitly instead of mutating module globals from a function.'
+note: 'PCC-S04 — No Python module-level global mutation. Canonical severity: error. Evidence: rude-clean-code
+  doc-2 CC308 global statement and own-scope analysis.'
+rule:
+  pattern: global $NAME
+files:
+- '**/*.py'
+ignores:
+- '**/.pixi/**'
+- '**/node_modules/**'
+- '**/rule-tests/**'
+- '**/fixtures/**'
+- '**/tests/**'
+- '**/test_*.py'
+- '**/automation/**'

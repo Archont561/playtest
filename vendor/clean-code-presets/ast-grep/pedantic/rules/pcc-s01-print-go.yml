@@ -1,0 +1,23 @@
+id: pcc-s01-print-go
+language: Go
+severity: error
+message: '[PCC-S01] Replace debug printing in library code with the project''s logger.'
+note: 'PCC-S01 — Structured logging instead of debug prints in library code. Canonical severity: error.
+  Evidence: Archont561 explicit-output convention; doc-2 CC9xx documentation/observability rules.
+  The rule matches a call_expression rather than a pattern because tree-sitter-go parses a bare
+  fmt.X(...) pattern as a type conversion. Go entrypoints under cmd/ and main.go are exempt.'
+rule:
+  kind: call_expression
+  has:
+    field: function
+    regex: ^fmt\.(Print|Printf|Println)$
+files:
+- '**/*.go'
+ignores:
+- '**/.pixi/**'
+- '**/vendor/**'
+- '**/rule-tests/**'
+- '**/fixtures/**'
+- '**/testdata/**'
+- '**/cmd/**'
+- '**/main.go'

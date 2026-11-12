@@ -1,0 +1,18 @@
+id: pcc-s02-unsafe-rust
+language: Rust
+severity: error
+message: '[PCC-S02] Unsafe blocks are forbidden; express the operation through a reviewed safe abstraction.'
+note: 'PCC-S02 — Rust workspace forbids unsafe code. Canonical severity: error. Evidence: gh-meta/Cargo.toml
+  [workspace.lints.rust] unsafe_code = "forbid"; playtest/Cargo.toml.'
+rule:
+  pattern: unsafe { $$$BODY }
+files:
+- '**/*.rs'
+ignores:
+- '**/.pixi/**'
+- '**/node_modules/**'
+- '**/rule-tests/**'
+- '**/fixtures/**'
+- '**/tests/**'
+- '**/test_*.py'
+- '**/automation/**'

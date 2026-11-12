@@ -1,0 +1,24 @@
+# PCC-D03: Evidence instead of weasel words. Evidence: rude-clean-code/.vale/styles/write-good/Weasel.yml and doc-2 measurable diagnostics.
+extends: existence
+message: '[PCC-D03] ''%s'' is a weasel word; state the measured value instead.'
+level: suggestion
+ignorecase: true
+tokens:
+- clearly
+- completely
+- extremely
+- fairly
+- largely
+- mostly
+- obviously
+- quite
+- relatively
+- remarkably
+- significantly
+- simply
+- substantially
+- surprisingly
+- usually
+- various
+- vast
+- very

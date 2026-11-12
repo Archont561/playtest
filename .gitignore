@@ -1,6 +1,8 @@
 # Rust & Compiled
 target/
+**/target/
 **/*.rs.bk
+test_cov
 
 # .NET & C#
 bin/
@@ -10,6 +12,7 @@ obj/
 
 # Code Coverage
 coverage/
+**/coverage/
 *.profdata
 *.profraw
 coverage.xml
@@ -22,11 +25,15 @@ coverage.out
 # Node & TypeScript
 node_modules/
 
-# Python & Package Builds
+# Python, Automation & Package Builds
 dist/
+**/dist/
 build/
 *.egg-info/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.doit.db*
 __pycache__/
 *.whl
 *.tgz

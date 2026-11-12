@@ -1,0 +1,10 @@
+id: pcc-s01-print-java
+valid:
+- 'logger.info("ready {}", port)'
+- 'throw new IllegalStateException("invalid", error)'
+- 'System.out.printf("%d%n", port)'
+invalid:
+- 'System.out.println("ready")'
+- 'System.out.print("ready")'
+- 'System.err.println("ready")'
+- 'error.printStackTrace()'

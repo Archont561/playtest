@@ -1,0 +1,19 @@
+rules:
+- id: pcc-p08-rust-unsafe-lint
+  languages:
+  - generic
+  severity: ERROR
+  message: '[PCC-P08] Keep unsafe_code forbidden in Rust workspace lints; do not downgrade it to warn
+    or allow.'
+  metadata:
+    pcc_id: PCC-P08
+    pcc_title: Rust workspace lints stay forbidding
+    pcc_preset: pedantic
+    pcc_confidence: critical
+    pcc_canonical_severity: error
+    pcc_source: gh-meta/Cargo.toml and playtest/Cargo.toml [workspace.lints.rust] unsafe_code = "forbid"
+    category: maintainability
+  pattern-regex: ^\s*unsafe_code\s*=\s*["'](?:warn|allow)["']\s*$
+  paths:
+    include:
+    - '*.toml'

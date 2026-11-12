@@ -1,0 +1,23 @@
+id: pcc-s06-process-env-ts
+language: TypeScript
+severity: error
+message: '[PCC-S06] Read process.env at the entrypoint and inject a typed configuration object into library
+  code.'
+note: 'PCC-S06 — Configuration at the boundary. Canonical severity: error. Evidence: doc-2 CC7xx config-driven
+  dependency rules and Archont561 activation.env boundary.'
+rule:
+  pattern: process.env.$KEY
+files:
+- '**/*.ts'
+- '**/*.tsx'
+ignores:
+- '**/.pixi/**'
+- '**/node_modules/**'
+- '**/rule-tests/**'
+- '**/fixtures/**'
+- '**/tests/**'
+- '**/test_*.py'
+- '**/automation/**'
+- '**/config/**'
+- '**/main.ts'
+- '**/index.ts'

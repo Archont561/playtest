@@ -1,0 +1,18 @@
+rules:
+- id: pcc-p04-requests-timeout-python
+  languages:
+  - python
+  severity: ERROR
+  message: '[PCC-P04] Set an explicit timeout on requests calls so a stalled dependency cannot hang the
+    process.'
+  metadata:
+    pcc_id: PCC-P04
+    pcc_title: Network calls declare a timeout
+    pcc_preset: pedantic
+    pcc_confidence: deterministic
+    pcc_canonical_severity: error
+    pcc_source: Archont561 fail-fast automation and doc-2 CC310/CC311 error-boundary rules
+    category: maintainability
+  patterns:
+  - pattern: requests.$METHOD(...)
+  - pattern-not: requests.$METHOD(..., timeout=..., ...)

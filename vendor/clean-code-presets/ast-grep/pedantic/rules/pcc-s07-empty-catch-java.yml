@@ -1,0 +1,22 @@
+id: pcc-s07-empty-catch-java
+language: Java
+severity: error
+message: '[PCC-S07] Handle, translate or rethrow a caught error; an empty catch hides the failure.'
+note: 'PCC-S07 — No empty catch blocks. Canonical severity: error. Evidence: doc-2 CC309 broad exception
+  swallowed and the fail-fast family; the TypeScript rule pcc-s07-empty-catch-ts covers the same shape.'
+rule:
+  any:
+  - pattern: |-
+      try { $$$TRY } catch ($TYPE $ERROR) {}
+  - pattern: |-
+      try { $$$TRY } catch ($TYPE $ERROR) { }
+  - pattern: |-
+      try { $$$TRY } catch ($TYPE $ERROR) {
+        }
+files:
+- '**/*.java'
+ignores:
+- '**/.pixi/**'
+- '**/build/**'
+- '**/rule-tests/**'
+- '**/fixtures/**'

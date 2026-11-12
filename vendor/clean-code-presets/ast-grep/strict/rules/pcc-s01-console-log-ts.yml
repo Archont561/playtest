@@ -1,0 +1,21 @@
+id: pcc-s01-console-log-ts
+language: TypeScript
+severity: error
+message: '[PCC-S01] Replace debug printing in library code with the project''s logger.'
+note: 'PCC-S01 — Structured logging instead of debug prints in library code. Canonical severity: error.
+  Evidence: Archont561 explicit-output convention; doc-2 CC9xx documentation/observability rules.'
+rule:
+  pattern: console.log($$$ARGS)
+files:
+- '**/*.ts'
+- '**/*.tsx'
+- '**/*.js'
+- '**/*.jsx'
+ignores:
+- '**/.pixi/**'
+- '**/node_modules/**'
+- '**/rule-tests/**'
+- '**/fixtures/**'
+- '**/tests/**'
+- '**/test_*.py'
+- '**/automation/**'

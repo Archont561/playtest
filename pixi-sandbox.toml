@@ -2,6 +2,11 @@ schema = 1
 branch_prefix = "sandbox"
 cargo_vendor = true
 
+[workflow]
+permissions = true
+pixi_version = "v0.84.1"
+setup_pixi_cache = false
+
 [[bundle]]
 name = "developer"
 environments = ["default"]

@@ -1,0 +1,28 @@
+rules:
+- id: pcc-p06-unreferenced-markers
+  languages:
+  - generic
+  severity: WARNING
+  message: '[PCC-P06] Attach a task or issue reference to an unfinished-work marker so it can be tracked.'
+  metadata:
+    pcc_id: PCC-P06
+    pcc_title: Task markers carry a reference
+    pcc_preset: pedantic
+    pcc_confidence: heuristic
+    pcc_canonical_severity: warning
+    pcc_source: doc-2 CC903 TODO without reference and Archont561 Backlog.md convention
+    category: maintainability
+  patterns:
+  - pattern-regex: \b(?:TODO|FIXME|XXX)\b
+  - pattern-not-regex: \b(?:TODO|FIXME|XXX)\b.*(?:#[0-9]+|PCC-[A-Z]?[0-9]+)
+  paths:
+    include:
+    - '*.py'
+    - '*.ts'
+    - '*.tsx'
+    - '*.js'
+    - '*.jsx'
+    - '*.rs'
+    - '*.go'
+    - '*.md'
+    - '*.txt'

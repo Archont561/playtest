@@ -1,0 +1,23 @@
+rules:
+- id: pcc-p05-exception-chaining-python
+  languages:
+  - python
+  severity: ERROR
+  message: '[PCC-P05] Use raise ... from ... when translating an exception so the original cause remains
+    visible.'
+  metadata:
+    pcc_id: PCC-P05
+    pcc_title: Preserve exception causes
+    pcc_preset: pedantic
+    pcc_confidence: deterministic
+    pcc_canonical_severity: error
+    pcc_source: doc-2 CC310 missing raise ... from; rude-clean-code BDD diagnostics
+    category: maintainability
+  patterns:
+  - pattern-inside: |-
+      try:
+          ...
+      except $EXC as $ERR:
+          ...
+  - pattern-regex: ^\s*raise\s+.*$
+  - pattern-not-regex: ^\s*raise\s+.*\bfrom\b.*$

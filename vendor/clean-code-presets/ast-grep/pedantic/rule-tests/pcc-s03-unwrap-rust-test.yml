@@ -1,0 +1,6 @@
+id: pcc-s03-unwrap-rust
+valid:
+- fn load() -> Result<usize, Error> { let value = read()?; Ok(value) }
+invalid:
+- fn load() -> usize { read().unwrap() }
+- let value = read().unwrap();

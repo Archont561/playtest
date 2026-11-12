@@ -1,0 +1,22 @@
+id: pcc-s08-bare-except-python
+language: Python
+severity: error
+message: '[PCC-S08] Catch a specific exception and handle it explicitly; never discard a bare exception.'
+note: 'PCC-S08 — No bare Python except with pass. Canonical severity: error. Evidence: doc-2 CC309 broad
+  exception swallowed and CC310 exception chaining.'
+rule:
+  pattern: |-
+    try:
+        $$$BODY
+    except:
+        pass
+files:
+- '**/*.py'
+ignores:
+- '**/.pixi/**'
+- '**/node_modules/**'
+- '**/rule-tests/**'
+- '**/fixtures/**'
+- '**/tests/**'
+- '**/test_*.py'
+- '**/automation/**'

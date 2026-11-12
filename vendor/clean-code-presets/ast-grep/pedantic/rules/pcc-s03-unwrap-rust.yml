@@ -1,0 +1,18 @@
+id: pcc-s03-unwrap-rust
+language: Rust
+severity: error
+message: '[PCC-S03] Do not call unwrap in production code; return the error with ? or map it explicitly.'
+note: 'PCC-S03 — Propagate Rust fallible results. Canonical severity: error. Evidence: gh-meta/Cargo.toml
+  unused_must_use = "deny" and Clippy pedantic; playtest Rust code.'
+rule:
+  pattern: $EXPR.unwrap()
+files:
+- '**/*.rs'
+ignores:
+- '**/.pixi/**'
+- '**/node_modules/**'
+- '**/rule-tests/**'
+- '**/fixtures/**'
+- '**/tests/**'
+- '**/test_*.py'
+- '**/automation/**'

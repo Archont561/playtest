@@ -1,0 +1,7 @@
+id: pcc-s01-println-rust
+valid:
+- log::info!("ready");
+- fn emit() -> &'static str { "ready" }
+invalid:
+- println!("ready");
+- fn emit() { println!("ready"); }

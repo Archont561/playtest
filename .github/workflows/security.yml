@@ -1,0 +1,45 @@
+name: Security
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**/Cargo.toml"
+      - "deny.toml"
+      - ".cargo/audit.toml"
+      - ".github/workflows/security.yml"
+  schedule:
+    - cron: "30 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PIXI_VERSION: v0.84.1
+
+jobs:
+  rust-advisories:
+    name: cargo-deny-and-audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Pixi default environment
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          pixi-version: ${{ env.PIXI_VERSION }}
+          environments: default
+          locked: true
+          cache: true
+      - name: Verify advisory exception sync and expiry
+        run: pixi run --frozen doit advisory_check
+      - name: Run live cargo-deny and RustSec cargo-audit checks
+        run: pixi run --frozen audit-live

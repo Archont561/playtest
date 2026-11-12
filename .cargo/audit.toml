@@ -1,0 +1,4 @@
+[advisories]
+# Test-only `rstest-bdd` 0.6.0 transitively requires unmaintained `basic-toml`.
+# Checked for expiry on every run by `automation/advisory_exception.py`.
+ignore = ["RUSTSEC-2026-0374"]

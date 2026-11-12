@@ -3,68 +3,177 @@ name: CI
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - "backlog/**"
-      - "docs/**"
-      - "**.md"
-      - "LICENSE*"
   pull_request:
     branches: [main]
-    paths-ignore:
-      - "backlog/**"
-      - "docs/**"
-      - "**.md"
-      - "LICENSE*"
   workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PIXI_VERSION: v0.84.1
+  CARGO_INCREMENTAL: "0"
+  CARGO_TERM_COLOR: always
+
 jobs:
-  validate:
-    name: Lint, Test & Coverage
-    runs-on: ubuntu-latest
+  scope:
+    name: change-scope
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      any_code: ${{ steps.detect.outputs.any_code }}
+      has_sdks: ${{ steps.detect.outputs.has_sdks }}
+      sdks: ${{ steps.detect.outputs.sdks }}
+      rust: ${{ steps.detect.outputs.rust }}
+      py: ${{ steps.detect.outputs.py }}
+      ts: ${{ steps.detect.outputs.ts }}
+      cpp: ${{ steps.detect.outputs.cpp }}
+      c: ${{ steps.detect.outputs.c }}
+      csharp: ${{ steps.detect.outputs.csharp }}
+      go: ${{ steps.detect.outputs.go }}
+      java: ${{ steps.detect.outputs.java }}
+      r: ${{ steps.detect.outputs.r }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Pixi environment
-        uses: prefix-dev/setup-pixi@v0.8.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          pixi-version: v0.83.0
+          fetch-depth: 0
+      - name: Compute affected CI lanes
+        id: detect
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
+        run: python3 -m automation.change_scope --base "$BASE_SHA"
+
+  fast:
+    name: fast-gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Pixi default environment
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          pixi-version: ${{ env.PIXI_VERSION }}
+          environments: default
+          locked: true
           cache: true
-          frozen: true
+      - name: Verify Bun workspace lockfile
+        run: pixi run --frozen bun-install
+      - name: Run Clean Code, structure, workflow, TOML, sandbox, and automation gates
+        run: pixi run --frozen doit fast
 
-      - name: Lint Workflow Files (actionlint)
-        run: pixi run actionlint
-
-      - name: Check Formatting (fmt-check)
-        run: pixi run fmt-check
-
-      - name: Monorepo Quality Gate (lint-all)
-        run: pixi run lint-all
-
-      - name: Run Polyglot Test Suite (test-all)
-        run: pixi run test-all
-
-      - name: Build All Targets (build-all)
-        run: pixi run build-all
-
-      - name: Generate Polyglot Coverage (coverage-all)
-        run: pixi run coverage-all
-
-      - name: Security Audit (cargo-audit)
-        run: pixi run audit
-
-      - name: Upload Coverage to Codecov
-        uses: codecov/codecov-action@v5
+  rust:
+    name: rust-workspace
+    needs: [scope, fast]
+    if: needs.scope.outputs.rust == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Pixi default environment
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
         with:
-          files: |
-            coverage/lcov.info
-            python/coverage.xml
-          fail_ci_if_error: false
+          pixi-version: ${{ env.PIXI_VERSION }}
+          environments: default
+          locked: true
+          cache: true
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - name: Run Rust formatting, clippy, nextest, and doc tests
+        run: pixi run --frozen offline-rs
+      - name: Run offline Rust dependency policy checks
+        run: pixi run --frozen audit-local
+      - name: Dry-run crate packaging across 5 workspace crates
+        run: pixi run --frozen package-rs
+      - name: Capture Rust LCOV coverage
+        run: pixi run --frozen coverage-rs
+      - name: Upload Rust LCOV tracefile
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lcov-rust
+          path: coverage/lcov-rs.info
+          if-no-files-found: error
+
+  sdk:
+    name: sdk-${{ matrix.lane }}
+    needs: [scope, fast]
+    if: needs.scope.outputs.has_sdks == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: ${{ fromJSON(needs.scope.outputs.sdks) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up isolated Pixi SDK environment
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          pixi-version: ${{ env.PIXI_VERSION }}
+          environments: ${{ matrix.lane }}
+          locked: true
+          cache: true
+      - name: Check SDK formatting
+        run: pixi run --frozen -e ${{ matrix.lane }} sdk-fmt-check
+      - name: Run SDK linters
+        run: pixi run --frozen -e ${{ matrix.lane }} sdk-lint
+      - name: Run SDK test suite
+        run: pixi run --frozen -e ${{ matrix.lane }} sdk-test
+      - name: Verify SDK packaging
+        run: pixi run --frozen -e ${{ matrix.lane }} sdk-package
+      - name: Capture SDK coverage
+        run: pixi run --frozen -e ${{ matrix.lane }} sdk-coverage
+      - name: Upload SDK LCOV tracefile
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lcov-${{ matrix.lane }}
+          path: "*/coverage/*.info"
+          if-no-files-found: ignore
+
+  coverage:
+    name: coverage-report
+    needs: [scope, rust, sdk]
+    if: >-
+      always() &&
+      needs.scope.outputs.any_code == 'true' &&
+      (needs.rust.result == 'success' || needs.rust.result == 'skipped') &&
+      (needs.sdk.result == 'success' || needs.sdk.result == 'skipped')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Download LCOV artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: lcov-*
+          path: coverage/artifacts
+      - name: Merge normalized LCOV tracefiles
+        run: python3 -m automation.merge_lcov --allow-empty -o coverage/lcov.info coverage/artifacts
+      - name: Upload unified coverage to Codecov
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/lcov.info
+          fail_ci_if_error: false
+
+  gates:
+    name: gates
+    needs: [scope, fast, rust, sdk, coverage]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Evaluate upstream CI gate results
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: python3 -m automation.ci_gate

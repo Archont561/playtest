@@ -1,0 +1,16 @@
+rules:
+- id: pcc-p03-shell-true-python
+  languages:
+  - python
+  severity: ERROR
+  message: '[PCC-P03] Pass an argument list without shell=True so command arguments cannot be reinterpreted
+    by a shell.'
+  metadata:
+    pcc_id: PCC-P03
+    pcc_title: No shell=True subprocess calls
+    pcc_preset: pedantic
+    pcc_confidence: critical
+    pcc_canonical_severity: error
+    pcc_source: Semgrep security baseline and Archont561 fail-fast command automation
+    category: maintainability
+  pattern: subprocess.$CALL(..., shell=True, ...)

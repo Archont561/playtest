@@ -1,0 +1,8 @@
+# ok: pcc-p08-rust-unsafe-lint
+unsafe_code = "forbid"
+
+# ruleid: pcc-p08-rust-unsafe-lint
+unsafe_code = "warn"
+
+# ruleid: pcc-p08-rust-unsafe-lint
+unsafe_code = "allow"

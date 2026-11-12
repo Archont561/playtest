@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
-from automation.verify_mirrors import compare_mirror_hash_files, main
+import pytest
+
+from automation.verify_mirrors import _offline_env_without_cli, compare_mirror_hash_files, main
 
 
 def _write_hash_manifest(path: Path, platform_name: str, artifacts: dict[str, str]) -> None:
@@ -40,3 +43,24 @@ def test_compare_mirror_hash_files_reports_byte_drift_across_platforms(tmp_path:
     )
     assert compare_mirror_hash_files([tmp_path]) == 1
     assert main(["compare-hashes", str(tmp_path)]) == 1
+
+
+def test_offline_env_preserves_host_loader_vars_and_removes_cli_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cli_dir = tmp_path / "cli-bin"
+    other_dir = tmp_path / "other-bin"
+    cli_dir.mkdir()
+    other_dir.mkdir()
+    monkeypatch.setenv("PATH", f"{cli_dir}{os.pathsep}{other_dir}")
+    monkeypatch.setenv("LD_LIBRARY_PATH", "/opt/hostedtoolcache/Python/3.12/x64/lib")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("VIRTUAL_ENV", "/tmp/stale-venv")
+
+    env = _offline_env_without_cli(cli_dir)
+    assert str(cli_dir) not in env["PATH"].split(os.pathsep)
+    assert str(other_dir) in env["PATH"].split(os.pathsep)
+    assert env["LD_LIBRARY_PATH"] == "/opt/hostedtoolcache/Python/3.12/x64/lib"
+    assert env["HOME"] == str(tmp_path)
+    assert "VIRTUAL_ENV" not in env
+    assert env["UV_OFFLINE"] == "1"

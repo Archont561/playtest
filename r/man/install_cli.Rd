@@ -12,7 +12,10 @@ FIPS 180-4 SHA-256 implementation verifies the archive before extraction.
 \usage{
 install_cli(
   cache_dir = tools::R_user_dir("playtest", which = "cache"),
-  base_url = Sys.getenv("PLAYTEST_RELEASE_BASE_URL", unset = .PLAYTEST_DEFAULT_RELEASE_URL),
+  base_url = Sys.getenv(
+    "PLAYTEST_RELEASE_BASE_URL",
+    unset = "https://github.com/Archont561/playtest/releases/download"
+  ),
   sysname = Sys.info()[["sysname"]],
   machine = Sys.info()[["machine"]],
   downloader = NULL

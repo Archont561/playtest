@@ -133,24 +133,34 @@ def _build_upgraded_tgz(src_tgz: Path, dest_tgz: Path, new_ver: str) -> None:
             out_tf.addfile(ti, io.BytesIO(payload))
 
 
+def _same_dir(entry: str, target: Path) -> bool:
+    try:
+        resolved = Path(entry).resolve()
+    except OSError:
+        return False
+    return os.path.normcase(str(resolved)) == os.path.normcase(str(target.resolve()))
+
+
 def _offline_env_without_cli(
     cli_dir: Path, extra: Mapping[str, str] | None = None
 ) -> dict[str, str]:
-    raw_path = os.environ.get("PATH", "")
-    kept = [
-        entry
-        for entry in raw_path.split(os.pathsep)
-        if entry and Path(entry).resolve() != cli_dir.resolve()
-    ]
-    env: dict[str, str] = {
-        "PATH": os.pathsep.join(kept),
-        "HTTP_PROXY": "http://127.0.0.1:9",
-        "HTTPS_PROXY": "http://127.0.0.1:9",
-        "UV_OFFLINE": "1",
-        "npm_config_offline": "true",
-        "npm_config_audit": "false",
-        "npm_config_fund": "false",
-    }
+    env: dict[str, str] = dict(os.environ)
+    env.pop("VIRTUAL_ENV", None)
+    parts = env.get("PATH", "").split(os.pathsep)
+    kept = [p for p in parts if p and not _same_dir(p, cli_dir)]
+    env.update(
+        {
+            "PATH": os.pathsep.join(kept),
+            "HTTP_PROXY": "http://127.0.0.1:9",
+            "HTTPS_PROXY": "http://127.0.0.1:9",
+            "http_proxy": "http://127.0.0.1:9",
+            "https_proxy": "http://127.0.0.1:9",
+            "UV_OFFLINE": "1",
+            "npm_config_offline": "true",
+            "npm_config_audit": "false",
+            "npm_config_fund": "false",
+        }
+    )
     if extra:
         env.update(extra)
     return env
@@ -272,7 +282,7 @@ def _js_add_cmd(manager: str, bin_path: str, tgz_rel: str, cache_dir: Path) -> l
             str(cache_dir),
             f"./{tgz_rel}",
         ]
-    return [bin_path, "add", "--dev", "--offline", f"./{tgz_rel}"]
+    return [bin_path, "add", "--dev", "--offline", "--cache-dir", str(cache_dir), f"./{tgz_rel}"]
 
 
 def _verify_js_manager(
@@ -298,7 +308,7 @@ def _verify_js_manager(
             '  "private": true,\n  "type": "module"\n}\n',
             encoding="utf-8",
         )
-        env = _offline_env_without_cli(cli_dir)
+        env = _offline_env_without_cli(cli_dir, {"BUN_INSTALL_CACHE_DIR": str(cache_dir)})
         tgz_v1 = f".playtest/typescript/archont561-playtest-{v1}.tgz"
         add1 = run_cmd(
             _js_add_cmd(manager, bin_path, tgz_v1, cache_dir), cwd=proj, env=env, capture=True

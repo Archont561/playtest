@@ -161,6 +161,14 @@ Problems: leads with an implementation detail ("CLI-first"), buries the differen
 Pick one. Do not keep the current text alongside a new one anywhere — a drifted
 description is worse than a vague one.
 
+The About box is repository settings, not a tracked file, so no gate here can hold it in
+place. A maintainer with admin rights sets it once:
+
+```bash
+gh repo edit Archont561/playtest \
+  --description "Polyglot test framework, batteries included: fixtures, BDD, property tests, mutation and coverage across 9 languages, plus a machine contract for CI and AI agents."
+```
+
 ---
 
 ## 4. Topics
@@ -179,7 +187,17 @@ You have 19 of GitHub's 20 topics. Two months from now the missing one matters m
 
 `csharp` (115,507 repos) over `c-sharp` (12,050) — keep what you have.
 
-Final set: 18 kept + `test-automation` + `code-coverage` = **20**.
+Final set: 18 kept + `test-automation` + `code-coverage` = **20**. One command, also a
+maintainer action:
+
+```bash
+gh repo edit Archont561/playtest \
+  --add-topic test-automation \
+  --add-topic code-coverage \
+  --remove-topic vcr
+```
+
+Verify the result reads back as 20 topics before calling the positioning work closed.
 
 ---
 

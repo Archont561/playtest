@@ -13,6 +13,11 @@ import pytest
 from automation import REPO_ROOT
 from automation._proc import CommandResult, run_cmd
 from automation.advisory_exception import verify_advisory_exceptions
+from automation.command_docs import (
+    README_SOURCE,
+    SPEC_GRAMMAR_SOURCE,
+    check_documented_commands,
+)
 from automation.merge_lcov import merge_lcov_files
 from automation.repo_check import (
     CANONICAL_DESCRIPTION_LEAD,
@@ -101,6 +106,32 @@ def test_canonical_description_guard_rejects_positioning_drift(tmp_path: Path) -
 
     pkg.write_text(f'{{"description": "{CANONICAL_DESCRIPTION_LEAD}: fixtures for Python"}}\n')
     assert _check_canonical_description(tmp_path) == []
+
+
+def test_documented_command_guard_requires_a_spec_grammar_entry(tmp_path: Path) -> None:
+    assert check_documented_commands(REPO_ROOT) == []
+
+    spec = tmp_path / SPEC_GRAMMAR_SOURCE
+    spec.parent.mkdir(parents=True)
+    grammar = (
+        "# Spec\n\n```text\nplaytest [COMMAND]\n\nCommands:\n"
+        "  version          Print the version\n  test             Run tests\n```\n"
+    )
+    spec.write_text(grammar, encoding="utf-8")
+    readme = tmp_path / README_SOURCE
+    readme.write_text("Run `playtest version`, then `playtest test`.\n", encoding="utf-8")
+    assert check_documented_commands(tmp_path) == []
+
+    readme.write_text(
+        "The `test`, `coverage`, and `mutation` orchestration commands arrive later.\n",
+        encoding="utf-8",
+    )
+    errors = check_documented_commands(tmp_path)
+    assert any("playtest coverage" in item for item in errors)
+    assert any("playtest mutation" in item for item in errors)
+
+    readme.write_text("`playtest teleport` is not a command.\n", encoding="utf-8")
+    assert any("playtest teleport" in item for item in check_documented_commands(tmp_path))
 
 
 def test_crate_dependency_boundary_rejects_transitive_cli_or_assets_leak(tmp_path: Path) -> None:

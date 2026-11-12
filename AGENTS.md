@@ -96,7 +96,7 @@ The repository enforces a strict separation of concerns across GitHub Actions wo
 
 ### CLI-First Distribution Invariants (ADRs 0015–0018)
 
-Milestone M1 (`task_050` to `task_059`) implements the five-crate workspace, `playtest` CLI (`version`, `init`, `sync`), deterministic Python/TypeScript mirrors, and multi-channel release pipeline; Milestone M5 (`task_060` to `task_064`) delivers runner orchestration (`list`, `doctor`, `test`, `mutation`) and SDK JSONL reporters:
+Milestone M1 (`task_050` to `task_059`) implements the five-crate workspace, `playtest` CLI (`version`, `init`, `sync`), deterministic Python/TypeScript mirrors, and multi-channel release pipeline; Milestone M5 (`task_060` to `task_064` and `task_068`) delivers runner orchestration (`list`, `doctor`, `test`, `coverage`, `mutation`) and SDK JSONL reporters:
 
 * **One version per release.** The Rust CLI `playtest` is the version authority and embeds every SDK. A release has one version across the CLI and all SDKs. Never bump the version of one package alone.
 * **Package-scoped tags are retired.** Only unified `vX.Y.Z` tags trigger releases (`automation/release.py`), and `publish-go` pushes `go/vX.Y.Z` after `github-release` publishes `sha256.sum`.

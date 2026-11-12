@@ -18,5 +18,6 @@ This directory contains formal technical specifications defining APIs, protocols
 | [0012](./0012-workspace-crates-and-cli-distribution.md) | Workspace Crates, Embedded Assets, and CLI Distribution | M1 (`v0.1.0`) | Target contract |
 | [0013](./0013-workspace-configuration-and-sdk-mirrors.md) | Workspace Configuration, SDK Mirrors, and Wiring | M1 (`v0.1.0`), M5 (`v0.5.0`) | Target contract |
 | [0014](./0014-report-protocol-and-runner-orchestration.md) | Report Protocol and Native-Runner Orchestration | M5 (`v0.5.0`) | Target contract |
+| [0015](./0015-coverage-collection-and-reporting.md) | Coverage Collection and Reporting | M5 (`v0.5.0`) | Target contract |
 
 Specs 0006 and 0007 describe the release workflows as they are implemented. The changes that [ADR 0015](../adr/0015-cli-first-distribution-and-five-crate-workspace.md) and [ADR 0016](../adr/0016-cli-binary-distribution-channels.md) require are listed inside them as planned changes and open questions, and Spec 0012 is the target contract.

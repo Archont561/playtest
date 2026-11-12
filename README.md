@@ -14,11 +14,25 @@ A polyglot testing framework targeting consistent core testing behavior across n
 | **C++** | CMake / Conan 2 | `cpp/` | `playtest-cpp` (configured Conan remote; GitHub Release fallback) |
 | **C** | CMake / Conan 2 | `c/` | `playtest-c` (configured Conan remote; GitHub Release fallback) |
 | **C#** | .NET / NuGet | `csharp/` | `Playtest` (.nupkg; NuGet publish when configured) |
-| **Go** | Go Modules / `pkg.go.dev` | `go/` | `github.com/Archont561/playtest/go` (tag-indexed) |
+| **Go** | Go Modules / `pkg.go.dev` | `go/` | `github.com/Archont561/playtest/go` (indexed from `go/vX.Y.Z` tags) |
 | **Java** | Maven Central | `java/` | `io.github.archont561:playtest` (publish when configured) |
 | **R** | CRAN / R-universe | `r/` | `playtest` (CRAN submission is manually confirmed; R-universe tracks GitHub releases) |
 
 Release tags build the selected packages and attach the artifacts to GitHub Releases. Conan, NuGet, and Maven Central publishing is enabled by registry credentials in the documented GitHub environments; without those credentials, registry publishing is skipped. CRAN submission is a separately confirmed workflow dispatch; R-universe builds from the tagged Git source after its registry and GitHub app are configured. Ensure `r/DESCRIPTION` in the tagged source already has the tag's version—CI-only version stamping does not change the Git tag. See [AGENTS.md](AGENTS.md#registry-configuration) for setup details.
+
+## Distribution Model (Planned)
+
+**Not implemented yet.** No version has been released, and the registries hold only placeholder versions that reserve the package names. The table above shows the manifests as they are today.
+
+From `v0.1.0`, the Rust CLI `playtest` is the version authority ([ADR 0015](backlog/docs/adr/0015-cli-first-distribution-and-five-crate-workspace.md)):
+
+- **One version per release.** The CLI and every SDK share it. A CLI and an SDK of different versions are an error, not a supported combination.
+- **Five crates.** `playtest`, `playtest-macros`, `playtest-core`, `playtest-assets`, and `playtest-cli`. Test code still declares only `playtest`.
+- **One binary, many channels.** The binary embeds every SDK and reaches a repository through GitHub Releases, crates.io, PyPI, npm, conda, or a Go or R download wrapper ([ADR 0016](backlog/docs/adr/0016-cli-binary-distribution-channels.md)).
+- **Pinned version and committed SDK mirrors.** `playtest init` pins the version in `playtest.toml`. `playtest sync` writes each SDK into `.playtest/`, and every project is wired to its mirror with its own package manager ([ADR 0017](backlog/docs/adr/0017-committed-sdk-mirrors-and-explicit-wiring.md)).
+- **Native runners stay.** `playtest test` starts pytest, Bun, `go test`, and the other native runners, and each SDK reports from inside its runner ([ADR 0018](backlog/docs/adr/0018-sdk-reporters-and-report-protocol.md)).
+
+[Spec 0012](backlog/docs/specs/0012-workspace-crates-and-cli-distribution.md) is the target contract. [Milestone M1](backlog/docs/milestones/M1-v0.1.0-foundation.md) tracks delivery of the binary, its channels, `init`, and `sync`; [Milestone M5](backlog/docs/milestones/M5-v0.5.0-polyglot-conformance.md) adds `list`, `doctor`, `test`, and `mutation`.
 
 ## Core Feature Parity
 
@@ -31,7 +45,7 @@ Every supported language target is expected to provide the same observable core 
 - Equivalent skip/conditional-skip and table-driven/parameterized test controls.
 - Shared isolation and deterministic-test helpers defined by the specifications, with clear mappings per language.
 
-The cross-language `playtest` CLI is a shared orchestration tool, not a requirement to duplicate the CLI in every language. It must detect and run every supported target and normalize results and coverage. Language-specific test libraries may differ; their behavior must satisfy the common contract and pass the conformance suite.
+The cross-language `playtest` CLI is a shared orchestration tool, not a requirement to duplicate the CLI in every language. It must detect and run every supported target and normalize results and coverage. Language-specific test libraries may differ; their behavior must satisfy the common contract and pass the conformance suite. The CLI does not exist yet; see [Distribution Model (Planned)](#distribution-model-planned).
 
 ## Quick Start
 

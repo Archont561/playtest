@@ -67,27 +67,56 @@ def _is_releasable_path(rel_path: str) -> bool:
     return not any(norm.startswith(prefix) for prefix in NON_RELEASE_PATH_PREFIXES)
 
 
-def _bump_semver(current: str, commits: Sequence[str]) -> tuple[str, bool]:
-    base = current.split("-", 1)[0]
-    major, minor, patch = (int(part) for part in base.split("."))
-    has_breaking = False
-    has_feat = False
-    has_fix = False
+def _classify_commit_impact(commits: Sequence[str]) -> str | None:
+    impact: str | None = None
     for subject in commits:
         header = subject.strip()
         if "!:" in header or "BREAKING CHANGE" in header:
-            has_breaking = True
-        elif header.startswith("feat"):
-            has_feat = True
-        elif header.startswith(("fix", "perf")):
-            has_fix = True
-    if not (has_breaking or has_feat or has_fix):
+            return "breaking"
+        if header.startswith("feat"):
+            impact = "feat"
+        elif impact is None and header.startswith(("fix", "perf")):
+            impact = "fix"
+    return impact
+
+
+def _bump_semver(current: str, commits: Sequence[str]) -> tuple[str, bool]:
+    impact = _classify_commit_impact(commits)
+    if impact is None:
         return current, False
-    if has_breaking:
+    major, minor, patch = (int(part) for part in current.split("-", 1)[0].split("."))
+    if impact == "breaking":
         return (f"0.{minor + 1}.0" if major == 0 else f"{major + 1}.0.0"), True
-    if has_feat:
+    if impact == "feat":
         return (f"0.{minor}.{patch + 1}" if major == 0 else f"{major}.{minor + 1}.0"), True
     return f"{major}.{minor}.{patch + 1}", True
+
+
+def _release_payload(version: str, *, should_release: bool) -> dict[str, str]:
+    return {
+        "should_release": "true" if should_release else "false",
+        "version": version,
+        "tag_name": f"v{version}",
+    }
+
+
+def _detect_from_git_history(root: Path, current_ver: str) -> dict[str, str]:
+    last_tag = run_cmd(
+        ["git", "describe", "--tags", "--match", "v[0-9]*", "--abbrev=0"],
+        cwd=root,
+        capture=True,
+    )
+    if last_tag.returncode != 0:
+        return _release_payload(current_ver, should_release=False)
+    base_tag = last_tag.stdout.strip()
+    base_ver = extract_version_from_tag(base_tag)
+    diff_res = run_cmd(["git", "diff", "--name-only", f"{base_tag}..HEAD"], cwd=root, capture=True)
+    if not any(_is_releasable_path(line) for line in diff_res.stdout.splitlines()):
+        return _release_payload(base_ver, should_release=False)
+    log_res = run_cmd(["git", "log", "--format=%s", f"{base_tag}..HEAD"], cwd=root, capture=True)
+    subjects = [line for line in log_res.stdout.splitlines() if line.strip()]
+    next_ver, bump = _bump_semver(base_ver, subjects)
+    return _release_payload(next_ver, should_release=bump)
 
 
 def detect_next_release(
@@ -98,43 +127,13 @@ def detect_next_release(
 ) -> dict[str, str]:
     """Determine whether a unified release tag `vX.Y.Z` should be cut."""
     if override_version.strip():
-        ver = extract_version_from_tag(override_version)
-        return {"should_release": "true", "version": ver, "tag_name": f"v{ver}"}
-
+        return _release_payload(extract_version_from_tag(override_version), should_release=True)
     milestone_ver = parse_milestone_tag(ref_name)
     if milestone_ver is not None:
-        return {"should_release": "true", "version": milestone_ver, "tag_name": f"v{milestone_ver}"}
-
+        return _release_payload(milestone_ver, should_release=True)
     cargo_toml = tomllib.loads((root / "Cargo.toml").read_text(encoding="utf-8"))
     current_ver = str(cargo_toml["workspace"]["package"]["version"])
-    last_tag = run_cmd(
-        ["git", "describe", "--tags", "--match", "v[0-9]*", "--abbrev=0"],
-        cwd=root,
-        capture=True,
-    )
-    if last_tag.returncode != 0:
-        # Never auto-tag v0.1.0 accidentally on push to main before the first milestone release.
-        return {
-            "should_release": "false",
-            "version": current_ver,
-            "tag_name": f"v{current_ver}",
-        }
-
-    base_tag = last_tag.stdout.strip()
-    diff_res = run_cmd(["git", "diff", "--name-only", f"{base_tag}..HEAD"], cwd=root, capture=True)
-    changed = [line for line in diff_res.stdout.splitlines() if _is_releasable_path(line)]
-    if not changed:
-        base_ver = extract_version_from_tag(base_tag)
-        return {"should_release": "false", "version": base_ver, "tag_name": f"v{base_ver}"}
-
-    log_res = run_cmd(["git", "log", "--format=%s", f"{base_tag}..HEAD"], cwd=root, capture=True)
-    subjects = [line for line in log_res.stdout.splitlines() if line.strip()]
-    next_ver, bump = _bump_semver(extract_version_from_tag(base_tag), subjects)
-    return {
-        "should_release": "true" if bump else "false",
-        "version": next_ver,
-        "tag_name": f"v{next_ver}",
-    }
+    return _detect_from_git_history(root, current_ver)
 
 
 def verify_binary_release_exists(
@@ -160,24 +159,27 @@ def verify_binary_release_exists(
         )
 
 
+def _write_dry_run_tag_summary(tag_name: str) -> int:
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY", "").strip()
+    note = (
+        f"### Release Tag Ready: `{tag_name}`\n\n"
+        "Dry-run completed without pushing. To cut and publish manually:\n\n"
+        f"```bash\ngit tag -a {tag_name} -m 'Release {tag_name}'\n"
+        f"git push origin {tag_name}\n```\n"
+    )
+    if summary_path:
+        Path(summary_path).write_text(note, encoding="utf-8")
+    emit_line(note.strip())
+    return 0
+
+
 def cut_or_summarize_tag(tag_name: str, *, root: Path = REPO_ROOT, push: bool = False) -> int:
     """Create and push annotated `vX.Y.Z` when `push=True`, otherwise write summary."""
     if not UNIFIED_RELEASE_TAG_RE.match(tag_name):
         emit_err(f"[release] ERROR: invalid unified release tag {tag_name!r}")
         return 1
     if not push:
-        summary_path = os.environ.get("GITHUB_STEP_SUMMARY", "").strip()
-        note = (
-            f"### Release Tag Ready: `{tag_name}`\n\n"
-            "Dry-run completed without pushing. To cut and publish manually:\n\n"
-            f"```bash\ngit tag -a {tag_name} -m 'Release {tag_name}'\n"
-            f"git push origin {tag_name}\n```\n"
-        )
-        if summary_path:
-            Path(summary_path).write_text(note, encoding="utf-8")
-        emit_line(note.strip())
-        return 0
-
+        return _write_dry_run_tag_summary(tag_name)
     run_cmd(["git", "config", "user.name", "github-actions[bot]"], cwd=root)
     run_cmd(
         ["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"],

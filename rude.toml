@@ -1,21 +1,29 @@
-# Numeric Clean Code policy enforced through `rude` + `rude-clean-code` via `automation/rude_clean.py`.
-# `ruff` already enforces syntax, imports, and style (`ruff.toml`), so only Clean Code
-# complexity thresholds (`CC101`-`CC104`, `CC303`) are selected here.
+# Python Clean Code policy enforced through `rude` + `rude-clean-code` (`automation/rude_clean.py`).
+# Selects every Clean Code rule family (`CC0`-`CC9`) and keeps the canonical strict thresholds
+# (`max_lines = 30`, `max_parameters = 5`, `max_returns = 5`, `max_locals = 10`, `max_branches = 10`);
+# rules the installed release does not implement are ignored by `rude` rather than failing the run.
 
 [tool.rude]
-select = ["CC101", "CC102", "CC103", "CC104", "CC303"]
+select = ["CC0", "CC1", "CC2", "CC3", "CC4", "CC5", "CC6", "CC7", "CC8", "CC9"]
+# Exclude rules that emit expected idiom noise on test fixtures, CLI/doit specs, and AST visitors:
+# - CC108: shared pytest fixture signatures and uniform option helpers
+# - CC403: repeated CLI flag strings, doit task dictionary keys, and test assertion literals
+# - CC601: compact AST node-type dispatch checks in governance visitors
+ignore = ["CC108", "CC403", "CC601"]
 
-[tool.rude.rules.CC101]
-max_lines = 55
+[tool.rude.rules.CC906]
+require_reason_for = ["CC"]
 
-[tool.rude.rules.CC102]
-max_parameters = 6
+# Enforce strict architectural isolation between python/src/playtest, automation/, and tests:
+[[tool.rude.rules.CC704.forbidden]]
+from_paths = ["python/src/"]
+forbidden_modules = ["automation", "doit"]
 
-[tool.rude.rules.CC103]
-max_returns = 6
+[[tool.rude.rules.CC704.forbidden]]
+from_paths = ["automation/dodo.py"]
+forbidden_modules = ["automation.tests", "pytest"]
 
-[tool.rude.rules.CC104]
-max_locals = 16
-
-[tool.rude.rules.CC303]
-max_branches = 14
+[[tool.rude.rules.CC704.forbidden]]
+from_paths = ["automation/"]
+exclude_paths = ["automation/dodo.py", "automation/tests/"]
+forbidden_modules = ["automation.tests", "doit", "playtest", "pytest"]

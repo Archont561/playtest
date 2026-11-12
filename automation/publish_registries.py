@@ -85,38 +85,43 @@ def publish_npm(root: Path = REPO_ROOT) -> int:
     return 0
 
 
+def _upload_conda_package(pkg: Path, upload_url: str, token: str) -> int:
+    payload = pkg.read_bytes()
+    sha256_hex = hashlib.sha256(payload).hexdigest()
+    req = urllib.request.Request(
+        upload_url,
+        data=payload,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/octet-stream",
+            "X-File-Name": pkg.name,
+            "SHA-256": sha256_hex,
+            "User-Agent": "playtest-release-workflow",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            emit_line(f"[publish] uploaded {pkg.name} -> HTTP {resp.status}")
+    except (urllib.error.URLError, TimeoutError) as err:
+        emit_err(f"[publish] ERROR: failed to upload {pkg.name}: {err}")
+        return 1
+    return 0
+
+
 def publish_conda(root: Path = REPO_ROOT) -> int:
     """Upload Phase 1 `.conda` packages to prefix.dev channel `archont561/archont561`."""
     token = os.environ.get("PREFIX_DEV_TOKEN", "").strip()
     if not token:
         emit_line("::warning::Conda publish skipped; PREFIX_DEV_TOKEN is not configured.")
         return 0
-    conda_dir = root / "conda-dist"
-    packages = sorted(conda_dir.rglob("*.conda"))
+    packages = sorted((root / "conda-dist").rglob("*.conda"))
     if not packages:
         emit_err("[publish] ERROR: no conda-dist/*.conda artifacts found to upload.")
         return 1
     upload_url = os.environ.get("PREFIX_DEV_UPLOAD_URL", DEFAULT_CONDA_UPLOAD_URL).strip()
     for pkg in packages:
-        payload = pkg.read_bytes()
-        sha256_hex = hashlib.sha256(payload).hexdigest()
-        req = urllib.request.Request(
-            upload_url,
-            data=payload,
-            method="POST",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/octet-stream",
-                "X-File-Name": pkg.name,
-                "SHA-256": sha256_hex,
-                "User-Agent": "playtest-release-workflow",
-            },
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=120) as resp:
-                emit_line(f"[publish] uploaded {pkg.name} -> HTTP {resp.status}")
-        except (urllib.error.URLError, TimeoutError) as err:
-            emit_err(f"[publish] ERROR: failed to upload {pkg.name}: {err}")
+        if _upload_conda_package(pkg, upload_url, token) != 0:
             return 1
     return 0
 
@@ -183,6 +188,16 @@ def publish_nuget(root: Path = REPO_ROOT) -> int:
     return 0
 
 
+def _maven_set_version_cmd(version: str) -> list[str]:
+    return [
+        "mvn",
+        "--batch-mode",
+        "org.codehaus.mojo:versions-maven-plugin:2.18.0:set",
+        f"-DnewVersion={version}",
+        "-DgenerateBackupPoms=false",
+    ]
+
+
 def publish_maven(root: Path = REPO_ROOT) -> int:
     """Stamp Java release version and deploy signed artifacts to Maven Central."""
     required = (
@@ -197,30 +212,19 @@ def publish_maven(root: Path = REPO_ROOT) -> int:
     version = stamp_target("java", os.environ["RELEASE_TAG"], root=root)
     passphrase = os.environ["MAVEN_GPG_PASSPHRASE"]
     java_dir = root / "java"
-    set_ver = run_cmd(
-        [
-            "mvn",
-            "--batch-mode",
-            "org.codehaus.mojo:versions-maven-plugin:2.18.0:set",
-            f"-DnewVersion={version}",
-            "-DgenerateBackupPoms=false",
-        ],
-        cwd=java_dir,
-    )
+    set_ver = run_cmd(_maven_set_version_cmd(version), cwd=java_dir)
     if set_ver.returncode != 0:
         return set_ver.returncode
-    return run_cmd(
-        [
-            "mvn",
-            "--batch-mode",
-            "--activate-profiles",
-            "release",
-            "-DskipTests",
-            f"-Dgpg.passphrase={passphrase}",
-            "deploy",
-        ],
-        cwd=java_dir,
-    ).returncode
+    deploy_cmd = [
+        "mvn",
+        "--batch-mode",
+        "--activate-profiles",
+        "release",
+        "-DskipTests",
+        f"-Dgpg.passphrase={passphrase}",
+        "deploy",
+    ]
+    return run_cmd(deploy_cmd, cwd=java_dir).returncode
 
 
 def check_cran(root: Path = REPO_ROOT) -> int:
@@ -234,20 +238,36 @@ def check_cran(root: Path = REPO_ROOT) -> int:
     ).returncode
 
 
-def wait_runiverse(_root: Path = REPO_ROOT) -> int:
-    """Poll the R-universe package API until the released version reports success."""
-    owner = os.environ.get("RUNIVERSE_OWNER", "archont561").strip().lower()
-    version = extract_version_from_tag(os.environ["RELEASE_TAG"]).split("-", 1)[0]
-    url = f"https://{owner}.r-universe.dev/api/packages/playtest"
-    req = urllib.request.Request(url, headers={"User-Agent": "playtest-release-workflow"})
+def _fetch_runiverse_pkg(req: urllib.request.Request) -> dict[str, object]:
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        raw_bytes = resp.read()
+    parsed = json.loads(raw_bytes.decode("utf-8"))
+    return dict(parsed) if isinstance(parsed, dict) else {}
+
+
+def _runiverse_poll_config() -> tuple[int, int]:
     max_attempts = int(os.environ.get("RUNIVERSE_MAX_ATTEMPTS", "60"))
     sleep_seconds = int(os.environ.get("RUNIVERSE_SLEEP_SECONDS", "60"))
+    return max_attempts, sleep_seconds
 
+
+def _runiverse_ready(req: urllib.request.Request, version: str) -> bool:
+    pkg = _fetch_runiverse_pkg(req)
+    return str(pkg.get("Version", "")) == version and pkg.get("_status") == "success"
+
+
+def wait_runiverse(_root: Path = REPO_ROOT) -> int:
+    """Poll the R-universe package API until the released version reports success."""
+    raw_owner = os.environ.get("RUNIVERSE_OWNER", "archont561")
+    owner = raw_owner.strip().lower()
+    raw_version = extract_version_from_tag(os.environ["RELEASE_TAG"])
+    version = raw_version.split("-", 1)[0]
+    url = f"https://{owner}.r-universe.dev/api/packages/playtest"
+    req = urllib.request.Request(url, headers={"User-Agent": "playtest-release-workflow"})
+    max_attempts, sleep_seconds = _runiverse_poll_config()
     for attempt in range(max_attempts):
         try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                pkg = json.loads(resp.read().decode("utf-8"))
-            if str(pkg.get("Version", "")) == version and pkg.get("_status") == "success":
+            if _runiverse_ready(req, version):
                 emit_line(f"[publish] R-universe indexed playtest {version}: {url}")
                 return 0
         except (urllib.error.URLError, TimeoutError, ValueError) as err:

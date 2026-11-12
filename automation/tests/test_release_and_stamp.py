@@ -171,47 +171,43 @@ def test_cut_tag_without_push_writes_step_summary(
     assert "v0.2.0" in summary.read_text(encoding="utf-8")
 
 
+_STAMP_FIXTURE_FILES: tuple[str, ...] = (
+    "Cargo.toml",
+    "package.json",
+    "conda/pixi.toml",
+    "python/pyproject.toml",
+    "python/src/playtest/__init__.py",
+    "typescript/package.json",
+    "typescript/src/index.ts",
+    "typescript/src/version.ts",
+    "cpp/CMakeLists.txt",
+    "cpp/conanfile.py",
+    "cpp/include/playtest/playtest.hpp",
+    "c/CMakeLists.txt",
+    "c/conanfile.py",
+    "c/include/playtest/playtest.h",
+    "c/src/playtest.c",
+    "csharp/src/Playtest/Playtest.csproj",
+    "csharp/src/Playtest/Playtest.cs",
+    "go/VERSION",
+    "go/playtest.go",
+    "java/pom.xml",
+    "java/src/main/java/io/github/archont561/playtest/Playtest.java",
+    "java/src/main/resources/io/github/archont561/playtest/version.properties",
+    "r/DESCRIPTION",
+    "r/R/version.R",
+)
+
+
 def _copy_stamp_fixture(dest: Path) -> None:
-    rel_files = (
-        "Cargo.toml",
-        "package.json",
-        "conda/pixi.toml",
-        "python/pyproject.toml",
-        "python/src/playtest/__init__.py",
-        "typescript/package.json",
-        "typescript/src/index.ts",
-        "typescript/src/version.ts",
-        "cpp/CMakeLists.txt",
-        "cpp/conanfile.py",
-        "cpp/include/playtest/playtest.hpp",
-        "c/CMakeLists.txt",
-        "c/conanfile.py",
-        "c/include/playtest/playtest.h",
-        "c/src/playtest.c",
-        "csharp/src/Playtest/Playtest.csproj",
-        "csharp/src/Playtest/Playtest.cs",
-        "go/VERSION",
-        "go/playtest.go",
-        "java/pom.xml",
-        "java/src/main/java/io/github/archont561/playtest/Playtest.java",
-        "java/src/main/resources/io/github/archont561/playtest/version.properties",
-        "r/DESCRIPTION",
-        "r/R/version.R",
-    )
-    for rel in rel_files:
+    for rel in _STAMP_FIXTURE_FILES:
         target = dest / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(REPO_ROOT / rel, target)
 
 
-def test_stamp_all_updates_manifests_only_and_autodiscovers(tmp_path: Path) -> None:
-    _copy_stamp_fixture(tmp_path)
-    stamped = stamp_target("all", "v0.4.2", root=tmp_path, author_email="cran@example.org")
-    assert stamped == "0.4.2"
-    assert extract_version_from_tag("go/v0.4.2") == "0.4.2"
-
-    versions = read_manifest_versions(tmp_path)
-    assert versions == {
+def _assert_all_manifests_stamped(tmp_path: Path) -> None:
+    expected = {
         "rust": "0.4.2",
         "root_package_json": "0.4.2",
         "conda": "0.4.2",
@@ -224,7 +220,11 @@ def test_stamp_all_updates_manifests_only_and_autodiscovers(tmp_path: Path) -> N
         "java": "0.4.2",
         "r": "0.4.2",
     }
+    assert read_manifest_versions(tmp_path) == expected
     assert "cran@example.org" in (tmp_path / "r/DESCRIPTION").read_text(encoding="utf-8")
+
+
+def _assert_cargo_dependency_pins(tmp_path: Path) -> None:
     cargo_deps = (tmp_path / "Cargo.toml").read_text(encoding="utf-8")
     for crate in (
         "playtest",
@@ -235,6 +235,8 @@ def test_stamp_all_updates_manifests_only_and_autodiscovers(tmp_path: Path) -> N
     ):
         assert f'{crate} = {{ path = "crates/{crate}", version = "0.4.2" }}' in cargo_deps
 
+
+def _assert_versions_autodiscovered(tmp_path: Path) -> None:
     for src_rel in (
         "python/src/playtest/__init__.py",
         "typescript/src/index.ts",
@@ -246,6 +248,16 @@ def test_stamp_all_updates_manifests_only_and_autodiscovers(tmp_path: Path) -> N
         "r/R/version.R",
     ):
         assert "0.4.2" not in (tmp_path / src_rel).read_text(encoding="utf-8")
+
+
+def test_stamp_all_updates_manifests_only_and_autodiscovers(tmp_path: Path) -> None:
+    _copy_stamp_fixture(tmp_path)
+    stamped = stamp_target("all", "v0.4.2", root=tmp_path, author_email="cran@example.org")
+    assert stamped == "0.4.2"
+    assert extract_version_from_tag("go/v0.4.2") == "0.4.2"
+    _assert_all_manifests_stamped(tmp_path)
+    _assert_cargo_dependency_pins(tmp_path)
+    _assert_versions_autodiscovered(tmp_path)
 
 
 def test_release_workflow_wires_crates_oidc_trusted_publishing() -> None:

@@ -6,6 +6,7 @@ import json
 import tarfile
 import zipfile
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -96,33 +97,42 @@ def _ensure_ts_dist_stubs() -> list[Path]:
     return created
 
 
+def _build_expected_npm_tarballs(tmp_path: Path) -> list[Path]:
+    fake_bin = tmp_path / "playtest"
+    fake_bin.write_bytes(b"#!/usr/bin/env sh\nexit 0\n")
+    binaries = {spec.triple: fake_bin for spec in NPM_PLATFORMS}
+    return build_npm_tarballs(REPO_ROOT, binaries, tmp_path / "npm-out", use_cargo_npm=False)
+
+
+def _wrapper_manifests(wrapper_tgz: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    with tarfile.open(wrapper_tgz, "r:gz") as tf:
+        pkg_raw = tf.extractfile("package/package.json")
+        bin_pkg = tf.extractfile("package/bin/package.json")
+        assert pkg_raw is not None
+        assert bin_pkg is not None
+        pkg_data = json.loads(pkg_raw.read().decode("utf-8"))
+        bin_data = json.loads(bin_pkg.read().decode("utf-8"))
+    return pkg_data, bin_data
+
+
 def test_npm_tarball_generation_no_lifecycle_scripts_and_publish_order(tmp_path: Path) -> None:
     created = _ensure_ts_dist_stubs()
     try:
-        fake_bin = tmp_path / "playtest"
-        fake_bin.write_bytes(b"#!/usr/bin/env sh\nexit 0\n")
-        binaries = {spec.triple: fake_bin for spec in NPM_PLATFORMS}
-        out_dir = tmp_path / "npm-out"
-        tarballs = build_npm_tarballs(REPO_ROOT, binaries, out_dir, use_cargo_npm=False)
-        assert len(tarballs) == 6
-
-        platform_pkgs, wrapper_pkgs = _partition_npm_tarballs(tarballs)
-        assert len(platform_pkgs) == 5
-        assert len(wrapper_pkgs) == 1
-        assert wrapper_pkgs[0].name == "archont561-playtest-0.1.0.tgz"
-
-        with tarfile.open(wrapper_pkgs[0], "r:gz") as tf:
-            pkg_raw = tf.extractfile("package/package.json")
-            assert pkg_raw is not None
-            pkg_data = json.loads(pkg_raw.read().decode("utf-8"))
-            bin_pkg = tf.extractfile("package/bin/package.json")
-            assert bin_pkg is not None
-            assert json.loads(bin_pkg.read().decode("utf-8")) == {"type": "commonjs"}
-        assert "scripts" not in pkg_data
-        assert len(pkg_data["optionalDependencies"]) == 5
+        tarballs = _build_expected_npm_tarballs(tmp_path)
     finally:
         for created_file in created:
             created_file.unlink(missing_ok=True)
+    assert len(tarballs) == 6
+
+    platform_pkgs, wrapper_pkgs = _partition_npm_tarballs(tarballs)
+    assert len(platform_pkgs) == 5
+    assert len(wrapper_pkgs) == 1
+    assert wrapper_pkgs[0].name == "archont561-playtest-0.1.0.tgz"
+
+    pkg_data, bin_data = _wrapper_manifests(wrapper_pkgs[0])
+    assert bin_data == {"type": "commonjs"}
+    assert "scripts" not in pkg_data
+    assert len(pkg_data["optionalDependencies"]) == 5
 
     bad_pkg = tmp_path / "bad-package.json"
     bad_pkg.write_text('{"name":"x","scripts":{"postinstall":"node dl.js"}}', encoding="utf-8")

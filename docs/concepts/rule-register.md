@@ -1,5 +1,7 @@
 # Clean Code Rule Register
 
+Python Clean Code is enforced twice: `automation/rude_clean.py` runs `rude check --format json` with `rude.toml` and fails on any `error`, `warning`, or `info` diagnostic, and the same command is wired into `pixi run lint`, `pixi run lint-automation`, the `py` lane `sdk-lint`, the `pre-commit` hook, and `pixi run do fast`.
+
 Playtest vendors the curated native presets from `Archont561/polyglot-clean-code` under `vendor/clean-code-presets/` (`UPSTREAM.pin`), guarded against local edits by `vendor/clean-code-presets/VENDOR.sha256` and enforced by `pixi run --frozen do clean_code`.
 
 ## Active Preset Tiers
@@ -10,7 +12,7 @@ Playtest vendors the curated native presets from `Archont561/polyglot-clean-code
 | **Vale** | `vendor/clean-code-presets/vale/strict.ini` | `README.md`, `AGENTS.md`, `CONTRIBUTING.md`, `docs/` | `PCC-D01`–`PCC-D04` |
 | **ast-grep** | `vendor/clean-code-presets/ast-grep/pedantic/sgconfig.yml` | `crates/`, `python/`, `typescript/`, `go/`, `java/` | `PCC-S01`–`PCC-S08` |
 | **Semgrep** | `vendor/clean-code-presets/semgrep/pedantic.yml` | Repository-wide (excluding `vendor/clean-code-presets/`) | `PCC-P01`–`PCC-P08` |
-| **Rude** | `rude.toml` (`rude-clean-code`) | `automation/*.py`, `python/src/**/*.py` | `CC101`–`CC104`, `CC303` |
+| **Rude** | `rude.toml` (`rude-clean-code`) | `automation/**/*.py`, `python/src/**/*.py`, `python/tests/**/*.py` | `CC0`–`CC9` (all Clean Code families at strict defaults) |
 
 ## Updating Vendored Presets
 

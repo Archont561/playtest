@@ -18,9 +18,11 @@ pre-commit:
       glob: "*.toml"
       run: pixi run --frozen --no-install fmt-toml
       stage_fixed: true
-    - name: python-fmt
+    - name: python-format-lint
       glob: "*.py"
-      run: pixi run --frozen --no-install fmt-automation
+      run: >-
+        pixi run --frozen --no-install fmt-automation &&
+        pixi run --frozen --no-install lint-clean-py
       stage_fixed: true
     - name: actionlint
       glob: ".github/workflows/*.{yml,yaml}"

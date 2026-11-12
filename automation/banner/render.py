@@ -24,6 +24,20 @@ class FigletFontData:
     glyphs: dict[str, tuple[str, ...]]
 
 
+def _parse_glyphs(lines: list[str], start_pos: int, height: int) -> dict[str, tuple[str, ...]]:
+    pos = start_pos
+    glyphs: dict[str, tuple[str, ...]] = {}
+    for code in range(32, 127):
+        rows: list[str] = []
+        for offset in range(height):
+            raw = lines[pos + offset]
+            endmark = raw[-1] if raw else "@"
+            rows.append(raw.rstrip(endmark))
+        glyphs[chr(code)] = tuple(rows)
+        pos += height
+    return glyphs
+
+
 def _load_font(font: str = DEFAULT_FONT) -> FigletFontData:
     font_path = FONT_DIR / f"{font}.flf"
     if not font_path.is_file():
@@ -34,34 +48,30 @@ def _load_font(font: str = DEFAULT_FONT) -> FigletFontData:
     if not header.startswith("flf2a") or len(header) < 7:
         raise ValueError(f"invalid FIGlet header in {font_path.name}")
 
-    hardblank = header[5]
     meta = header[6:].split()
     height = int(meta[0])
-    comment_lines = int(meta[4])
+    start_pos = 1 + int(meta[4])
+    return FigletFontData(
+        hardblank=header[5],
+        height=height,
+        glyphs=_parse_glyphs(lines, start_pos, height),
+    )
 
-    pos = 1 + comment_lines
-    glyphs: dict[str, tuple[str, ...]] = {}
-    for code in range(32, 127):
-        rows: list[str] = []
-        for offset in range(height):
-            raw = lines[pos + offset]
-            endmark = raw[-1] if raw else "@"
-            rows.append(raw.rstrip(endmark))
-        glyphs[chr(code)] = tuple(rows)
-        pos += height
-    return FigletFontData(hardblank=hardblank, height=height, glyphs=glyphs)
+
+def _row_gap(left: str, right: str) -> int:
+    trailing = len(left) - len(left.rstrip(" "))
+    leading = len(right) - len(right.lstrip(" "))
+    return trailing + leading
+
+
+def _min_row_shift(acc: list[str], glyph: tuple[str, ...], height: int) -> int:
+    if not any(acc):
+        return 0
+    return min(_row_gap(acc[row], glyph[row]) for row in range(height))
 
 
 def _kern_append(acc: list[str], glyph: tuple[str, ...], height: int) -> None:
-    if any(acc):
-        shift = min(
-            (len(acc[row]) - len(acc[row].rstrip(" ")))
-            + (len(glyph[row]) - len(glyph[row].lstrip(" ")))
-            for row in range(height)
-        )
-    else:
-        shift = 0
-
+    shift = _min_row_shift(acc, glyph, height)
     for row in range(height):
         left_spaces = len(acc[row]) - len(acc[row].rstrip(" "))
         left_trim = min(shift, left_spaces)

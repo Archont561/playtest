@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import ast
+import json
 import shutil
+from collections.abc import Iterator, Sequence
 from pathlib import Path
 
 import pytest
 
 from automation import REPO_ROOT
-from automation._proc import run_cmd
+from automation._proc import CommandResult, run_cmd
 from automation.advisory_exception import verify_advisory_exceptions
 from automation.merge_lcov import merge_lcov_files
 from automation.repo_check import (
@@ -18,7 +20,11 @@ from automation.repo_check import (
     _check_required_and_forbidden,
     check_repository,
 )
-from automation.rude_clean import WARNING_SUMMARY_RE
+from automation.rude_clean import (
+    WARNING_SUMMARY_RE,
+    parse_rude_diagnostics,
+    run_rude_clean,
+)
 
 
 def test_real_repository_advisory_exceptions_are_valid() -> None:
@@ -94,23 +100,37 @@ def test_crate_dependency_boundary_rejects_transitive_cli_or_assets_leak(tmp_pat
     assert any("only `playtest-cli` may depend on `clifacet`" in item for item in errors)
 
 
-def test_automation_modules_obey_doit_print_and_shell_boundaries() -> None:
+def _iter_automation_sources() -> Iterator[Path]:
     automation_dir = REPO_ROOT / "automation"
     for py_file in sorted(automation_dir.rglob("*.py")):
-        if "tests" in py_file.parts:
-            continue
+        if "tests" not in py_file.parts:
+            yield py_file
+
+
+def _assert_no_doit_import(py_file: Path, node: ast.AST) -> None:
+    if py_file.name == "dodo.py" or not isinstance(node, (ast.Import, ast.ImportFrom)):
+        return
+    mod = getattr(node, "module", "") or ""
+    names = [alias.name for alias in node.names]
+    assert "doit" not in (mod, *names), f"{py_file.name} must not import doit"
+
+
+def _assert_no_print_or_shell_true(py_file: Path, node: ast.AST) -> None:
+    if not isinstance(node, ast.Call):
+        return
+    if isinstance(node.func, ast.Name):
+        assert node.func.id != "print", f"{py_file.name} must not call print()"
+    for kw in node.keywords:
+        if kw.arg == "shell" and isinstance(kw.value, ast.Constant):
+            assert kw.value.value is not True, f"{py_file.name} uses shell=True"
+
+
+def test_automation_modules_obey_doit_print_and_shell_boundaries() -> None:
+    for py_file in _iter_automation_sources():
         tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
         for node in ast.walk(tree):
-            if py_file.name != "dodo.py" and isinstance(node, (ast.Import, ast.ImportFrom)):
-                mod = getattr(node, "module", "") or ""
-                names = [alias.name for alias in node.names]
-                assert "doit" not in (mod, *names), f"{py_file.name} must not import doit"
-            if isinstance(node, ast.Call):
-                if isinstance(node.func, ast.Name):
-                    assert node.func.id != "print", f"{py_file.name} must not call print()"
-                for kw in node.keywords:
-                    if kw.arg == "shell" and isinstance(kw.value, ast.Constant):
-                        assert kw.value.value is not True, f"{py_file.name} uses shell=True"
+            _assert_no_doit_import(py_file, node)
+            _assert_no_print_or_shell_true(py_file, node)
 
 
 def test_clean_code_preset_configs_and_rude_warning_detector() -> None:
@@ -123,6 +143,68 @@ def test_clean_code_preset_configs_and_rude_warning_detector() -> None:
     assert "!scripts/restore.sh" in alint_text
     assert WARNING_SUMMARY_RE.search("Found 0 error(s) and 1 warning(s)") is not None
     assert WARNING_SUMMARY_RE.search("Found 0 error(s) and 0 warning(s)") is None
+
+
+def test_parse_rude_diagnostics_reads_ndjson_diagnostic_lines() -> None:
+    raw = "\n".join(
+        (
+            '{"file": "automation/x.py", "line": 3, "code": "CC101", "severity": "warning"}',
+            "   ",
+            '{"file": "automation/y.py", "line": 9, "code": "CC901", "severity": "info"}',
+        )
+    )
+    diagnostics = parse_rude_diagnostics(raw)
+    assert [entry["code"] for entry in diagnostics] == ["CC101", "CC901"]
+    assert parse_rude_diagnostics("") == []
+
+
+def _diagnostic_line(root: Path, code: str, severity: str) -> str:
+    payload = {
+        "file": f"{root}/clean.py",
+        "line": 2,
+        "column": 1,
+        "code": code,
+        "severity": severity,
+    }
+    return json.dumps(payload) + "\n"
+
+
+def _patch_rude_run(monkeypatch: pytest.MonkeyPatch, result: CommandResult) -> list[list[str]]:
+    calls: list[list[str]] = []
+
+    def fake_run(cmd: Sequence[str], **_kwargs: object) -> CommandResult:
+        calls.append(list(cmd))
+        return result
+
+    monkeypatch.setattr("automation.rude_clean.run_cmd", fake_run)
+    return calls
+
+
+def test_run_rude_clean_passes_without_diagnostics(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "rude.toml").write_text("[tool.rude]\n", encoding="utf-8")
+    calls = _patch_rude_run(monkeypatch, CommandResult(returncode=0, stdout="", stderr=""))
+    assert run_rude_clean(tmp_path, ("clean.py",)) == 0
+    assert calls and calls[0][-1] == "clean.py"
+
+
+@pytest.mark.parametrize(("code", "severity"), [("CC101", "warning"), ("CC901", "info")])
+def test_run_rude_clean_fails_on_any_diagnostic(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, code: str, severity: str
+) -> None:
+    (tmp_path / "rude.toml").write_text("[tool.rude]\n", encoding="utf-8")
+    stdout = _diagnostic_line(tmp_path, code, severity)
+    _patch_rude_run(monkeypatch, CommandResult(returncode=0, stdout=stdout, stderr=""))
+    assert run_rude_clean(tmp_path, ("clean.py",)) == 1
+
+
+def test_run_rude_clean_propagates_failing_rude_exit_code(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "rude.toml").write_text("[tool.rude]\n", encoding="utf-8")
+    _patch_rude_run(monkeypatch, CommandResult(returncode=2, stdout="", stderr="boom"))
+    assert run_rude_clean(tmp_path, ("clean.py",)) == 2
 
 
 def _copy_real_alint_base(dst_root: Path) -> Path:
@@ -147,38 +229,49 @@ def _copy_real_alint_base(dst_root: Path) -> Path:
     return cfg
 
 
-def test_alint_enforces_ts_bunup_and_forbids_relative_imports(tmp_path: Path) -> None:
-    if shutil.which("alint") is None:
-        return
+_GOOD_SRC_STMT = 'import { v } from "@/src/version";\nexport const X = v;\n'
+_GOOD_TEST_STMT = 'import { X } from "@/src/index";\n'
+
+
+def _write_ts_fixtures(tmp_path: Path) -> tuple[Path, Path]:
     scripts_dir = tmp_path / "scripts"
     scripts_dir.mkdir(parents=True)
     (scripts_dir / "restore.sh").write_text("#!/bin/sh\n", encoding="utf-8")
-    cfg = _copy_real_alint_base(tmp_path)
-
     good_src = tmp_path / "typescript/src/index.ts"
     good_test = tmp_path / "typescript/tests/version.test.ts"
     good_src.parent.mkdir(parents=True, exist_ok=True)
     good_test.parent.mkdir(parents=True, exist_ok=True)
-    good_src.write_text(
-        'import { v } from "@/src/version";\nexport const X = v;\n', encoding="utf-8"
-    )
-    good_test.write_text('import { X } from "@/src/index";\n', encoding="utf-8")
+    good_src.write_text(_GOOD_SRC_STMT, encoding="utf-8")
+    good_test.write_text(_GOOD_TEST_STMT, encoding="utf-8")
+    return good_src, good_test
+
+
+def _assert_rejected_import(cfg: Path, root: Path, target: Path, bad_stmt: str) -> None:
+    target.write_text(bad_stmt, encoding="utf-8")
+    res = run_cmd(["alint", "check", "--config", str(cfg), str(root)], capture=True)
+    assert res.returncode != 0
+    assert "forbid-ts-relative-imports" in (res.stdout + res.stderr)
+
+
+def test_alint_enforces_ts_bunup_and_forbids_relative_imports(tmp_path: Path) -> None:
+    if shutil.which("alint") is None:
+        return
+    good_src, good_test = _write_ts_fixtures(tmp_path)
+    cfg = _copy_real_alint_base(tmp_path)
     assert (
         run_cmd(["alint", "check", "--config", str(cfg), str(tmp_path)], capture=True).returncode
         == 0
     )
-
     for target, bad_stmt in (
         (good_src, 'import { v } from "./version";\n'),
         (good_src, 'import { v } from "../other";\n'),
         (good_test, 'import { X } from "../src/index";\n'),
         (good_test, 'import { X } from "../../nested/index";\n'),
     ):
-        target.write_text(bad_stmt, encoding="utf-8")
-        res = run_cmd(["alint", "check", "--config", str(cfg), str(tmp_path)], capture=True)
-        assert res.returncode != 0
-        assert "forbid-ts-relative-imports" in (res.stdout + res.stderr)
-        target.write_text('import { X } from "@/src/index";\n', encoding="utf-8")
+        _assert_rejected_import(cfg, tmp_path, target, bad_stmt)
+        target.write_text(
+            _GOOD_SRC_STMT if target == good_src else _GOOD_TEST_STMT, encoding="utf-8"
+        )
 
 
 def test_scripts_directory_allows_only_restore_sh(tmp_path: Path) -> None:

@@ -30,7 +30,8 @@ Welcome to **Playtest**. This document defines the mandatory operating guideline
 * All commit messages must adhere to the **Conventional Commits** specification configured in `.versionrc`.
 * Allowed types: `feat`, `fix`, `perf`, `refactor`, `test`, `docs`, `ci`, `chore`, `build`, `style`, `revert`.
 * Allowed scopes: `rs`, `py`, `ts`, `cpp`, `c`, `csharp`, `go`, `java`, `r`, `core`, `fixtures`, `bdd`, `pbt`, `vcr`, `snap`, `cli`, `deps`, `release`, `scripts`, `automation`, `clean-code`, `backlog`.
-* Vendored presets in `vendor/clean-code-presets/` (`Archont561/polyglot-clean-code` pinned in `UPSTREAM.pin` and checksummed in `VENDOR.sha256`) plus `rude-clean-code` (`rude.toml`) enforce `PCC-R*`, `PCC-P*`, `PCC-S*`, `PCC-D*`, and `CC101`–`CC303` on every run of `pixi run do clean_code`.
+* Vendored presets in `vendor/clean-code-presets/` (`Archont561/polyglot-clean-code` pinned in `UPSTREAM.pin` and checksummed in `VENDOR.sha256`) plus `rude-clean-code` (`rude.toml`) enforce `PCC-R*`, `PCC-P*`, `PCC-S*`, `PCC-D*`, and `CC0`–`CC9` on every run of `pixi run do clean_code`.
+* Python Clean Code is a lint gate, not an advisory: `pixi run lint` and `pixi run lint-automation` run `python -m automation.rude_clean`, the `py` SDK lane runs it from `sdk-lint`, and the `pre-commit` hook runs it on every `*.py` change through the `python-format-lint` job. Any `error`, `warning`, or `info` diagnostic fails the gate.
 * Validate commit messages before pushing:
   ```bash
   echo "feat(fixtures): add async teardown" | pixi run convco check --from-stdin
@@ -165,7 +166,7 @@ Rules that follow from ADRs 0015 to 0018. They bind new work now, although the C
 Before completing any task or ending a turn, agents must verify that all quality gates pass:
 
 ```bash
-# 1. Run Clean Code, structure, workflow, TOML, and automation gates
+# 1. Run Clean Code, structure, workflow, TOML, and automation gates (includes rude-clean-code)
 pixi run do fast
 
 # 2. Run automation unit tests and strict mypy checks

@@ -64,6 +64,8 @@ jobs:
           cache: true
       - name: Verify Bun workspace lockfile
         run: pixi run --frozen bun-install
+      - name: Run Python Clean Code bounds with rude-clean-code
+        run: pixi run --frozen lint-clean-py
       - name: Run Clean Code, structure, workflow, TOML, sandbox, and automation gates
         run: pixi run --frozen doit fast
 

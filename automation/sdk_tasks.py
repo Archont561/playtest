@@ -4,263 +4,33 @@ from __future__ import annotations
 
 import argparse
 import os
-import re
 import shutil
-import tarfile
-import tomllib
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from automation import REPO_ROOT
 from automation._proc import emit_err, emit_line, run_cmd
+from automation._sdk_native import (
+    c_build_and_test,
+    c_coverage,
+    c_lint,
+    c_package,
+    cpp_build_and_test,
+    cpp_coverage,
+    cpp_lint,
+    cpp_package,
+    manifest_regex_version,
+    workspace_version,
+    write_tarball,
+)
 from automation.stage_assets import (
     clean_staged_assets,
     stage_assets,
     verify_packaged_playtest_assets,
 )
-from automation.stamp_version import CMAKE_VER_RE, POM_VER_RE
+from automation.stamp_version import POM_VER_RE
 
-
-def _workspace_version(root: Path) -> str:
-    env_tag = os.environ.get("RELEASE_TAG", "").strip()
-    if env_tag:
-        return env_tag.rsplit("v", 1)[-1]
-    env_ver = os.environ.get("PLAYTEST_VERSION", "").strip()
-    if env_ver:
-        return env_ver
-    cargo_data = tomllib.loads((root / "Cargo.toml").read_text(encoding="utf-8"))
-    return str(cargo_data["workspace"]["package"]["version"])
-
-
-def _cxx_bin() -> str:
-    return os.environ.get("CXX", "").strip() or "g++"
-
-
-def _cc_bin() -> str:
-    return os.environ.get("CC", "").strip() or "gcc"
-
-
-def _gcov_bin() -> str:
-    return os.environ.get("GCOV", "").strip() or "gcov"
-
-
-def _write_tarball(archive: Path, base_dir: Path, rel_entries: Sequence[str]) -> None:
-    archive.parent.mkdir(parents=True, exist_ok=True)
-    with tarfile.open(archive, "w:gz") as tar:
-        for rel in rel_entries:
-            tar.add(base_dir / rel, arcname=rel)
-
-
-def _manifest_regex_version(manifest: Path, pattern: re.Pattern[str]) -> str:
-    match = pattern.search(manifest.read_text(encoding="utf-8"))
-    if match is None:
-        raise RuntimeError(f"missing version declaration in {manifest}")
-    return match.group(1).strip()
-
-
-def _cpp_build_and_test(root: Path) -> int:
-    cpp_dir = root / "cpp"
-    ver = _manifest_regex_version(cpp_dir / "CMakeLists.txt", CMAKE_VER_RE)
-    (cpp_dir / "target").mkdir(parents=True, exist_ok=True)
-    build = run_cmd(
-        [
-            _cxx_bin(),
-            "-std=c++20",
-            f"-DPLAYTEST_CPP_VER={ver}",
-            "tests/test_version.cpp",
-            "-I",
-            "include",
-            "-o",
-            "target/test_cpp",
-        ],
-        cwd=cpp_dir,
-    )
-    if build.returncode != 0:
-        return build.returncode
-    return run_cmd([str(cpp_dir / "target/test_cpp")], cwd=cpp_dir).returncode
-
-
-def _cpp_lint(root: Path) -> int:
-    cpp_dir = root / "cpp"
-    ver = _manifest_regex_version(cpp_dir / "CMakeLists.txt", CMAKE_VER_RE)
-    fmt = run_cmd(
-        [
-            "clang-format",
-            "--dry-run",
-            "--Werror",
-            "include/playtest/playtest.hpp",
-            "tests/test_version.cpp",
-        ],
-        cwd=cpp_dir,
-    )
-    if fmt.returncode != 0:
-        return fmt.returncode
-    return run_cmd(
-        [
-            _cxx_bin(),
-            "-std=c++20",
-            "-Wall",
-            "-Wextra",
-            "-Wpedantic",
-            "-fsyntax-only",
-            f"-DPLAYTEST_CPP_VER={ver}",
-            "-I",
-            "include",
-            "tests/test_version.cpp",
-        ],
-        cwd=cpp_dir,
-    ).returncode
-
-
-def _capture_lcov(work_dir: Path, out_file: str) -> int:
-    cap_cmd = [
-        "lcov",
-        "--capture",
-        "--directory",
-        "target",
-        "--gcov-tool",
-        _gcov_bin(),
-        "--output-file",
-        out_file,
-        "--ignore-errors",
-        "mismatch,gcov,negative",
-    ]
-    if run_cmd(cap_cmd, cwd=work_dir).returncode != 0:
-        return 1
-    rm_cmd = [
-        "lcov",
-        "--remove",
-        out_file,
-        "/usr/*",
-        "*/conda/*",
-        "--output-file",
-        out_file,
-        "--ignore-errors",
-        "unused",
-    ]
-    return run_cmd(rm_cmd, cwd=work_dir).returncode
-
-
-def _cpp_coverage(root: Path) -> int:
-    cpp_dir = root / "cpp"
-    ver = _manifest_regex_version(cpp_dir / "CMakeLists.txt", CMAKE_VER_RE)
-    (cpp_dir / "target").mkdir(parents=True, exist_ok=True)
-    (cpp_dir / "coverage").mkdir(parents=True, exist_ok=True)
-    out_bin = cpp_dir / "target/test_cpp_cov"
-    compile_cmd = [
-        _cxx_bin(),
-        "-std=c++20",
-        "--coverage",
-        f"-DPLAYTEST_CPP_VER={ver}",
-        "tests/test_version.cpp",
-        "-I",
-        "include",
-        "-o",
-        str(out_bin),
-    ]
-    if run_cmd(compile_cmd, cwd=cpp_dir).returncode != 0:
-        return 1
-    if run_cmd([str(out_bin)], cwd=cpp_dir).returncode != 0:
-        return 1
-    return _capture_lcov(cpp_dir, "coverage/lcov-cpp.info")
-
-
-def _cpp_package(root: Path) -> int:
-    ver = _workspace_version(root)
-    archive = root / "cpp" / "dist" / f"playtest-cpp-{ver}.tar.gz"
-    _write_tarball(archive, root / "cpp", ("include", "CMakeLists.txt", "conanfile.py"))
-    emit_line(f"[sdk-tasks] packaged {archive.relative_to(root)}")
-    return 0
-
-
-def _c_build_and_test(root: Path) -> int:
-    c_dir = root / "c"
-    ver = _manifest_regex_version(c_dir / "CMakeLists.txt", CMAKE_VER_RE)
-    (c_dir / "target").mkdir(parents=True, exist_ok=True)
-    build = run_cmd(
-        [
-            _cc_bin(),
-            "-std=c11",
-            f"-DPLAYTEST_C_VER={ver}",
-            "src/playtest.c",
-            "tests/test_version.c",
-            "-I",
-            "include",
-            "-o",
-            "target/test_c",
-        ],
-        cwd=c_dir,
-    )
-    if build.returncode != 0:
-        return build.returncode
-    return run_cmd([str(c_dir / "target/test_c")], cwd=c_dir).returncode
-
-
-def _c_lint(root: Path) -> int:
-    c_dir = root / "c"
-    ver = _manifest_regex_version(c_dir / "CMakeLists.txt", CMAKE_VER_RE)
-    fmt = run_cmd(
-        [
-            "clang-format",
-            "--dry-run",
-            "--Werror",
-            "include/playtest/playtest.h",
-            "src/playtest.c",
-            "tests/test_version.c",
-        ],
-        cwd=c_dir,
-    )
-    if fmt.returncode != 0:
-        return fmt.returncode
-    return run_cmd(
-        [
-            _cc_bin(),
-            "-std=c11",
-            "-Wall",
-            "-Wextra",
-            "-Wpedantic",
-            "-fsyntax-only",
-            f"-DPLAYTEST_C_VER={ver}",
-            "-I",
-            "include",
-            "src/playtest.c",
-            "tests/test_version.c",
-        ],
-        cwd=c_dir,
-    ).returncode
-
-
-def _c_coverage(root: Path) -> int:
-    c_dir = root / "c"
-    ver = _manifest_regex_version(c_dir / "CMakeLists.txt", CMAKE_VER_RE)
-    (c_dir / "target").mkdir(parents=True, exist_ok=True)
-    (c_dir / "coverage").mkdir(parents=True, exist_ok=True)
-    out_bin = c_dir / "target/test_c_cov"
-    compile_cmd = [
-        _cc_bin(),
-        "-std=c11",
-        "--coverage",
-        f"-DPLAYTEST_C_VER={ver}",
-        "src/playtest.c",
-        "tests/test_version.c",
-        "-I",
-        "include",
-        "-o",
-        str(out_bin),
-    ]
-    if run_cmd(compile_cmd, cwd=c_dir).returncode != 0:
-        return 1
-    if run_cmd([str(out_bin)], cwd=c_dir).returncode != 0:
-        return 1
-    return _capture_lcov(c_dir, "coverage/lcov.info")
-
-
-def _c_package(root: Path) -> int:
-    ver = _workspace_version(root)
-    archive = root / "c" / "dist" / f"playtest-c-{ver}.tar.gz"
-    _write_tarball(archive, root / "c", ("include", "src", "CMakeLists.txt", "conanfile.py"))
-    emit_line(f"[sdk-tasks] packaged {archive.relative_to(root)}")
-    return 0
+__all__ = ["ACTIONS", "main"]
 
 
 def _csharp_coverage(root: Path) -> int:
@@ -289,22 +59,20 @@ def _csharp_coverage(root: Path) -> int:
 
 
 def _csharp_package(root: Path) -> int:
-    ver = _workspace_version(root)
+    ver = workspace_version(root)
     cs_dir = root / "csharp"
     (cs_dir / "dist").mkdir(parents=True, exist_ok=True)
-    return run_cmd(
-        [
-            "dotnet",
-            "pack",
-            "src/Playtest/Playtest.csproj",
-            "-c",
-            "Release",
-            "-o",
-            "dist/",
-            f"-p:Version={ver}",
-        ],
-        cwd=cs_dir,
-    ).returncode
+    cmd = [
+        "dotnet",
+        "pack",
+        "src/Playtest/Playtest.csproj",
+        "-c",
+        "Release",
+        "-o",
+        "dist/",
+        f"-p:Version={ver}",
+    ]
+    return run_cmd(cmd, cwd=cs_dir).returncode
 
 
 def _go_fmt_check(root: Path) -> int:
@@ -315,9 +83,7 @@ def _go_fmt_check(root: Path) -> int:
     return 0
 
 
-def _go_package(root: Path) -> int:
-    ver = _workspace_version(root)
-    go_dir = root / "go"
+def _go_entries(go_dir: Path) -> list[str]:
     entries = [
         "VERSION",
         "go.mod",
@@ -330,8 +96,14 @@ def _go_package(root: Path) -> int:
             for p in sorted(cmd_dir.glob("*.go"))
             if not p.name.endswith("_test.go")
         )
+    return entries
+
+
+def _go_package(root: Path) -> int:
+    ver = workspace_version(root)
+    go_dir = root / "go"
     archive = go_dir / "dist" / f"playtest-go-{ver}.tar.gz"
-    _write_tarball(archive, go_dir, entries)
+    write_tarball(archive, go_dir, _go_entries(go_dir))
     emit_line(f"[sdk-tasks] packaged {archive.relative_to(root)}")
     return 0
 
@@ -357,7 +129,7 @@ def _py_build(root: Path) -> int:
 
 
 def _write_java_filtered_resources(java_dir: Path) -> None:
-    ver = _manifest_regex_version(java_dir / "pom.xml", POM_VER_RE)
+    ver = manifest_regex_version(java_dir / "pom.xml", POM_VER_RE)
     template = java_dir / "src/main/resources/io/github/archont561/playtest/version.properties"
     rendered = template.read_text(encoding="utf-8").replace("${project.version}", ver)
     out_prop = java_dir / "target/classes/io/github/archont561/playtest/version.properties"
@@ -365,70 +137,55 @@ def _write_java_filtered_resources(java_dir: Path) -> None:
     out_prop.write_text(rendered, encoding="utf-8")
 
 
+def _java_sources(java_dir: Path, sub: str) -> list[str]:
+    return [str(p.relative_to(java_dir)) for p in sorted((java_dir / sub).rglob("*.java"))]
+
+
 def _java_compile(root: Path) -> int:
     java_dir = root / "java"
-    main_out = java_dir / "target/classes"
-    test_out = java_dir / "target/test-classes"
-    main_out.mkdir(parents=True, exist_ok=True)
-    test_out.mkdir(parents=True, exist_ok=True)
+    (java_dir / "target/classes").mkdir(parents=True, exist_ok=True)
+    (java_dir / "target/test-classes").mkdir(parents=True, exist_ok=True)
     _write_java_filtered_resources(java_dir)
-    main_srcs = [
-        str(p.relative_to(java_dir)) for p in sorted((java_dir / "src/main/java").rglob("*.java"))
-    ]
-    if (
-        run_cmd(
-            ["javac", "-Xlint:all", "-d", "target/classes", *main_srcs], cwd=java_dir
-        ).returncode
-        != 0
-    ):
+    main_srcs = _java_sources(java_dir, "src/main/java")
+    main_cmd = ["javac", "-Xlint:all", "-d", "target/classes", *main_srcs]
+    if run_cmd(main_cmd, cwd=java_dir).returncode != 0:
         return 1
-    test_srcs = [
-        str(p.relative_to(java_dir)) for p in sorted((java_dir / "src/test/java").rglob("*.java"))
+    test_srcs = _java_sources(java_dir, "src/test/java")
+    test_cmd = ["javac", "-cp", "target/classes", "-d", "target/test-classes", *test_srcs]
+    return run_cmd(test_cmd, cwd=java_dir).returncode
+
+
+def _java_run(root: Path, main_class: str, *extra: str) -> int:
+    cmd = [
+        "java",
+        "-cp",
+        "target/classes:target/test-classes",
+        f"io.github.archont561.playtest.{main_class}",
+        *extra,
     ]
-    return run_cmd(
-        ["javac", "-cp", "target/classes", "-d", "target/test-classes", *test_srcs], cwd=java_dir
-    ).returncode
+    return run_cmd(cmd, cwd=root / "java").returncode
 
 
 def _java_test(root: Path) -> int:
     if _java_compile(root) != 0:
         return 1
-    return run_cmd(
-        [
-            "java",
-            "-cp",
-            "target/classes:target/test-classes",
-            "io.github.archont561.playtest.PlaytestTest",
-        ],
-        cwd=root / "java",
-    ).returncode
+    return _java_run(root, "PlaytestTest")
 
 
 def _java_coverage(root: Path) -> int:
     if _java_compile(root) != 0:
         return 1
-    return run_cmd(
-        [
-            "java",
-            "-cp",
-            "target/classes:target/test-classes",
-            "io.github.archont561.playtest.Cover2Lcov",
-            "coverage/lcov.info",
-        ],
-        cwd=root / "java",
-    ).returncode
+    return _java_run(root, "Cover2Lcov", "coverage/lcov.info")
 
 
 def _java_package(root: Path) -> int:
     if _java_compile(root) != 0:
         return 1
-    ver = _workspace_version(root)
+    ver = workspace_version(root)
     java_dir = root / "java"
     (java_dir / "dist").mkdir(parents=True, exist_ok=True)
-    return run_cmd(
-        ["jar", "cf", f"dist/playtest-{ver}.jar", "-C", "target/classes", "io"],
-        cwd=java_dir,
-    ).returncode
+    cmd = ["jar", "cf", f"dist/playtest-{ver}.jar", "-C", "target/classes", "io"]
+    return run_cmd(cmd, cwd=java_dir).returncode
 
 
 def _r_package(root: Path) -> int:
@@ -455,19 +212,14 @@ def _package_dependent_crates(root: Path, dependent_crates: Sequence[str]) -> in
         )
         if res.returncode == 0:
             continue
-        list_res = run_cmd(
-            ["cargo", "package", "-p", crate, "--list", "--allow-dirty", "--locked"],
-            cwd=root,
-        )
+        list_cmd = ["cargo", "package", "-p", crate, "--list", "--allow-dirty", "--locked"]
+        list_res = run_cmd(list_cmd, cwd=root)
         if list_res.returncode != 0:
             return list_res.returncode
     return 0
 
 
-def _rs_package(root: Path) -> int:
-    leaf_crates = ("playtest-macros", "playtest-core", "playtest-assets")
-    dependent_crates = ("playtest", "playtest-cli")
-    ver = _workspace_version(root)
+def _package_leaf_crates(root: Path, leaf_crates: Sequence[str]) -> int:
     try:
         stage_assets(root, build_generated=True)
         for crate in leaf_crates:
@@ -479,21 +231,30 @@ def _rs_package(root: Path) -> int:
                 return res.returncode
     finally:
         clean_staged_assets(root)
+    return 0
+
+
+def _rs_package(root: Path) -> int:
+    leaf_crates = ("playtest-macros", "playtest-core", "playtest-assets")
+    status = _package_leaf_crates(root, leaf_crates)
+    if status != 0:
+        return 1
+    ver = workspace_version(root)
     assets_crate = root / "target" / "package" / f"playtest-assets-{ver}.crate"
     if verify_packaged_playtest_assets(root, assets_crate) != 0:
         return 1
-    return _package_dependent_crates(root, dependent_crates)
+    return _package_dependent_crates(root, ("playtest", "playtest-cli"))
 
 
 ACTIONS: dict[str, Callable[[Path], int]] = {
-    "cpp-test": _cpp_build_and_test,
-    "cpp-lint": _cpp_lint,
-    "cpp-coverage": _cpp_coverage,
-    "cpp-package": _cpp_package,
-    "c-test": _c_build_and_test,
-    "c-lint": _c_lint,
-    "c-coverage": _c_coverage,
-    "c-package": _c_package,
+    "cpp-test": cpp_build_and_test,
+    "cpp-lint": cpp_lint,
+    "cpp-coverage": cpp_coverage,
+    "cpp-package": cpp_package,
+    "c-test": c_build_and_test,
+    "c-lint": c_lint,
+    "c-coverage": c_coverage,
+    "c-package": c_package,
     "csharp-coverage": _csharp_coverage,
     "csharp-package": _csharp_package,
     "go-fmt-check": _go_fmt_check,

@@ -214,7 +214,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/09/78/533ef890536e5ba0fd4f7df37482b5800ecaaceae9afc30978a1a7f88ff1/wcmatch-8.5.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/0a/24/0159c48d19c8b05e6969ee809bbbecc5a5c863f7e38c9327e2c63cb06f0f/face-26.0.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/16/92/d1e32e3e0d894fe00b15ce28ad4944ab692713f2e7f0a99787405e43533a/protobuf-6.33.6-cp39-abi3-manylinux2014_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/17/ee/02e1a36063b7d135086c474cd204c5ee8fda92f01ee4a90c27e2da127708/rude_clean_code-0.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/1a/41/19c65578ef9a54b3083253c68a607f099642747168fe00f3a2bceb7c3a34/peewee-3.19.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/1a/f1/b474e930c4d910328780e3940da76f5aa5cbc48ce1fc14e44d239d9ea9db/cryptography-50.0.2-cp311-abi3-manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/1d/6d/b26eb1e75395925b3a142ed351cbed2ec8212f5c9d937aee3df32c701baa/rpds_py-2026.9.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
@@ -233,6 +232,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/51/39/1f5d8c8877a0fa327db959c19341d4be61660de1ab6b7391f9eb805bcd67/pytest-9.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/53/75/47fe4c6c96f4f86d5cc992085c428f58ea88c9403e824a178d54977ce9cb/semgrep-1.150.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-musllinux_1_0_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/56/43/4ca9e49d27a1fcf6bece6f6aec0ea46bb9112489b93d4b688fb415457bdb/iniconfig-2.3.1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/57/50/a8c020dc7c6ef768b1daf4fbfb78ea23031dfda47728eb8e26f9b233506a/rude_clean_code-0.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/58/a2/bb081bab032533a855d44de1d56f8e8426114ff1ba5d1f07a438a0a654f8/idna-3.20-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5d/b8/7313212b29de570c25c9859d7c8e4ef2251a6d34338a1e20031d94297721/mypy-2.4.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/60/d1/38f3a3405989a89ac18390803e70c6ad7c7760da4f9b83cbeca0c44a0c72/python_dotenv-1.2.4-py3-none-any.whl
@@ -361,6 +361,8 @@ environments:
     channels:
     - url: https://prefix.dev/archont561/archont561/
     - url: https://conda.anaconda.org/conda-forge/
+    indexes:
+    - https://pypi.org/simple
     packages:
       linux-64:
       - conda: https://prefix.dev/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -464,6 +466,8 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/tzdata-2026e-h5d301ff_0.conda
       - conda: https://prefix.dev/conda-forge/noarch/urllib3-2.8.0-pyhd8ed1ab_0.conda
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.2-pyh5ded981_0.conda
+      - pypi: https://files.pythonhosted.org/packages/57/50/a8c020dc7c6ef768b1daf4fbfb78ea23031dfda47728eb8e26f9b233506a/rude_clean_code-0.3.1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/86/5d/e720b313a6c4af07f1908b7893f2a79bf006ea2abc88428225ebc20d41ec/rude-0.1a4-cp311-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
   r:
     channels:
     - url: https://prefix.dev/archont561/archont561/
@@ -3795,13 +3799,6 @@ packages:
   version: 6.33.6
   sha256: e9db7e292e0ab79dd108d7f1a94fe31601ce1ee3f7b79e0692043423020b0593
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/17/ee/02e1a36063b7d135086c474cd204c5ee8fda92f01ee4a90c27e2da127708/rude_clean_code-0.1.0-py3-none-any.whl
-  name: rude-clean-code
-  version: 0.1.0
-  sha256: 1bd6645d9801e932c6d96bd19462c08a3ef816bcfec78fbda04c44b3283a6f4e
-  requires_dist:
-  - rude>=0.1a4,<0.2
-  requires_python: '>=3.11'
 - pypi: https://files.pythonhosted.org/packages/1a/41/19c65578ef9a54b3083253c68a607f099642747168fe00f3a2bceb7c3a34/peewee-3.19.0-py3-none-any.whl
   name: peewee
   version: 3.19.0
@@ -4014,6 +4011,13 @@ packages:
   version: 2.3.1
   sha256: 9121e2c1fdb355232495be3194c8dfe87ccc2d5dee45947b78e68f499790d7a7
   requires_python: '>=3.10'
+- pypi: https://files.pythonhosted.org/packages/57/50/a8c020dc7c6ef768b1daf4fbfb78ea23031dfda47728eb8e26f9b233506a/rude_clean_code-0.3.1-py3-none-any.whl
+  name: rude-clean-code
+  version: 0.3.1
+  sha256: a1b2dcad757fa4bebdc466e428b28ec74357e01275880c0bcba5b4bc4676c11d
+  requires_dist:
+  - rude>=0.1a4,<0.2
+  requires_python: '>=3.11'
 - pypi: https://files.pythonhosted.org/packages/58/a2/bb081bab032533a855d44de1d56f8e8426114ff1ba5d1f07a438a0a654f8/idna-3.20-py3-none-any.whl
   name: idna
   version: '3.20'

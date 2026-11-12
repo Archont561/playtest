@@ -225,6 +225,15 @@ def test_stamp_all_updates_manifests_only_and_autodiscovers(tmp_path: Path) -> N
         "r": "0.4.2",
     }
     assert "cran@example.org" in (tmp_path / "r/DESCRIPTION").read_text(encoding="utf-8")
+    cargo_deps = (tmp_path / "Cargo.toml").read_text(encoding="utf-8")
+    for crate in (
+        "playtest",
+        "playtest-assets",
+        "playtest-cli",
+        "playtest-core",
+        "playtest-macros",
+    ):
+        assert f'{crate} = {{ path = "crates/{crate}", version = "0.4.2" }}' in cargo_deps
 
     for src_rel in (
         "python/src/playtest/__init__.py",
@@ -237,3 +246,10 @@ def test_stamp_all_updates_manifests_only_and_autodiscovers(tmp_path: Path) -> N
         "r/R/version.R",
     ):
         assert "0.4.2" not in (tmp_path / src_rel).read_text(encoding="utf-8")
+
+
+def test_release_workflow_wires_crates_oidc_trusted_publishing() -> None:
+    release_yml = (REPO_ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
+    assert "environment: crates" in release_yml
+    assert "uses: rust-lang/crates-io-auth-action@" in release_yml
+    assert "CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}" in release_yml

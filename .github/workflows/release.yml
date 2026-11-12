@@ -584,13 +584,16 @@ jobs:
           environments: default
           locked: true
           cache: true
-      - name: Stamp Rust workspace version
+      - name: Stamp unified release version across manifests
         env:
           RELEASE_TAG: ${{ needs.plan.outputs.tag_name }}
-        run: python3 -m automation.stamp_version rust "$RELEASE_TAG"
+        run: python3 -m automation.stamp_version all "$RELEASE_TAG"
       - name: Authenticate with crates.io via OIDC
+        id: auth
         uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
       - name: Publish 5 workspace crates in topological order
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
         run: pixi run --frozen publish-rs
 
   publish-pypi:

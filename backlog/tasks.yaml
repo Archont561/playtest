@@ -829,7 +829,9 @@ tasks:
   - id: task_050
     title: Five-crate workspace split
     description: "Split the Rust workspace into the five crates of Spec 0012 §1 (ADR 0015): add playtest-core, playtest-assets, and playtest-cli beside playtest and playtest-macros."
-    status: ready
+    # All in-repo criteria (1-5, 7) are complete; external crates.io reservation of
+    # playtest-core, playtest-assets, and playtest-cli (criterion 6) awaits maintainer login.
+    status: in_progress
     priority: P0
     milestone: M1-v0.1.0
     semver: "0.1.0"
@@ -848,7 +850,7 @@ tasks:
   - id: task_051
     title: Embed the SDK files in playtest-assets
     description: "Implement Spec 0012 §2: playtest-assets embeds the published files of every language SDK from the language directories, with no second copy in Git."
-    status: backlog
+    status: done
     priority: P0
     milestone: M1-v0.1.0
     semver: "0.1.0"
@@ -866,7 +868,7 @@ tasks:
   - id: task_052
     title: CLI binary with version, init, and the playtest.toml version pin
     description: "Deliver the first playtest binary on clifacet with the version and init commands and the version pin check of Spec 0013 §§1, 2, and 6 (ADR 0015, ADR 0017)."
-    status: backlog
+    status: ready
     priority: P0
     milestone: M1-v0.1.0
     semver: "0.1.0"

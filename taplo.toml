@@ -9,6 +9,7 @@ include = [
   ".cargo/audit.toml",
   "backlog/config.toml",
   "crates/*/Cargo.toml",
+  "crates/playtest-assets/assets_manifest.toml",
   "python/pyproject.toml",
 ]
 exclude = [

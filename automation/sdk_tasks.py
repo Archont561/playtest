@@ -12,6 +12,11 @@ from pathlib import Path
 
 from automation import REPO_ROOT
 from automation._proc import emit_err, emit_line, run_cmd
+from automation.stage_assets import (
+    clean_staged_assets,
+    stage_assets,
+    verify_packaged_playtest_assets,
+)
 
 
 def _workspace_version(root: Path) -> str:
@@ -292,7 +297,10 @@ def _go_fmt_check(root: Path) -> int:
 def _go_package(root: Path) -> int:
     ver = _workspace_version(root)
     go_dir = root / "go"
-    entries = ["go.mod", *[p.name for p in sorted(go_dir.glob("*.go"))]]
+    entries = [
+        "go.mod",
+        *[p.name for p in sorted(go_dir.glob("*.go")) if not p.name.endswith("_test.go")],
+    ]
     archive = go_dir / "dist" / f"playtest-go-{ver}.tar.gz"
     _write_tarball(archive, go_dir, entries)
     emit_line(f"[sdk-tasks] packaged {archive.relative_to(root)}")
@@ -379,16 +387,7 @@ def _r_package(root: Path) -> int:
     return 0
 
 
-def _rs_package(root: Path) -> int:
-    leaf_crates = ("playtest-macros", "playtest-core", "playtest-assets")
-    dependent_crates = ("playtest", "playtest-cli")
-    for crate in leaf_crates:
-        res = run_cmd(
-            ["cargo", "package", "-p", crate, "--no-verify", "--allow-dirty", "--locked"],
-            cwd=root,
-        )
-        if res.returncode != 0:
-            return res.returncode
+def _package_dependent_crates(root: Path, dependent_crates: Sequence[str]) -> int:
     for crate in dependent_crates:
         res = run_cmd(
             ["cargo", "package", "-p", crate, "--no-verify", "--allow-dirty", "--locked"],
@@ -404,6 +403,27 @@ def _rs_package(root: Path) -> int:
         if list_res.returncode != 0:
             return list_res.returncode
     return 0
+
+
+def _rs_package(root: Path) -> int:
+    leaf_crates = ("playtest-macros", "playtest-core", "playtest-assets")
+    dependent_crates = ("playtest", "playtest-cli")
+    ver = _workspace_version(root)
+    try:
+        stage_assets(root, build_generated=True)
+        for crate in leaf_crates:
+            res = run_cmd(
+                ["cargo", "package", "-p", crate, "--no-verify", "--allow-dirty", "--locked"],
+                cwd=root,
+            )
+            if res.returncode != 0:
+                return res.returncode
+    finally:
+        clean_staged_assets(root)
+    assets_crate = root / "target" / "package" / f"playtest-assets-{ver}.crate"
+    if verify_packaged_playtest_assets(root, assets_crate) != 0:
+        return 1
+    return _package_dependent_crates(root, dependent_crates)
 
 
 ACTIONS: dict[str, Callable[[Path], int]] = {

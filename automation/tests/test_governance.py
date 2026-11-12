@@ -10,7 +10,7 @@ import pytest
 from automation import REPO_ROOT
 from automation.advisory_exception import verify_advisory_exceptions
 from automation.merge_lcov import merge_lcov_files
-from automation.repo_check import check_repository
+from automation.repo_check import _check_crate_dependency_boundaries, check_repository
 from automation.rude_clean import WARNING_SUMMARY_RE
 
 
@@ -53,6 +53,20 @@ def test_merge_lcov_normalizes_paths_and_rejects_empty(tmp_path: Path) -> None:
 
 def test_real_repository_hygiene_passes() -> None:
     assert check_repository(REPO_ROOT, skip_shellcheck=True) == []
+
+
+def test_crate_dependency_boundary_rejects_transitive_cli_or_assets_leak(tmp_path: Path) -> None:
+    (tmp_path / "Cargo.lock").write_text(
+        "version = 4\n"
+        '[[package]]\nname = "playtest"\nversion = "0.1.0"\n'
+        'dependencies = ["playtest-core"]\n'
+        '[[package]]\nname = "playtest-core"\nversion = "0.1.0"\n'
+        'dependencies = ["clifacet 0.5.0"]\n',
+        encoding="utf-8",
+    )
+    errors = _check_crate_dependency_boundaries(tmp_path)
+    assert any("`playtest` depends on `clifacet`" in item for item in errors)
+    assert any("only `playtest-cli` may depend on `clifacet`" in item for item in errors)
 
 
 def test_automation_modules_obey_doit_print_and_shell_boundaries() -> None:

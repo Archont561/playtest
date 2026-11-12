@@ -3,6 +3,7 @@ target/
 **/target/
 **/*.rs.bk
 test_cov
+crates/playtest-assets/staged/
 
 # .NET & C#
 bin/

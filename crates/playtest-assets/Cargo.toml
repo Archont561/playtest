@@ -2,7 +2,7 @@
 name = "playtest-assets"
 version.workspace = true
 edition.workspace = true
-rust-version.workspace = true
+rust-version = "1.85"
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -11,13 +11,27 @@ readme.workspace = true
 description = "Embedded polyglot SDK source assets bundled into the Playtest CLI"
 keywords = ["playtest", "testing", "sdk", "assets"]
 categories.workspace = true
+include = [
+  "Cargo.toml",
+  "../../README.md",
+  "assets_manifest.toml",
+  "build.rs",
+  "src/**",
+  "staged/**",
+  "tests/**",
+]
 
 [dependencies]
 include_dir = { workspace = true }
 
+[build-dependencies]
+serde = { workspace = true }
+toml = { workspace = true }
+
 [dev-dependencies]
 rstest = { workspace = true }
 tempfile = { workspace = true }
+toml = { workspace = true }
 
 [lints]
 workspace = true

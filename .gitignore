@@ -32,8 +32,9 @@ __pycache__/
 *.tgz
 *.tar.gz
 
-# Pixi
+# Pixi & Sandbox
 .pixi/
+.pixi-sandbox/
 
 # IDE & OS
 .idea/

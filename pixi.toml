@@ -19,9 +19,7 @@ lefthook = ">=2.2.0,<3"
 taplo = ">=0.9.0,<1"
 pixi-sandbox = ">=0.9.0,<1"
 bun = ">=1.4.2,<1.5"
-pytest = ">=8.0.0,<10"
 ruff = ">=0.15.0,<1"
-mypy = ">=1.15.0,<3"
 vale = ">=3.0.0,<4"
 ast-grep = ">=0.51.0,<1"
 git = ">=2.40.0,<3"
@@ -30,6 +28,8 @@ git = ">=2.40.0,<3"
 alint = ">=0.22,<0.23"
 semgrep = "==1.150.0"
 doit = ">=0.37,<0.38"
+pytest = ">=8.0.0,<10"
+mypy = ">=1.15.0,<3"
 rude = "==0.1a4"
 rude-clean-code = "==0.1.0"
 
@@ -95,7 +95,7 @@ sdk-release = { cmd = "bun pm pack", cwd = "typescript", depends-on = [
 ] }
 
 [feature.cpp.dependencies]
-cxx-compiler = ">=1.7.0,<2"
+cxx-compiler = ">=1.7.0,<3"
 clang-format = ">=23.1.4,<24"
 lcov = ">=2.5,<3"
 cli11 = ">=2.7.2,<3"
@@ -114,7 +114,7 @@ sdk-package = { cmd = "python3 -m automation.sdk_tasks cpp-package", depends-on 
 sdk-release = { depends-on = ["sdk-package"] }
 
 [feature.c.dependencies]
-c-compiler = ">=1.7.0,<2"
+c-compiler = ">=1.7.0,<3"
 clang-format = ">=23.1.4,<24"
 lcov = ">=2.5,<3"
 
@@ -165,7 +165,7 @@ sdk-package = { cmd = "python3 -m automation.sdk_tasks go-package", depends-on =
 sdk-release = { depends-on = ["sdk-package"] }
 
 [feature.java.dependencies]
-openjdk = ">=21.0.0,<22"
+openjdk = ">=21.0.0,<26"
 
 [feature.java.tasks]
 sdk-build = "python3 -m automation.sdk_tasks java-compile"

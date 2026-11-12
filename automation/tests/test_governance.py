@@ -106,6 +106,25 @@ def test_clean_code_preset_configs_and_rude_warning_detector() -> None:
     assert WARNING_SUMMARY_RE.search("Found 0 error(s) and 0 warning(s)") is None
 
 
+def _copy_real_alint_base(dst_root: Path) -> Path:
+    for rel in (
+        "LICENSE",
+        "Cargo.toml",
+        "Cargo.lock",
+        "deny.toml",
+        ".cargo/audit.toml",
+        "pixi-sandbox.toml",
+        "vendor/clean-code-presets/UPSTREAM.pin",
+        "vendor/clean-code-presets/VENDOR.sha256",
+    ):
+        target = dst_root / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(REPO_ROOT / rel, target)
+    cfg = dst_root / ".alint.yml"
+    shutil.copy2(REPO_ROOT / ".alint.yml", cfg)
+    return cfg
+
+
 def test_scripts_directory_allows_only_restore_sh(tmp_path: Path) -> None:
     scripts_dir = tmp_path / "scripts"
     scripts_dir.mkdir(parents=True)
@@ -113,21 +132,21 @@ def test_scripts_directory_allows_only_restore_sh(tmp_path: Path) -> None:
     (scripts_dir / "extra.py").write_text("# forbidden\n", encoding="utf-8")
     errors = _check_required_and_forbidden(tmp_path)
     assert "unexpected file in scripts/ (use automation/): extra.py" in errors
-    if shutil.which("alint") is not None:
-        cfg = tmp_path / ".alint-scripts.yml"
-        cfg.write_text(
-            "version: 1\nrules:\n"
-            "  - id: forbid-non-restore-scripts\n"
-            "    kind: file_absent\n"
-            "    paths:\n"
-            "      - scripts/**\n"
-            '      - "!scripts/restore.sh"\n'
-            "    level: error\n"
-            "    message: Only restore.sh allowed.\n",
-            encoding="utf-8",
-        )
+    (scripts_dir / "extra.py").unlink()
+    if shutil.which("alint") is None:
+        return
+    cfg = _copy_real_alint_base(tmp_path)
+    assert (
+        run_cmd(["alint", "check", "--config", str(cfg), str(tmp_path)], capture=True).returncode
+        == 0
+    )
+    for bad_rel in ("extra.py", ".hidden", "nested/helper.py"):
+        bad_file = scripts_dir / bad_rel
+        bad_file.parent.mkdir(parents=True, exist_ok=True)
+        bad_file.write_text("# forbidden\n", encoding="utf-8")
         res = run_cmd(["alint", "check", "--config", str(cfg), str(tmp_path)], capture=True)
         assert res.returncode != 0
-        (scripts_dir / "extra.py").unlink()
-        ok_res = run_cmd(["alint", "check", "--config", str(cfg), str(tmp_path)], capture=True)
-        assert ok_res.returncode == 0
+        assert "forbid-non-restore-scripts" in (res.stdout + res.stderr)
+        bad_file.unlink()
+    if (scripts_dir / "nested").exists():
+        (scripts_dir / "nested").rmdir()

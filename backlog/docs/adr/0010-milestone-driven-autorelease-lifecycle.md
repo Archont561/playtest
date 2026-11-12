@@ -11,9 +11,9 @@ We established a milestone-driven release lifecycle connecting git milestone tag
 1. **Milestone Tag Convention**:
    - Pushing a tag matching `milestone-v<SEMVER>` or `milestone/v<SEMVER>` (e.g., `milestone-v0.2.0`) automatically triggers `.github/workflows/auto-release.yml`.
 2. **Automated Change & Scope Detection**:
-   - The workflow invokes `python scripts/detect_release.py`.
+   - The workflow invokes `python -m automation.release detect`.
    - If triggered by a milestone tag, the target SemVer version is bound directly to that milestone.
-   - If triggered by a regular push to `main`, `scripts/detect_release.py` inspects git diffs against the last release tag and queries `convco` to determine whether a general tag (`v*`) or package-scoped tag (`<scope>-v*`) is warranted.
+   - If triggered by a regular push to `main`, `automation/release.py` inspects git diffs against the last release tag and queries `convco` to determine whether a general tag (`v*`) or package-scoped tag (`<scope>-v*`) is warranted.
 3. **Automated Quality Gate & Tag Publication**:
    - Enforces formatting, linter, test, and package build checks.
    - Creates and pushes the clean release tag (`vX.Y.Z` or `<scope>-vX.Y.Z`), which in turn triggers `.github/workflows/release.yml` for remote publishing.

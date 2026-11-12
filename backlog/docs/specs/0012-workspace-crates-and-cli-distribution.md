@@ -160,7 +160,7 @@ Checked on 2026-11-11 against each registry's public index or API. "Owned by thi
 2. **Build in Phase 1.** Every artifact is built in Phase 1 from the release tag and stored as a workflow artifact. Publishing jobs upload and never compile ([ADR 0008](../adr/0008-two-phase-artifact-release-pipeline.md)). Which channels repackage one compiled binary and which compile the tag themselves is settled by `task_055` to `task_057`.
 3. **Order.** npm platform packages are published before the wrapper. The GitHub Release is published with its assets before the tag `go/vX.Y.Z` is pushed and before an R package version is submitted.
 4. **No wrapper without a binary.** No Go or R version is published without a binary release of the same version. A Go-only release tag has no such release today; `task_059` resolves this.
-5. **Automation rules.** Helpers are Python scripts under `scripts/` ([ADR 0009](../adr/0009-python-only-repo-automation.md)), and commands run through Pixi ([ADR 0005](../adr/0005-hermetic-pixi-and-nextest-toolchain.md)).
+5. **Automation rules.** Helpers are Python modules under `automation/` ([ADR 0009](../adr/0009-python-only-repo-automation.md); `scripts/` holds only `scripts/restore.sh`), and commands run through Pixi ([ADR 0005](../adr/0005-hermetic-pixi-and-nextest-toolchain.md)).
 6. **Platforms.** The Pixi workspace declares only `linux-64` today. The release build covers every platform of the matrix in §3.
 
 ## 9. Verification

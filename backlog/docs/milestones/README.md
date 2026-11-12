@@ -28,7 +28,7 @@ Milestone releases in Playtest are driven by git tag pushes and Conventional Com
 1. **Pushing a Milestone Tag**:
    Pushing a tag formatted as `milestone-v<SEMVER>` or `milestone/v<SEMVER>` (e.g. `git push origin milestone-v0.2.0`) triggers `.github/workflows/auto-release.yml`.
 2. **Auto-Release Execution**:
-   * Evaluates the milestone version target and inspects git history using `python scripts/detect_release.py`.
+   * Evaluates the milestone version target and inspects git history using `python -m automation.release detect`.
    * Enforces quality gates (`pixi run fmt-check`, `pixi run lint-all`, `pixi run test-all`).
    * Verifies local packaging dry-runs (`pixi run package-all`).
    * Cuts and pushes the formal release tag: `v0.2.0` for a general release, or a package-scoped tag such as `python-v0.2.0` or `go/v0.2.0` when only one target changed.

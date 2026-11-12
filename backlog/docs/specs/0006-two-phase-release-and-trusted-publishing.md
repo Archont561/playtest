@@ -44,7 +44,7 @@ Downstream publishing jobs download only their respective artifact via `actions/
    - Runs `npm publish *.tgz --provenance --access public` with `NODE_AUTH_TOKEN`.
 4. **Go (`publish-go`)**:
    - Permissions: `contents: write`
-   - Runs `python3 scripts/publish_go_module.py "$RELEASE_TAG"` from a checkout of the release tag.
+   - Runs `python3 -m automation.publish_go "$RELEASE_TAG"` from a checkout of the release tag.
    - Ensures the tag `go/vX.Y.Z` exists, creating it at the release commit for a general `vX.Y.Z` release. Go resolves a module in a repository subdirectory only from tags named `<subdirectory>/vX.Y.Z`. An existing `go/vX.Y.Z` on a different commit is accepted when its `go/` directory is identical (an earlier Go-only release already published that version) and fails the job otherwise; the tag is never moved.
    - Requests `https://proxy.golang.org/github.com/!archont561/playtest/go/@v/vX.Y.Z.info` to trigger indexing. Proxy URLs case-encode the module path (`A` becomes `!a`). A proxy that does not confirm the version produces a warning, not a failure.
 5. **Conan (`publish-conan`)**:

@@ -1101,6 +1101,22 @@ tasks:
       - "playtest sync --check covers every mirrored language"
     dependencies: [task_053]
 
+  - id: task_067
+    title: Solid Brotli (.tar.br) compression for embedded SDK assets in playtest-assets
+    description: "Implement ADR 0020 and Spec 0012 §2.9 once M2-M5 SDK sources cross the decoder footprint break-even: pack normalized SDK files into a deterministic solid .tar.br stream in build.rs using brotli (portable-float) and decode lazily once at runtime via brotli-decompressor and OnceLock."
+    status: backlog
+    priority: P1
+    milestone: M5-v0.5.0
+    semver: "0.5.0"
+    labels: [M5, core, assets, cli]
+    repo_targets: [playtest]
+    acceptance_criteria:
+      - "playtest-assets/build.rs packs normalized published SDK files in deterministic lexicographic order into $OUT_DIR/embedded_sdks.tar.br at Brotli quality 11 (lgwin 22, portable-float) using brotli and tar in [build-dependencies] only"
+      - "playtest-assets links only brotli-decompressor (and tar) in [dependencies], never the brotli encoder, keeping the encoder out of the playtest CLI binary"
+      - "OnceLock lazily decompresses and indexes the solid archive once on first access, preserving EmbeddedFile { path: &'static str, contents: &'static [u8] } and byte-for-byte parity with source files"
+      - "Cross-OS builds produce byte-identical .tar.br payloads, and packaged playtest-assets builds and passes all asset drift tests outside the repository"
+    dependencies: [task_051, task_061, task_062]
+
   # ============================================================================
   # Milestone M6 Addendum: Runner Neutrality & v1 Freeze Questions (v1.0.0)
   # ADR 0019 (Proposed); open questions of ADR 0015 and ADR 0018.

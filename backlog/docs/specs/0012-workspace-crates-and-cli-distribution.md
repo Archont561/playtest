@@ -18,9 +18,9 @@ Terms:
 | :--- | :--- | :--- | :--- | :--- |
 | `playtest` | library | `playtest-macros`, `playtest-core` | Rust SDK; the only crate test code declares | reserved |
 | `playtest-macros` | proc-macro | — | Macros re-exported by `playtest` | reserved |
-| `playtest-core` | library | — | Types shared by the Rust SDK and the CLI: report-protocol records ([Spec 0014](./0014-report-protocol-and-runner-orchestration.md)) and version constants | to reserve |
-| `playtest-assets` | library | — | Embedded SDK files (§2) | to reserve |
-| `playtest-cli` | binary `playtest` | `playtest-core`, `playtest-assets` | The CLI, built on `clifacet` | to reserve |
+| `playtest-core` | library | — | Types shared by the Rust SDK and the CLI: report-protocol records ([Spec 0014](./0014-report-protocol-and-runner-orchestration.md)) and version constants | reserved |
+| `playtest-assets` | library | — | Embedded SDK files (§2) | reserved |
+| `playtest-cli` | binary `playtest` | `playtest-core`, `playtest-assets` | The CLI, built on `clifacet` | reserved |
 
 Rules:
 
@@ -41,6 +41,7 @@ Rules:
 6. The crate exposes, per language, the embedded files with their relative paths, and the SDK version. That version equals the workspace version.
 7. A test fails when an embedded file differs from its source or when a listed file is missing.
 8. The crate embeds files, not installable artifacts. The CLI renders wheels, tarballs, and module directories from them when `playtest sync` runs ([Spec 0013 §3](./0013-workspace-configuration-and-sdk-mirrors.md)).
+9. **Solid Brotli compression at scale ([ADR 0020](../adr/0020-solid-brotli-compression-for-embedded-sdk-assets.md), `task_067`).** In M1 (`v0.1.0`), raw SDK stubs (~25 KB) stay uncompressed under `include_dir` while `brotli` (`9.1`, `features = ["portable-float"]`) and `brotli-decompressor` (`6.3`) are pre-locked in `Cargo.lock` and vendored into the offline sandbox. In M5 (`task_067`), `build.rs` switches to packing normalized SDK files into a deterministic solid `$OUT_DIR/embedded_sdks.tar.br` archive (`tar` + `brotli` quality `11` in `[build-dependencies]`) and `playtest-assets` lazily decodes it once via `brotli-decompressor` + `OnceLock` in `[dependencies]`, preserving `EmbeddedFile { path: &'static str, contents: &'static [u8] }`.
 
 ## 3. GitHub Release Artifacts
 

@@ -28,8 +28,9 @@ A record's Context, Decision, and Consequences are not rewritten after acceptanc
 | [0012](./0012-machine-consumable-and-extensible-cli-contract.md) | Machine-Consumable and Extensible CLI Contract | Proposed | 2026-10-25 |
 | [0013](./0013-scoped-browser-drop-and-ecosystem-integration-fixtures.md) | Scoped Browser Drop and Ecosystem Integration Fixtures | Proposed | 2026-10-25 |
 | [0014](./0014-v1-stability-boundary-and-fixture-extension-model.md) | v1 Stability Boundary and Fixture Extension Model | Proposed | 2026-10-25 |
-| [0015](./0015-cli-first-distribution-and-five-crate-workspace.md) | CLI-First Distribution with Embedded SDKs and a Five-Crate Workspace | Accepted | 2026-11-11 |
+| [0015](./0015-cli-first-distribution-and-five-crate-workspace.md) | CLI-First Distribution with Embedded SDKs and a Five-Crate Workspace | Accepted (amended by 0020) | 2026-11-11 |
 | [0016](./0016-cli-binary-distribution-channels.md) | Binary Distribution Channels for the CLI | Accepted | 2026-11-11 |
 | [0017](./0017-committed-sdk-mirrors-and-explicit-wiring.md) | Committed SDK Mirrors and Explicit Wiring | Accepted | 2026-11-11 |
 | [0018](./0018-sdk-reporters-and-report-protocol.md) | SDK Reporters and the Report Protocol | Accepted | 2026-11-11 |
 | [0019](./0019-runner-neutral-test-declaration-for-pure-runners.md) | Runner-Neutral Test Declaration for Post-v1 Pure Runners | Proposed | 2026-11-11 |
+| [0020](./0020-solid-brotli-compression-for-embedded-sdk-assets.md) | Solid Brotli Compression for Embedded SDK Assets | Accepted | 2026-11-11 |

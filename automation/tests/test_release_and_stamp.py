@@ -1,4 +1,4 @@
-"""Unit tests for release tag planning, milestone parsing, and unified version stamping."""
+"""Unit tests for release tag planning, milestone parsing, and manifest-only version stamping."""
 
 from __future__ import annotations
 
@@ -15,7 +15,11 @@ from automation.release import (
     plan_release_tag,
     validate_cran_tag,
 )
-from automation.stamp_version import extract_version_from_tag, stamp_target
+from automation.stamp_version import (
+    extract_version_from_tag,
+    read_manifest_versions,
+    stamp_target,
+)
 
 
 def test_parse_milestone_tags() -> None:
@@ -66,20 +70,25 @@ def test_validate_cran_tag_accepts_stable_and_rejects_prerelease() -> None:
 def _copy_stamp_fixture(dest: Path) -> None:
     rel_files = (
         "Cargo.toml",
+        "package.json",
         "python/pyproject.toml",
         "python/src/playtest/__init__.py",
         "typescript/package.json",
         "typescript/src/index.ts",
-        "cpp/conanfile.py",
         "cpp/CMakeLists.txt",
+        "cpp/conanfile.py",
         "cpp/include/playtest/playtest.hpp",
+        "c/CMakeLists.txt",
         "c/conanfile.py",
         "c/include/playtest/playtest.h",
+        "c/src/playtest.c",
         "csharp/src/Playtest/Playtest.csproj",
         "csharp/src/Playtest/Playtest.cs",
+        "go/VERSION",
         "go/playtest.go",
         "java/pom.xml",
         "java/src/main/java/io/github/archont561/playtest/Playtest.java",
+        "java/src/main/resources/io/github/archont561/playtest/version.properties",
         "r/DESCRIPTION",
         "r/R/version.R",
     )
@@ -89,29 +98,36 @@ def _copy_stamp_fixture(dest: Path) -> None:
         shutil.copy2(REPO_ROOT / rel, target)
 
 
-def test_stamp_all_updates_every_sdk_and_workspace_manifest(tmp_path: Path) -> None:
+def test_stamp_all_updates_manifests_only_and_autodiscovers(tmp_path: Path) -> None:
     _copy_stamp_fixture(tmp_path)
     stamped = stamp_target("all", "v0.4.2", root=tmp_path, author_email="cran@example.org")
     assert stamped == "0.4.2"
     assert extract_version_from_tag("go/v0.4.2") == "0.4.2"
-    assert 'version = "0.4.2"' in (tmp_path / "Cargo.toml").read_text(encoding="utf-8")
-    assert 'VERSION: str = "0.4.2"' in (tmp_path / "python/src/playtest/__init__.py").read_text(
-        encoding="utf-8"
-    )
-    assert '"version": "0.4.2"' in (tmp_path / "typescript/package.json").read_text(
-        encoding="utf-8"
-    )
-    assert 'VERSION = "0.4.2"' in (tmp_path / "cpp/include/playtest/playtest.hpp").read_text(
-        encoding="utf-8"
-    )
-    assert '#define PLAYTEST_VERSION "0.4.2"' in (
-        tmp_path / "c/include/playtest/playtest.h"
-    ).read_text(encoding="utf-8")
-    assert "<Version>0.4.2</Version>" in (
-        tmp_path / "csharp/src/Playtest/Playtest.csproj"
-    ).read_text(encoding="utf-8")
-    assert 'const Version = "0.4.2"' in (tmp_path / "go/playtest.go").read_text(encoding="utf-8")
-    assert "<version>0.4.2</version>" in (tmp_path / "java/pom.xml").read_text(encoding="utf-8")
-    r_desc = (tmp_path / "r/DESCRIPTION").read_text(encoding="utf-8")
-    assert "Version: 0.4.2" in r_desc
-    assert "cran@example.org" in r_desc
+
+    versions = read_manifest_versions(tmp_path)
+    assert versions == {
+        "rust": "0.4.2",
+        "root_package_json": "0.4.2",
+        "python": "0.4.2",
+        "typescript": "0.4.2",
+        "cpp": "0.4.2",
+        "c": "0.4.2",
+        "csharp": "0.4.2",
+        "go": "0.4.2",
+        "java": "0.4.2",
+        "r": "0.4.2",
+    }
+    assert "cran@example.org" in (tmp_path / "r/DESCRIPTION").read_text(encoding="utf-8")
+
+    # Verify source files were NOT mutated and contain no hardcoded stamped string.
+    for src_rel in (
+        "python/src/playtest/__init__.py",
+        "typescript/src/index.ts",
+        "cpp/include/playtest/playtest.hpp",
+        "c/include/playtest/playtest.h",
+        "csharp/src/Playtest/Playtest.cs",
+        "go/playtest.go",
+        "java/src/main/java/io/github/archont561/playtest/Playtest.java",
+        "r/R/version.R",
+    ):
+        assert "0.4.2" not in (tmp_path / src_rel).read_text(encoding="utf-8")

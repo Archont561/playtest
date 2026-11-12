@@ -6,6 +6,9 @@ import java.io.IOException;
 
 public class Cover2Lcov {
     public static void main(String[] args) throws IOException {
+        if (Playtest.VERSION.isEmpty()) {
+            throw new IllegalStateException("Playtest.VERSION must not be empty");
+        }
         String outputFile = args.length > 0 ? args[0] : "coverage/lcov.info";
         File out = new File(outputFile);
         if (out.getParentFile() != null) {

@@ -1,5 +1,13 @@
 // Package playtest provides Playwright-style testing fixtures and BDD scenarios.
 package playtest
 
-// Version of the playtest package.
-const Version = "0.1.0"
+import (
+	_ "embed"
+	"strings"
+)
+
+//go:embed VERSION
+var rawVersion string
+
+// Version of the playtest package, discovered from the embedded VERSION manifest.
+var Version = strings.TrimSpace(rawVersion)

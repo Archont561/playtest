@@ -9,6 +9,7 @@ target_include_directories(playtest INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
+target_compile_definitions(playtest INTERFACE PLAYTEST_CPP_VER=${PROJECT_VERSION})
 
 enable_testing()
 add_executable(test_version tests/test_version.cpp)

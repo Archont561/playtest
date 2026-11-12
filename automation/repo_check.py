@@ -18,6 +18,7 @@ from automation.stage_assets import (
     load_assets_manifest,
     validate_no_symlink_components,
 )
+from automation.stamp_version import read_manifest_versions
 
 REQUIRED_FILES: tuple[str, ...] = (
     "Cargo.toml",
@@ -42,6 +43,8 @@ REQUIRED_FILES: tuple[str, ...] = (
     "scripts/restore.sh",
     "automation/stage_assets.py",
     "crates/playtest-assets/assets_manifest.toml",
+    "go/VERSION",
+    "java/src/main/resources/io/github/archont561/playtest/version.properties",
     "vendor/clean-code-presets/UPSTREAM.pin",
     "vendor/clean-code-presets/VENDOR.sha256",
 )
@@ -210,12 +213,56 @@ def _check_restore_shell(root: Path, *, skip_shellcheck: bool) -> list[str]:
     return []
 
 
+SDK_AUTODISCOVERY_SOURCES: tuple[str, ...] = (
+    "crates/playtest/src/lib.rs",
+    "crates/playtest-core/src/lib.rs",
+    "crates/playtest-macros/src/lib.rs",
+    "crates/playtest-assets/src/lib.rs",
+    "crates/playtest-cli/src/lib.rs",
+    "python/src/playtest/__init__.py",
+    "typescript/src/index.ts",
+    "cpp/include/playtest/playtest.hpp",
+    "cpp/conanfile.py",
+    "c/include/playtest/playtest.h",
+    "c/conanfile.py",
+    "csharp/src/Playtest/Playtest.cs",
+    "go/playtest.go",
+    "java/src/main/java/io/github/archont561/playtest/Playtest.java",
+    "r/R/version.R",
+)
+
+
+def _check_manifest_versions_and_autodiscovery(root: Path) -> list[str]:
+    try:
+        versions = read_manifest_versions(root)
+    except (FileNotFoundError, KeyError, ValueError) as exc:
+        return [f"failed to read manifest versions: {exc}"]
+    canonical = versions["rust"]
+    errors: list[str] = []
+    for target, ver in sorted(versions.items()):
+        expected = canonical.split("-", 1)[0] if target == "r" else canonical
+        if ver != expected:
+            errors.append(
+                f"manifest version drift in `{target}`: expected {expected!r}, found {ver!r}"
+            )
+    quoted_ver = f'"{canonical}"'
+    for rel in SDK_AUTODISCOVERY_SOURCES:
+        src_path = root / rel
+        if src_path.is_file() and quoted_ver in src_path.read_text(encoding="utf-8"):
+            errors.append(
+                f"hardcoded version literal {quoted_ver} in {rel} "
+                "(derive VERSION from the module manifest instead)"
+            )
+    return errors
+
+
 def check_repository(root: Path = REPO_ROOT, *, skip_shellcheck: bool = False) -> list[str]:
     """Return all repository structure, vendor checksum, boundary, and BOM errors."""
     errors = _check_required_and_forbidden(root)
     errors.extend(_check_vendor_integrity(root))
     errors.extend(_check_crate_dependency_boundaries(root))
     errors.extend(_check_assets_manifest(root))
+    errors.extend(_check_manifest_versions_and_autodiscovery(root))
     errors.extend(_check_utf8_bom(root))
     errors.extend(_check_restore_shell(root, skip_shellcheck=skip_shellcheck))
     return errors

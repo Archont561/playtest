@@ -3,5 +3,7 @@
  * Playwright-style testing framework for TypeScript.
  */
 
-export const VERSION = "0.1.0";
+import pkg from "../package.json";
+
+export const VERSION: string = pkg.version;
 export default { VERSION };

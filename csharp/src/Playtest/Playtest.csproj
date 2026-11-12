@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Version>0.1.0</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <PackageId>Playtest</PackageId>
     <Authors>Archont561</Authors>
     <Description>Playwright-style testing framework for .NET with dependency-injected fixtures, strict LIFO teardown, property-based testing, and fluent BDD scenarios.</Description>

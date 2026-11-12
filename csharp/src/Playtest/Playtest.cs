@@ -1,3 +1,5 @@
+using System.Reflection;
+
 namespace Playtest;
 
 /// <summary>
@@ -6,9 +8,13 @@ namespace Playtest;
 public static class Playtest
 {
     /// <summary>
-    /// Current Playtest framework semantic version.
+    /// Current Playtest framework semantic version discovered from assembly metadata.
     /// </summary>
-    public const string Version = "0.1.0";
+    public static string Version { get; } =
+        typeof(Playtest).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion?.Split('+')[0]
+        ?? throw new InvalidOperationException("Missing AssemblyInformationalVersionAttribute.");
 
     /// <summary>
     /// Returns the semantic version of the framework.

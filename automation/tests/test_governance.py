@@ -14,6 +14,7 @@ from automation.advisory_exception import verify_advisory_exceptions
 from automation.merge_lcov import merge_lcov_files
 from automation.repo_check import (
     _check_crate_dependency_boundaries,
+    _check_manifest_versions_and_autodiscovery,
     _check_required_and_forbidden,
     check_repository,
 )
@@ -59,6 +60,24 @@ def test_merge_lcov_normalizes_paths_and_rejects_empty(tmp_path: Path) -> None:
 
 def test_real_repository_hygiene_passes() -> None:
     assert check_repository(REPO_ROOT, skip_shellcheck=True) == []
+
+
+def test_manifest_autodiscovery_check_detects_drift_and_hardcoded_source(tmp_path: Path) -> None:
+    from automation.tests.test_release_and_stamp import _copy_stamp_fixture
+
+    _copy_stamp_fixture(tmp_path)
+    assert _check_manifest_versions_and_autodiscovery(tmp_path) == []
+
+    (tmp_path / "go/VERSION").write_text("0.9.9\n", encoding="utf-8")
+    drift_errors = _check_manifest_versions_and_autodiscovery(tmp_path)
+    assert any("manifest version drift in `go`" in item for item in drift_errors)
+
+    (tmp_path / "go/VERSION").write_text("0.1.0\n", encoding="utf-8")
+    (tmp_path / "go/playtest.go").write_text(
+        'package playtest\nconst Version = "0.1.0"\n', encoding="utf-8"
+    )
+    hardcode_errors = _check_manifest_versions_and_autodiscovery(tmp_path)
+    assert any("hardcoded version literal" in item for item in hardcode_errors)
 
 
 def test_crate_dependency_boundary_rejects_transitive_cli_or_assets_leak(tmp_path: Path) -> None:

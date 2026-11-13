@@ -1,0 +1,74 @@
+# Conformance suites for the polyglot parity contract (Spec 0005 §1).
+#
+# This file is the machine-readable source of truth for task_023. It does not claim that
+# every target implements every capability: a suite declares one language target, the
+# capabilities it exercises, and the command that runs it. `automation.conformance` reads
+# this file and reports the resulting (capability x target) matrix, including the cells
+# nobody has claimed yet.
+#
+# A target absent from this file is "not implemented", never "passing". Adding a
+# [[suites]] entry is the only way to claim coverage, and the checker rejects an entry
+# that names an unknown capability or a language outside Spec 0005.
+
+schema_version = 1
+
+# Capabilities of Spec 0005 §1.1 and §1.4, which every target must eventually provide.
+# `optional` marks a capability that applies only where the language can express it, per
+# the gating rules in Spec 0005 §2; an optional capability does not make a target partial.
+
+[[capabilities]]
+id = "fixture_explicit_resolution"
+title = "Tests request the fixtures they use; unused fixtures are not constructed"
+spec = "0005 §1.1.1"
+optional = false
+
+[[capabilities]]
+id = "teardown_lifo"
+title = "Cleanup runs in strict reverse order of successful fixture creation"
+spec = "0005 §1.1.3"
+optional = false
+
+[[capabilities]]
+id = "teardown_failure_safety"
+title = "One failing cleanup never prevents the remaining cleanups"
+spec = "0005 §1.1.4"
+optional = false
+
+[[capabilities]]
+id = "skip_outcome_identified"
+title = "Skipping produces an explicit skipped outcome carrying a reason"
+spec = "0005 §1.4"
+optional = false
+
+[[capabilities]]
+id = "bdd_state_passthrough"
+title = "BDD steps pass state explicitly without hidden global state"
+spec = "0005 §1.2"
+optional = true
+
+[[capabilities]]
+id = "pbt_fresh_sample"
+title = "Each property-test sample gets a fresh per-test fixture lifecycle"
+spec = "0005 §1.1.5"
+optional = true
+
+[[suites]]
+lang = "rust"
+target = "cargo nextest"
+cwd = "."
+cmd = ["cargo", "nextest", "run", "-p", "playtest", "--all-features", "--locked", "--test", "conformance"]
+capabilities = ["fixture_explicit_resolution", "teardown_lifo", "teardown_failure_safety"]
+
+[[suites]]
+lang = "python"
+target = "pytest"
+cwd = "python"
+cmd = ["pytest", "tests/test_conformance.py", "-p", "no:cacheprovider", "-q"]
+capabilities = ["fixture_explicit_resolution", "teardown_lifo", "teardown_failure_safety"]
+
+[[suites]]
+lang = "typescript"
+target = "bun test"
+cwd = "typescript"
+cmd = ["bun", "test", "tests/conformance.test.ts"]
+capabilities = ["fixture_explicit_resolution", "teardown_lifo", "teardown_failure_safety"]

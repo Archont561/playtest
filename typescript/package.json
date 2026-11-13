@@ -33,7 +33,8 @@
 	"scripts": {
 		"build": "bunup",
 		"typecheck": "tsc --noEmit",
-		"test": "bun test"
+		"test": "bun test tests",
+		"test:runners": "vitest run --config vitest.config.mts && jest --config jest.config.mts"
 	},
 	"keywords": [
 		"testing",
@@ -53,8 +54,12 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.6.2",
+		"@swc/jest": "^0.2.39",
 		"@types/bun": "^1.4.4",
+		"@types/jest": "^30.0.0",
 		"bunup": "^0.16.32",
-		"typescript": "^6.0.3"
+		"jest": "^30.5.2",
+		"typescript": "^6.0.3",
+		"vitest": "^5.1.0"
 	}
 }

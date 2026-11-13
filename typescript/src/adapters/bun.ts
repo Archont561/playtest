@@ -17,13 +17,14 @@ import type { RunnerHooks } from "@/src/runner";
  * bun test as a runner description.
  *
  * bun's skip is `test.skip(label)`, a definition-time registration with no reason
- * parameter, so the reason is not carried into bun's own output. The Playtest `skip` call
- * still requires it, and the runner-agnostic core keeps it for reporters that ask.
+ * parameter. The reason is appended to the reported name, so it stays visible instead of
+ * being dropped: a skip nobody can explain is not actionable.
  */
 export const bunTest: RunnerHooks = {
 	name: "bun test",
 	test: (title, fn) => test(title, fn),
-	skip: (name) => test.skip(name),
+	skip: (name, reason) =>
+		test.skip(reason === undefined ? name : `${name}: ${reason}`),
 };
 
 /** Build a Playtest suite that runs on bun test. */

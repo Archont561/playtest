@@ -34,12 +34,12 @@ functions, so the same suite runs wherever those exist.
 | Runner | Status | Import |
 | :--- | :--- | :--- |
 | bun test | Verified in this repository's CI | `@archont561/playtest/adapters/bun` |
-| vitest | Documented, not yet verified in CI | `@archont561/playtest/adapters/vitest` |
-| jest | Documented, not yet verified in CI | `@archont561/playtest/adapters/jest` |
+| vitest | Verified in this repository's CI | `@archont561/playtest/adapters/vitest` |
+| jest | Verified in this repository's CI | `@archont561/playtest/adapters/jest` |
 
-"Documented" means the adapter's shape follows the runner's published API, but this
-repository does not install that runner, so nothing here exercises it. The fixture
-lifecycle underneath is shared with the bun adapter and is covered by tests.
+All three are installed as dev dependencies and exercised by the real runner in
+`tests/runners/`, which `sdk-test` runs. An adapter is not "supported" here until a real
+run of that runner passes.
 
 Another runner works without an adapter file, because a `RunnerHooks` value is just the
 functions:
@@ -80,6 +80,10 @@ Skipping is **definition-time**, matching `test_skip!` in the Rust macros: call 
 tests are declared. bun test and jest cannot skip a test that has already started, so a
 runtime skip is not part of the portable contract. vitest also offers `context.skip()`
 inside a body; use it directly in a vitest-only suite.
+
+None of the three runners has a parameter for a skip reason, so each adapter appends it to
+the reported name — `renders a scene: requires a GPU`. The alternative is dropping the
+reason, which leaves a skip nobody can act on.
 
 ## Status
 

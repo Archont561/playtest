@@ -205,6 +205,91 @@ async fn a_panicking_teardown_does_not_stop_the_remaining_hooks() {
     );
 }
 
+/// A fixture whose teardown panics with a `String` payload, not a `&str`.
+struct ExplodingWithString;
+
+impl AsyncFixture for ExplodingWithString {
+    type Output = ();
+
+    fn setup<'a>() -> playtest::BoxFuture<'a, (Self::Output, TeardownHook)> {
+        Box::pin(async {
+            let hook: TeardownHook = Box::new(|| {
+                let boxed: playtest::BoxFuture<'static, ()> = Box::pin(async {
+                    panic!("{}", String::from("owned payload"));
+                });
+                boxed
+            });
+            ((), hook)
+        })
+    }
+}
+
+/// A fixture whose teardown panics with a payload that is not a string at all.
+struct ExplodingWithOpaquePayload;
+
+impl AsyncFixture for ExplodingWithOpaquePayload {
+    type Output = ();
+
+    fn setup<'a>() -> playtest::BoxFuture<'a, (Self::Output, TeardownHook)> {
+        Box::pin(async {
+            let hook: TeardownHook = Box::new(|| {
+                let boxed: playtest::BoxFuture<'static, ()> =
+                    Box::pin(async { std::panic::panic_any(42_u8) });
+                boxed
+            });
+            ((), hook)
+        })
+    }
+}
+
+#[tokio::test]
+async fn a_string_panic_payload_is_reported_verbatim() {
+    let mut stack = FixtureStack::new();
+    stack.setup::<ExplodingWithString>().await;
+
+    let report = stack.teardown_all().await;
+
+    assert_eq!(report.failures, vec!["owned payload"]);
+}
+
+#[tokio::test]
+async fn a_non_string_panic_payload_gets_a_stable_description() {
+    let mut stack = FixtureStack::new();
+    stack.setup::<ExplodingWithOpaquePayload>().await;
+
+    let report = stack.teardown_all().await;
+
+    assert_eq!(
+        report.failures,
+        vec!["fixture teardown panicked with a non-string payload"]
+    );
+}
+
+#[tokio::test]
+async fn dropping_an_armed_handle_inside_a_runtime_spawns_its_teardown() {
+    // `Drop` cannot await, so an armed hook is spawned onto the ambient runtime. This is
+    // the fallback path; waiting for the recorded run proves the spawn actually happened.
+    let recorder = Recorder::new();
+    {
+        let handle = FixtureHandle::new((), recorder.hook_returning("dropped", ()));
+
+        drop(handle);
+    }
+
+    for _ in 0..100 {
+        if !recorder.seen().is_empty() {
+            break;
+        }
+        tokio::task::yield_now().await;
+    }
+
+    assert_eq!(
+        recorder.seen(),
+        vec!["dropped"],
+        "the armed hook was spawned on drop"
+    );
+}
+
 #[rstest]
 #[case(1)]
 #[case(4)]

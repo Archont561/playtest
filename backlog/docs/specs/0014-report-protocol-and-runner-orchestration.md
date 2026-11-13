@@ -63,10 +63,45 @@ Terms:
 
 Notes:
 
-- `playtest::run()` only calls testthat with the Playtest reporter. testthat remains the runner.
+- `playtest::run()` only calls testthat with the Playtest reporter. testthat remains the runner. The entry point does not exist yet — the package exports only `VERSION` and `install_cli` — so the R row's status values describe the `test_check()` call it will make. `test_check()` defaults to `stop_on_failure = TRUE`; `test_dir()` defaults to `FALSE` and would exit `0` on failures, so a bare `test_dir()` must not be used as the runner.
 - Bun's test hooks receive no test name and no result, so a preload alone cannot observe a plain Bun test.
 - nextest's machine-readable event stream is experimental, so the Rust row uses its JUnit output.
 - This table decides the exact command. The default commands in [Spec 0008 §1](./0008-cross-language-cli-and-toolchain-detection.md) name the runner that is detected.
+
+### 4.1 Runner Exit Statuses
+
+The raw exit status of a runner is an input to reconciliation (§6), not the verdict. The nine runners disagree on what a non-zero status means, and several of them report "nothing ran" as success. This table gives, per runner, the status for a test failure, for a build failure, for a toolchain that is not installed, and for a selection that ran no tests.
+
+| Language | Test failure | Build failure | Missing toolchain | No tests selected |
+| :--- | :--- | :--- | :--- | :--- |
+| Rust (nextest) | `100` | `101` | `127` (process not found) | `4` |
+| Python (pytest) | `1` | `1` (collection error is `2`) | `127` | `5` |
+| TypeScript (`bun test`) | `1` | `1` | `127` | `0` — **indistinguishable from success** |
+| Go (`go test`) | `1` | `1` | `127` | `0` — reported as `succeeded` with no tests |
+| C / C++ (CTest) | `8` | configure/build fails before CTest (`1`) | `127` | `0` |
+| C# (`dotnet test`) | `1` | `1` | `127` | `0` unless `TreatNoTestsAsError` is set |
+| Java (`mvn test`) | `1` | `1` | `127` | `0` |
+| Java (Gradle) | `1` | `1` | `127` | `0` |
+| R (`Rscript`) | `1` via `test_check()` | `1` | `127` | `0` — `test_dir()` defaults to `stop_on_failure = FALSE` |
+
+Verified by execution on 2026-11-11 for nextest `0.9.151` (`0` / `100` / `101`), pytest (`0` / `1` / collection error `2` / usage `4` / no tests `5`), and `bun test` (`0` / `1` / `0` with no test files). The CTest, `dotnet test`, Maven, Gradle, Go, and R rows are taken from their documentation and are re-verified when each integration is built. `127` is produced by the shell, not the runner, and is what a missing toolchain looks like when the command cannot be executed at all.
+
+Four findings drive the rules below:
+
+1. **`1` is overloaded.** For pytest, Go, bun, CTest's configure step, `dotnet test`, Maven, Gradle, and R, `1` covers both "tests failed" and "the build or collection failed". A build failure must not be reported as a test failure: the first means the code is broken, the second means an assertion did not hold.
+2. **`0` does not mean tests passed.** `bun test` exits `0` when the filter selects no test files, and `go test` exits `0` and prints `ok … [no test files]` for a package with none. Reading only the status would report an empty selection as a green run.
+3. **Missing toolchain is not a runner status.** A toolchain that is absent means the command never runs, so the operating system reports `127` (Unix) or `%ERRORLEVEL%` 9009 (Windows). Any other status came from a process that did start.
+4. **pytest reuses small integers.** `2` is an interrupted run and `4` is a command-line usage error, so neither may be read as a test failure even though `1` was. Only `1`, `5`, and `0` carry test-run meaning.
+
+Rules:
+
+- `100` from nextest is the only unambiguous test-failure status among the nine. Every other runner requires the evidence check below.
+- A target whose status is `0` **and** whose reporter and native report contain no executed test is never a pass. It resolves through §6: environment failure (exit status `3`), because the target produced no evidence. An explicit selection that the CLI's own planner already knows matches no test target is the usage error of [Spec 0008 §6](./0008-cross-language-cli-and-toolchain-detection.md) (exit status `2`) and is decided before the runner starts. This is what makes Bun's and Go's `0` safe.
+- A non-zero status other than the table's test-failure value is a build, configuration, or environment failure. It maps to exit status `3`, and the failure names the build rather than a test, unless the reporter recorded an `end` record for a test, in which case that test is reported as failing.
+- A `127` (or Windows `9009`) from the process table, or any failure to spawn at all, is a missing toolchain and maps to exit status `3` with the remediation `playtest doctor` would give. This satisfies the fail-loud requirement of [Spec 0008 §6](./0008-cross-language-cli-and-toolchain-detection.md).
+- When the status and the evidence disagree, §6 decides and the output shows both sources. The exit status alone never establishes a pass.
+
+No new exit codes are introduced: every case above resolves to one of the four codes in [Spec 0008 §7](./0008-cross-language-cli-and-toolchain-detection.md).
 
 ## 5. Orchestration Phases
 
@@ -78,10 +113,12 @@ Notes:
 
 ## 6. Reconciliation Rules
 
+The per-runner meaning of a raw exit status is in §4.1. These rules decide what happens when that status and the collected evidence describe different outcomes.
+
 | Observation | Result |
 | :--- | :--- |
 | A `start` with no matching `end` | The test crashed. It is reported as a failure of that test, with the runner's exit status. |
-| Exit status 0, no protocol records, and no native report | Environment failure (exit status 3). The target did not pass. |
+| Exit status 0, no protocol records, and no native report | Environment failure (exit status 3). The target did not pass, because a `0` alone does not prove tests ran (§4.1). |
 | A test is in the native report but not in the records | The test is taken from the native report and marked with that source in JSON output. |
 | No `hello` from any process of a target | The reporter did not load, so the SDK version was not checked. The prototype reported this as an environment failure even when a native report existed. Whether a workspace may contain a target that does not use the SDK is settled by `task_063`. |
 | The sources disagree in another way | The target is reported as failed, and the output shows each source. `task_063` details the cases. |

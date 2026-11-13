@@ -1,7 +1,9 @@
 # ADR 0012: Machine-Consumable and Extensible CLI Contract
 
 ## Status
-Proposed
+Accepted (2026-11-11). Parts 1 and 2 are in force; parts 3 to 5 are accepted as the
+target contract and land with the `playtest test` and `playtest doctor` commands in
+M5. See the Amendments section.
 
 ## Context
 
@@ -38,3 +40,32 @@ We make the CLI a programmable interface by contract, in five parts:
 ## Related Decisions
 
 **2026-11-11.** [ADR 0015](./0015-cli-first-distribution-and-five-crate-workspace.md), [ADR 0017](./0017-committed-sdk-mirrors-and-explicit-wiring.md), and [ADR 0018](./0018-sdk-reporters-and-report-protocol.md) use exit status `3` for three more environment failures: a `playtest.toml` version pin that the running binary does not match, an SDK whose version or protocol differs from the CLI's, and SDK mirrors that `playtest sync --check` finds out of date. Spec 0008 §7 lists them. The contract in this record is otherwise unchanged.
+
+## Amendments
+
+**2026-11-11 — accepted ahead of full implementation.** This record was proposed on
+2026-10-25 while the CLI did not yet exist. It is accepted now because `v0.1.0` ships the
+`playtest` binary, which already implements two of its five parts and reuses their exit
+statuses in `init` and `sync`. Shipping a release on top of a contract that is still
+marked "not yet decided" would freeze the behaviour in published artifacts before the
+record that defines it was ever accepted.
+
+Implementation status at acceptance, so the record does not overstate what ships in
+`v0.1.0`:
+
+1. **Exit-status contract — implemented.** `ExitStatus` in `playtest-core` defines `0`
+   pass, `1` test failure, `2` usage error, and `3` environment failure, and the binary
+   returns them.
+2. **Versioned machine output — implemented.** Every JSON document carries
+   `schema_version`, and machine modes do not prompt or colour.
+3. **Explicit selection fails loud — accepted, not implemented.** `--tier` and
+   `--skip-unavailable` arrive with `playtest test` (`task_036`). The grammar is fixed
+   here so the flag names are not invented later.
+4. **Extensible `doctor` probes — accepted, not implemented.** `playtest doctor` is
+   `task_025` and `task_037`; no `doctor` subcommand exists in `v0.1.0`.
+5. **Shipped consumer agent skill — accepted, not implemented.** `v0.1.0` ships the
+   repository's contributor skills, not a consumer-facing `playtest` skill.
+
+Parts 3 to 5 are therefore commitments about the shape of the M5 commands, not
+descriptions of `v0.1.0`. Nothing in parts 1 and 2 may be changed without a superseding
+record, because published binaries already emit them.

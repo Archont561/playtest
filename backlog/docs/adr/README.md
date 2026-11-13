@@ -25,7 +25,7 @@ A record's Context, Decision, and Consequences are not rewritten after acceptanc
 | [0009](./0009-python-only-repo-automation.md) | Python-Only Rule for Repository Automation | Accepted | 2026-10-23 |
 | [0010](./0010-milestone-driven-autorelease-lifecycle.md) | Milestone-Driven Auto-Release Lifecycle | Accepted (amended; scoped tags under review by 0015) | 2026-10-23 |
 | [0011](./0011-cross-language-cli-and-compatibility-architecture.md) | Cross-Language CLI & Toolchain Compatibility Architecture | Accepted (amended by 0015, 0018) | 2026-10-23 |
-| [0012](./0012-machine-consumable-and-extensible-cli-contract.md) | Machine-Consumable and Extensible CLI Contract | Proposed | 2026-10-25 |
+| [0012](./0012-machine-consumable-and-extensible-cli-contract.md) | Machine-Consumable and Extensible CLI Contract | Accepted (parts 1–2 in force) | 2026-10-25 |
 | [0013](./0013-scoped-browser-drop-and-ecosystem-integration-fixtures.md) | Scoped Browser Drop and Ecosystem Integration Fixtures | Proposed | 2026-10-25 |
 | [0014](./0014-v1-stability-boundary-and-fixture-extension-model.md) | v1 Stability Boundary and Fixture Extension Model | Proposed | 2026-10-25 |
 | [0015](./0015-cli-first-distribution-and-five-crate-workspace.md) | CLI-First Distribution with Embedded SDKs and a Five-Crate Workspace | Accepted (amended by 0020) | 2026-11-11 |

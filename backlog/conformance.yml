@@ -72,3 +72,10 @@ target = "bun test"
 cwd = "typescript"
 cmd = ["bun", "test", "tests/conformance.test.ts"]
 capabilities = ["fixture_explicit_resolution", "teardown_lifo", "teardown_failure_safety"]
+
+[[suites]]
+lang = "go"
+target = "go test"
+cwd = "go"
+cmd = ["go", "test", "-run", "^TestConformance", "-v", "."]
+capabilities = ["fixture_explicit_resolution", "teardown_lifo", "teardown_failure_safety"]

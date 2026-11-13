@@ -23,10 +23,35 @@ func main() {
 }
 ```
 
+## Fixtures
+
+```go
+func TestReadsConfig(t *testing.T) {
+	playtest.RunT(t, func(stack *playtest.FixtureStack) {
+		dir := playtest.Setup(stack, func() (string, playtest.TeardownFunc) {
+			path, err := os.MkdirTemp("", "playtest-")
+			if err != nil {
+				t.Fatal(err)
+			}
+			return path, func() { os.RemoveAll(path) }
+		})
+		// dir is removed after the test, even if an assertion below fails.
+		_ = dir
+	})
+}
+```
+
+Teardown is strict LIFO: fixtures are released in the reverse of the order they were
+resolved, and one failing cleanup does not prevent the others.
+
 ## Status
 
-This package currently exposes the version contract and is wired into the shared CLI's
-mirror and release pipeline. The fixture engine, code-first BDD, and property-based testing
-land through [Milestone M5](https://github.com/Archont561/playtest/blob/main/backlog/docs/milestones/M5-v0.5.0-polyglot-conformance.md).
+This package implements the fixture core of [Spec 0005 §1.1](https://github.com/Archont561/playtest/blob/main/backlog/docs/specs/0005-polyglot-1-to-1-fixture-and-bdd-parity.md):
+explicit resolution, strict LIFO teardown, and failure-safe teardown are implemented and
+covered by `conformance_test.go`, so the Go target claims those three capabilities in the
+cross-language parity matrix.
+
+Code-first BDD and property-based testing land through
+[Milestone M5](https://github.com/Archont561/playtest/blob/main/backlog/docs/milestones/M5-v0.5.0-polyglot-conformance.md).
 The README tracks the same contract as the other eight targets; it does not promise more
 than has shipped.

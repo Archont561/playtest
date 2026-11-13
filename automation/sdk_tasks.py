@@ -9,7 +9,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from automation import REPO_ROOT
-from automation._proc import emit_err, emit_line, run_cmd
+from automation._proc import CommandResult, emit_err, emit_line, run_cmd
 from automation._sdk_native import (
     c_build_and_test,
     c_coverage,
@@ -203,7 +203,25 @@ def _r_package(root: Path) -> int:
     return 0
 
 
+def _diagnostic(res: CommandResult) -> str:
+    """Return cargo's own explanation, never an empty string."""
+    return (res.stderr or res.stdout or "").strip() or "cargo produced no diagnostic"
+
+
+def _report_package_failure(crate: str, res: CommandResult) -> None:
+    """Explain why a leaf crate failed to pack, quoting cargo's diagnostic."""
+    emit_err(f"[sdk-package] ERROR: `cargo package -p {crate}` failed:\n{_diagnostic(res)}")
+
+
 def _package_dependent_crates(root: Path, dependent_crates: Sequence[str]) -> int:
+    """Pack the crates that depend on the leaves.
+
+    These crates cannot be packed before their workspace dependencies are published, so a
+    `cargo package` failure falls back to `cargo package --list`, which validates the file
+    set without resolving dependencies. Keep that fallback, but say so out loud: silently
+    returning the `--list` result made a failing packaging step indistinguishable from a
+    passing one, and a post-merge CI run failed with no visible reason.
+    """
     for crate in dependent_crates:
         res = run_cmd(
             ["cargo", "package", "-p", crate, "--no-verify", "--allow-dirty", "--locked"],
@@ -212,10 +230,17 @@ def _package_dependent_crates(root: Path, dependent_crates: Sequence[str]) -> in
         )
         if res.returncode == 0:
             continue
+        emit_line(
+            f"[sdk-package] NOTE: `{crate}` is not packable yet; "
+            f"validating its file set instead.\n{_diagnostic(res)}"
+        )
         list_cmd = ["cargo", "package", "-p", crate, "--list", "--allow-dirty", "--locked"]
-        list_res = run_cmd(list_cmd, cwd=root)
+        list_res = run_cmd(list_cmd, cwd=root, capture=True)
         if list_res.returncode != 0:
+            _report_package_failure(crate, list_res)
             return list_res.returncode
+        if listing := list_res.stdout.strip():
+            emit_line(listing)
     return 0
 
 
@@ -226,8 +251,10 @@ def _package_leaf_crates(root: Path, leaf_crates: Sequence[str]) -> int:
             res = run_cmd(
                 ["cargo", "package", "-p", crate, "--no-verify", "--allow-dirty", "--locked"],
                 cwd=root,
+                capture=True,
             )
             if res.returncode != 0:
+                _report_package_failure(crate, res)
                 return res.returncode
     finally:
         clean_staged_assets(root)

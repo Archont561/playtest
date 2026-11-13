@@ -1,3 +1,9 @@
+//
+// Playtest for C++: dependency-injected fixtures with strict LIFO teardown,
+// property-based testing, and code-first BDD sharing one contract across nine
+// language targets.
+//
+
 #pragma once
 
 #include <string_view>

@@ -1,6 +1,7 @@
 /**
  * @archont561/playtest
- * Playwright-style testing framework for TypeScript.
+ * Polyglot test framework with the batteries included: dependency-injected fixtures,
+ * strict LIFO teardown, property-based testing, and code-first BDD for TypeScript.
  */
 
 import { discoverVersion } from "@/src/version";

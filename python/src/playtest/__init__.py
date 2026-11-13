@@ -1,4 +1,6 @@
-"""playtest: A Playwright-inspired async testing framework for Python."""
+"""Polyglot test framework with the batteries included: dependency-injected fixtures,
+strict LIFO teardown, property-based testing, and code-first BDD for Python.
+"""
 
 from __future__ import annotations
 

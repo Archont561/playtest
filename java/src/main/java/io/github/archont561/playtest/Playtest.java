@@ -5,7 +5,9 @@ import java.io.InputStream;
 import java.util.Properties;
 
 /**
- * Playtest: Playwright-style testing framework for Java.
+ * Playtest for Java: dependency-injected fixtures with strict LIFO teardown,
+ * property-based testing, and code-first BDD sharing one contract across nine
+ * language targets.
  */
 public final class Playtest {
     public static final String VERSION = loadVersion();

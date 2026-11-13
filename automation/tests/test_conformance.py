@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from automation import conformance
+from automation import conformance, conformance_cli
 from automation._proc import CommandResult
 
 MANIFEST = """
@@ -180,11 +180,11 @@ def test_check_require_full_exits_nonzero_when_parity_is_missing(
     _write_manifest(tmp_path)
     monkeypatch.setattr(conformance, "run_cmd", _ok)
 
-    assert conformance.main(["--root", str(tmp_path), "check", "--require-full"]) == 1
+    assert conformance_cli.main(["--root", str(tmp_path), "check", "--require-full"]) == 1
 
 
 def test_check_reports_manifest_errors_as_usage_exit_code(tmp_path: Path) -> None:
-    assert conformance.main(["--root", str(tmp_path), "check"]) == 2
+    assert conformance_cli.main(["--root", str(tmp_path), "check"]) == 2
 
 
 def test_list_emits_schema_versioned_json(
@@ -193,9 +193,69 @@ def test_list_emits_schema_versioned_json(
     import json  # noqa: PLC0415 - only this test decodes JSON.
 
     _write_manifest(tmp_path)
-    assert conformance.main(["--root", str(tmp_path), "list"]) == 0
+    assert conformance_cli.main(["--root", str(tmp_path), "list"]) == 0
     document = json.loads(capsys.readouterr().out)
 
     assert document["schema_version"] == conformance.SCHEMA_VERSION
     assert [cap["id"] for cap in document["capabilities"]] == ["alpha", "beta"]
     assert document["suites"][0]["lang"] == "rust"
+
+
+def test_gate_passes_only_the_cells_that_ran(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A suite that passes and claims its capabilities is enough for the gate.
+
+    `unavailable` is allowed by design: a runner without the toolchain installed is a fact
+    about the machine, not a defect in the SDK.
+    """
+    _write_manifest(tmp_path)
+    monkeypatch.setattr(conformance, "run_suite", lambda *_a, **_k: conformance.PASS)
+
+    assert conformance_cli.main(["--root", str(tmp_path), "check", "--gate"]) == 0
+
+
+def test_gate_fails_when_a_claimed_capability_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failing suite must break the gate, otherwise it proves nothing in CI."""
+    _write_manifest(tmp_path)
+    monkeypatch.setattr(conformance, "run_suite", lambda *_a, **_k: conformance.FAIL)
+
+    assert conformance_cli.main(["--root", str(tmp_path), "check", "--gate"]) == 1
+
+
+def test_gate_rejects_an_unclaimed_required_capability_whose_suite_ran(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A claimed capability is allowed to report `not_implemented`; a claimed one is not.
+
+    The distinction the gate draws: a suite that ran and claims ``alpha`` but reports
+    ``not_implemented`` proves nothing about it, so the gate rejects the cell. A suite
+    that does not claim ``alpha`` at all is a different target's responsibility and is
+    reported by ``--require-full`` instead.
+    """
+    _write_manifest(tmp_path)
+    manifest = conformance.load_manifest(tmp_path)
+    rows = [
+        conformance.CellResult(capability="alpha", states={"rust": conformance.NOT_IMPLEMENTED})
+    ]
+
+    summary = conformance.summarize(manifest, rows)
+
+    assert summary["gate_rejected"] == ["rust/alpha=not_implemented"]
+
+
+def test_gate_allows_an_optional_capability_to_stay_unclaimed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`beta` is optional, so leaving it unclaimed is not a gate failure."""
+    _write_manifest(tmp_path)
+    monkeypatch.setattr(conformance, "run_cmd", _ok)
+
+    rows = conformance.build_matrix(conformance.load_manifest(tmp_path), root=tmp_path, run=_ok)
+    summary = conformance.summarize(conformance.load_manifest(tmp_path), rows)
+    rejected = summary["gate_rejected"]
+
+    assert isinstance(rejected, list)  # noqa: S101 - narrowing for the type checker.
+    assert not any("beta" in entry for entry in rejected)

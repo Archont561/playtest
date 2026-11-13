@@ -292,9 +292,33 @@ jobs:
           files: coverage/lcov.info
           fail_ci_if_error: false
 
+  conformance:
+    name: conformance
+    # The parity matrix is the only guard against an SDK drifting from the fixture
+    # contract, and it is only a guard if it runs unattended. It runs after the SDK lanes
+    # so a broken lane fails first with the more useful message; this job then re-runs the
+    # suites from the restored environments and turns any cell that failed or claims
+    # nothing into a red build.
+    needs: [scope, fast, sdk]
+    if: always() && needs.scope.result == 'success' && needs.fast.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up the default Pixi environment
+        uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          pixi-version: ${{ env.PIXI_VERSION }}
+          environments: default
+          locked: true
+          cache: true
+      - name: Run the cross-language conformance gate
+        run: pixi run --frozen conformance-gate
+
   gates:
     name: gates
-    needs: [scope, fast, rust, msrv-cli, mirrors-matrix, mirrors-compare, sdk, coverage]
+    needs: [scope, fast, rust, msrv-cli, mirrors-matrix, mirrors-compare, sdk, coverage, conformance]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5

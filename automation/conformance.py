@@ -9,8 +9,6 @@ target whose toolchain is absent is `unavailable` rather than `fail`. An unclaim
 
 from __future__ import annotations
 
-import argparse
-import json
 import shutil
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -32,6 +30,12 @@ PASS = "pass"
 FAIL = "fail"
 NOT_IMPLEMENTED = "not_implemented"
 UNAVAILABLE = "unavailable"
+
+# A cell must behave the same way in every environment: `pass` and `unavailable` are
+# legitimate outcomes (a toolchain is not installed on every runner), while `fail` is a
+# defect and `not_implemented` means the suite claims nothing, so a version running it
+# proves nothing. The CI gate rejects both.
+GATE_REJECTED: tuple[str, ...] = (FAIL, NOT_IMPLEMENTED)
 
 # Spec 0005 names these nine targets; a manifest entry for anything else is rejected.
 KNOWN_LANGS: tuple[str, ...] = (
@@ -278,120 +282,46 @@ def build_matrix(
 def summarize(manifest: Manifest, rows: Sequence[CellResult]) -> dict[str, object]:
     """Roll the matrix up into counts and the full-parity verdict."""
     required = [cap.id for cap in manifest.capabilities if not cap.optional]
+    claimed = {suite.lang: suite.capabilities for suite in manifest.suites}
     counts = {PASS: 0, FAIL: 0, NOT_IMPLEMENTED: 0, UNAVAILABLE: 0}
     blocking: list[str] = []
+    rejected: list[str] = []
     for row in rows:
         for lang, state in row.states.items():
             counts[state] = counts.get(state, 0) + 1
             if state != PASS and row.capability in required:
                 blocking.append(f"{lang}/{row.capability}={state}")
+            if state in GATE_REJECTED and row.capability in claimed.get(lang, ()):
+                rejected.append(f"{lang}/{row.capability}={state}")
     return {
         "schema_version": SCHEMA_VERSION,
         "counts": counts,
         "full_parity": not blocking,
         "blocking": blocking,
+        "gate_rejected": rejected,
         "targets": list(KNOWN_LANGS),
         "capabilities": [cap.id for cap in manifest.capabilities],
     }
 
 
-def _render_table(manifest: Manifest, rows: Sequence[CellResult]) -> None:
+def render_table(manifest: Manifest, rows: Sequence[CellResult]) -> str:
+    """Render the matrix as plain text, one line per capability."""
     marks = {PASS: "pass", FAIL: "FAIL", NOT_IMPLEMENTED: " -  ", UNAVAILABLE: "n/a "}
     header = "capability".ljust(32) + " ".join(lang[:4].rjust(4) for lang in KNOWN_LANGS)
-    emit_line(header)
+    lines = [header]
     for row in rows:
         cells = " ".join(marks[row.states[lang]].rjust(4) for lang in KNOWN_LANGS)
         optional = any(c.id == row.capability and c.optional for c in manifest.capabilities)
         suffix = " (optional)" if optional else ""
-        emit_line(row.capability.ljust(32) + cells + suffix)
-
-
-def _cmd_list(args: argparse.Namespace) -> int:
-    manifest = load_manifest(args.root)
-    document = {
-        "schema_version": SCHEMA_VERSION,
-        "capabilities": [
-            {
-                "id": cap.id,
-                "title": cap.title,
-                "spec": cap.spec,
-                "optional": cap.optional,
-            }
-            for cap in manifest.capabilities
-        ],
-        "suites": [
-            {
-                "lang": suite.lang,
-                "target": suite.target,
-                "cmd": list(suite.cmd),
-                "capabilities": list(suite.capabilities),
-            }
-            for suite in manifest.suites
-        ],
-    }
-    emit_line(json.dumps(document, indent=2, sort_keys=True))
-    return 0
-
-
-def _matrix_document(rows: Sequence[CellResult], summary: dict[str, object]) -> dict[str, object]:
-    """Build the versioned JSON document for `--format json`."""
-    return {
-        "schema_version": SCHEMA_VERSION,
-        "matrix": {row.capability: row.states for row in rows},
-        "counts": summary["counts"],
-        "full_parity": summary["full_parity"],
-        "blocking": summary["blocking"],
-    }
-
-
-def _cmd_check(args: argparse.Namespace) -> int:
-    manifest = load_manifest(args.root)
-    rows = build_matrix(manifest, root=args.root)
-    summary = summarize(manifest, rows)
-    if args.format == "json":
-        emit_line(json.dumps(_matrix_document(rows, summary), indent=2, sort_keys=True))
-    else:
-        _render_table(manifest, rows)
-        counts = summary["counts"]
-        assert isinstance(counts, dict)  # noqa: S101 - narrowing for the type checker.
-        emit_line(
-            f"pass={counts[PASS]} fail={counts[FAIL]} "
-            f"not_implemented={counts[NOT_IMPLEMENTED]} unavailable={counts[UNAVAILABLE]}"
-        )
-    if args.require_full and not summary["full_parity"]:
-        blocking = summary["blocking"]
-        assert isinstance(blocking, list)  # noqa: S101
-        emit_err(
-            f"[conformance] full parity is not reached: {len(blocking)} required cell(s) "
-            f"are not passing"
-        )
-        for entry in blocking[:20]:
-            emit_err(f"  - {entry}")
-        return 1
-    return 0
+        lines.append(row.capability.ljust(32) + cells + suffix)
+    return "\n".join(lines)
 
 
 def main(argv: Sequence[str] | None = None, root: Path = REPO_ROOT) -> int:
-    """Entry point for `python -m automation.conformance`."""
-    parser = argparse.ArgumentParser(prog="conformance")
-    parser.add_argument("--root", type=Path, default=root)
-    sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("list", help="print the manifest as JSON")
-    check = sub.add_parser("check", help="run the suites and print the matrix")
-    check.add_argument("--format", choices=("table", "json"), default="table")
-    check.add_argument(
-        "--require-full",
-        action="store_true",
-        help="exit 1 unless every required capability passes for every target",
-    )
-    args = parser.parse_args(argv)
-    try:
-        if args.command == "list":
-            return _cmd_list(args)
-        return _cmd_check(args)
-    except ManifestError as exc:
-        emit_err(f"[conformance] {exc}")
-        return 2
+    """Delegate to the command-line module that replaced this entry point."""
+    from automation.conformance_cli import main as cli_main  # noqa: PLC0415 - avoids a cycle.
+
+    return cli_main(argv, root)
 
 
 if __name__ == "__main__":  # pragma: no cover - module entry point.

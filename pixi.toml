@@ -336,11 +336,14 @@ test-go = "pixi run --frozen -e go sdk-test"
 test-java = "pixi run --frozen -e java sdk-test"
 test-r = "pixi run --frozen -e r sdk-test"
 
-conformance = { cmd = "python -m automation.conformance check", depends-on = [
+conformance = { cmd = "python -m automation.conformance_cli check", depends-on = [
   "build-ts-dist",
 ] }
-conformance-list = "python -m automation.conformance list"
-conformance-full = { cmd = "python -m automation.conformance check --require-full", depends-on = [
+conformance-list = "python -m automation.conformance_cli list"
+conformance-full = { cmd = "python -m automation.conformance_cli check --require-full", depends-on = [
+  "build-ts-dist",
+] }
+conformance-gate = { cmd = "python -m automation.conformance_cli check --gate", depends-on = [
   "build-ts-dist",
 ] }
 

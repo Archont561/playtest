@@ -12,7 +12,7 @@ are expressible in the Rust and TypeScript suites without sharing implementation
 from __future__ import annotations
 
 import pytest
-from playtest import FixtureStack, TeardownError
+from playtest import FixtureStack, TeardownError, TestFacade
 
 
 @pytest.fixture
@@ -100,3 +100,21 @@ def test_teardown_error_carries_the_failure_detail() -> None:
 
     error = TeardownError(report)
     assert "teardown exploded" in str(error), "the original cause survives into the message"
+
+
+def test_skip_outcome_identified() -> None:
+    """Skipping produces an explicit skipped outcome carrying a reason.
+
+    ``TestFacade.skip`` raises pytest's own skip signal rather than simulating one, so the
+    runner that owns the process reports the skip. The test therefore asserts the signal
+    itself: a skip must never be reported as a pass, and catching the signal is how the
+    outcome is observed instead of ending the test that proves it.
+    """
+    facade = TestFacade()
+
+    with pytest.raises(pytest.skip.Exception) as caught:
+        facade.skip("gpu rendering", reason="requires a GPU")
+
+    message = str(caught.value)
+    assert "gpu rendering" in message, "the skipped test's name survives into the signal"
+    assert "requires a GPU" in message, "the reason survives into the signal"

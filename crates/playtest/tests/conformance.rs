@@ -14,6 +14,7 @@ use std::sync::{Arc, Mutex};
 use futures::FutureExt;
 use playtest::VERSION;
 use playtest::fixture::{FixtureStack, TeardownHook, run_with_teardown};
+use playtest::skip::skipped_count;
 
 /// Records the order in which construction and teardown happen.
 type Trace = Arc<Mutex<Vec<String>>>;
@@ -140,4 +141,34 @@ async fn body_panic_still_tears_down() {
 #[test]
 fn version_is_non_empty() {
     assert!(!VERSION.is_empty());
+}
+
+/// `skip_outcome_identified`: skipping produces an explicit skipped outcome with a reason.
+///
+/// The record is what makes the skip observable. A skipped test that only printed nothing,
+/// or that returned early, would be indistinguishable from a passing one — the false green
+/// `Spec 0005 §1.4` forbids. The reason travels with the record so a reader can act on it.
+#[test]
+fn skip_outcome_identified() {
+    let before = skipped_count();
+    let skip = playtest::skip::record("gpu rendering", "requires a GPU");
+
+    assert!(skip.report_line().contains("gpu rendering"));
+    assert!(skip.report_line().contains("requires a GPU"));
+    assert_eq!(skip.test, "gpu rendering");
+    assert_eq!(skip.reason, "requires a GPU");
+    assert_eq!(
+        skipped_count(),
+        before + 1,
+        "the skip must be counted, not silently dropped"
+    );
+}
+
+/// A conditional skip decides from the runtime condition, and states why it decided.
+#[test]
+fn conditional_skip_reports_the_condition_it_observed() {
+    assert!(playtest::skip::should_skip(true));
+    assert!(!playtest::skip::should_skip(false));
+    assert!(!playtest::skip::condition_reason(true).is_empty());
+    assert!(!playtest::skip::condition_reason(false).is_empty());
 }

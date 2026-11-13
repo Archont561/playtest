@@ -57,25 +57,25 @@ lang = "rust"
 target = "cargo nextest"
 cwd = "."
 cmd = ["cargo", "nextest", "run", "-p", "playtest", "--all-features", "--locked", "--test", "conformance"]
-capabilities = ["fixture_explicit_resolution", "teardown_lifo", "teardown_failure_safety"]
+capabilities = ["fixture_explicit_resolution", "teardown_lifo", "teardown_failure_safety", "skip_outcome_identified"]
 
 [[suites]]
 lang = "python"
 target = "pytest"
 cwd = "python"
 cmd = ["pytest", "tests/test_conformance.py", "-p", "no:cacheprovider", "-q"]
-capabilities = ["fixture_explicit_resolution", "teardown_lifo", "teardown_failure_safety"]
+capabilities = ["fixture_explicit_resolution", "teardown_lifo", "teardown_failure_safety", "skip_outcome_identified"]
 
 [[suites]]
 lang = "typescript"
 target = "bun test"
 cwd = "typescript"
 cmd = ["bun", "test", "tests/conformance.test.ts"]
-capabilities = ["fixture_explicit_resolution", "teardown_lifo", "teardown_failure_safety"]
+capabilities = ["fixture_explicit_resolution", "teardown_lifo", "teardown_failure_safety", "skip_outcome_identified"]
 
 [[suites]]
 lang = "go"
 target = "go test"
 cwd = "go"
 cmd = ["go", "test", "-run", "^TestConformance", "-v", "."]
-capabilities = ["fixture_explicit_resolution", "teardown_lifo", "teardown_failure_safety"]
+capabilities = ["fixture_explicit_resolution", "teardown_lifo", "teardown_failure_safety", "skip_outcome_identified"]

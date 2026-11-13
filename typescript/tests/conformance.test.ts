@@ -11,7 +11,9 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { createSuite } from "@/src/facade";
 import { FixtureStack, TeardownError } from "@/src/index";
+import { MissingSkipError, type RunnerHooks } from "@/src/runner";
 
 function newTrace(): string[] {
 	return [];
@@ -108,5 +110,41 @@ describe("conformance: teardown_failure_safety", () => {
 
 		expect(error.message).toContain("teardown exploded");
 		expect(error.report.failures).toHaveLength(1);
+	});
+});
+
+describe("conformance: skip_outcome_identified", () => {
+	test("a skip is registered with the runner, carrying its reason", () => {
+		const skipped: string[] = [];
+		const runner: RunnerHooks = {
+			name: "conformance stub",
+			test: () => undefined,
+			skip: (name, reason) => skipped.push(`${name}: ${reason}`),
+		};
+		const suite = createSuite({}, runner);
+
+		suite.skip("gpu rendering", "requires a GPU");
+
+		expect(skipped).toEqual(["gpu rendering: requires a GPU"]);
+	});
+
+	test("a runner that cannot skip fails loudly instead of passing", () => {
+		// Reporting a skip as a pass would be a false green: the worst outcome for a test
+		// framework. The facade must refuse rather than silently do nothing.
+		const runner: RunnerHooks = {
+			name: "no-skip runner",
+			test: () => undefined,
+		};
+		const suite = createSuite({}, runner);
+
+		expect(() => suite.skip("gpu rendering", "requires a GPU")).toThrow(
+			MissingSkipError,
+		);
+		expect(() => suite.skip("gpu rendering", "requires a GPU")).toThrow(
+			/no-skip runner/,
+		);
+		expect(() => suite.skip("gpu rendering", "requires a GPU")).toThrow(
+			/requires a GPU/,
+		);
 	});
 });

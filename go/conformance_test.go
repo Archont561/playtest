@@ -147,3 +147,59 @@ func contains(trace []string, want string) bool {
 	}
 	return false
 }
+
+// skip_outcome_identified: skipping produces an explicit skipped outcome carrying a reason.
+//
+// The skip is recorded before the runner is asked to end the test, so the record is
+// observable even though `testing.T.Skip` unwinds the goroutine. This test uses a fake
+// Skipper rather than testing.T itself: calling `t.Skip` here would end the very test that
+// asserts the capability, reporting a skip where a pass is required.
+func TestConformanceSkipOutcomeIdentified(t *testing.T) {
+	runner := &stubSkipper{}
+
+	record := playtest.SkipNow(runner, "gpu rendering", "requires a GPU")
+
+	if !record.Skipped() {
+		t.Error("a skip record must report itself as skipped")
+	}
+	if record.Test != "gpu rendering" {
+		t.Errorf("recorded test name = %q, want %q", record.Test, "gpu rendering")
+	}
+	if record.Reason != "requires a GPU" {
+		t.Errorf("recorded reason = %q, want %q", record.Reason, "requires a GPU")
+	}
+	if want := "SKIPPED gpu rendering: requires a GPU"; record.ReportLine() != want {
+		t.Errorf("report line = %q, want %q", record.ReportLine(), want)
+	}
+	if !runner.called {
+		t.Error("the skip must be delegated to the runner so go test reports it")
+	}
+	if runner.arg != record.ReportLine() {
+		t.Errorf("runner received %q, want the report line %q", runner.arg, record.ReportLine())
+	}
+}
+
+// A condition that does not hold must record nothing and let the test continue.
+func TestConformanceSkipIfLeavesAFalseConditionAlone(t *testing.T) {
+	runner := &stubSkipper{}
+
+	if playtest.SkipIf(runner, false, "unix only", "requires a unix host") {
+		t.Error("a false condition must not skip")
+	}
+	if runner.called {
+		t.Error("no skip may be delegated when the condition does not hold")
+	}
+}
+
+// stubSkipper records the delegation instead of ending the test.
+type stubSkipper struct {
+	called bool
+	arg    string
+}
+
+func (s *stubSkipper) Skip(args ...any) {
+	s.called = true
+	if len(args) > 0 {
+		s.arg, _ = args[0].(string)
+	}
+}

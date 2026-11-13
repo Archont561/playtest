@@ -114,9 +114,9 @@ tasks:
     dependencies: [task_005]
 
   - id: task_008
-    title: TypeScript Playwright fixture runner wrapper
-    description: "Provide TypeScript test runner wrapper with destructured fixture dependency injection."
-    status: backlog
+    title: TypeScript runner-agnostic fixture runner
+    description: "Provide a runner-agnostic TypeScript fixture engine with destructured injection and adapters for bun test, vitest, and jest."
+    status: done
     priority: P0
     milestone: M2-v0.2.0
     semver: "0.2.0"
@@ -124,7 +124,8 @@ tasks:
     repo_targets: [playtest]
     acceptance_criteria:
       - "test('title', async ({ f1, f2 }) => { ... }) runner functional in bun test"
-      - Clean teardown lifecycle matching Playwright ergonomics
+      - Clean teardown lifecycle with injected fixture values and callback cleanup
+      - Runner seam keeps the core free of runner imports, so vitest and jest adapters plug in
     dependencies: [task_005]
 
   # ============================================================================

@@ -12,6 +12,9 @@ description = "Procedural macros and attributes for the playtest testing framewo
 keywords = ["playtest", "macros", "testing", "fixtures", "bdd"]
 categories.workspace = true
 
+[lib]
+proc-macro = true
+
 [dependencies]
 proc-macro2 = { workspace = true }
 quote = { workspace = true }

@@ -1,0 +1,7 @@
+error: `#[clifacet::command]` applies to a struct: the input bridge copies fields by name, and clap's subcommand enums have no fields to copy
+ --> tests/ui/command_on_enum.rs:2:1
+  |
+2 | / enum Cli {
+3 | |     Greet,
+4 | | }
+  | |_^

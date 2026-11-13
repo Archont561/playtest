@@ -1,0 +1,7 @@
+error: version! takes no arguments
+ --> tests/ui/version_with_arguments.rs:1:23
+  |
+1 | const VERSION: &str = clifacet_macros::version!(unexpected);
+  |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the macro `clifacet_macros::version` (in Nightly builds, run with -Z macro-backtrace for more info)

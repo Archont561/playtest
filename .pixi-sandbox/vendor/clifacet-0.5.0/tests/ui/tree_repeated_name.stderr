@@ -1,0 +1,5 @@
+error: `alias = "add"` answers to `add`, and so does `Add`: one name, one subcommand — rename one of them, or drop the alias
+ --> tests/ui/tree_repeated_name.rs:6:16
+  |
+6 |     #[clifacet(alias = "add")]
+  |                ^^^^^

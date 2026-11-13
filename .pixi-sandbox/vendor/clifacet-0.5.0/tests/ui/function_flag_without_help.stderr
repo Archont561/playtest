@@ -1,0 +1,5 @@
+error: `limit` is a flag, and a flag needs a description: a parameter cannot have a doc comment, so add `help = "…"` beside `long`
+ --> tests/ui/function_flag_without_help.rs:2:20
+  |
+2 | fn list(#[clifacet(long)] limit: Option<u32>) -> Result<u32, clifacet::Failure> {
+  |                    ^^^^

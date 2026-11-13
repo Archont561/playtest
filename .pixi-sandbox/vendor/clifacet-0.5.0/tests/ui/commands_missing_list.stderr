@@ -1,0 +1,5 @@
+error: `clifacet::commands!()` with no list reads the report its folder's `build.rs` wrote, and there is none: call `clifacet::build::commands()` from the build script, with clifacet's `build` feature enabled, or name the modules explicitly with `clifacet::commands!(list, show)`
+ --> tests/ui/commands_missing_list.rs:4:25
+  |
+4 |     clifacet::commands!(name = "app");
+  |                         ^^^^

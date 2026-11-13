@@ -1,0 +1,5 @@
+error: `ask` is a question for the generated collection, and this struct declares its own `collect = …`, which asks every question: ask it there, or drop `collect` and let the declarations ask
+ --> tests/ui/facet_collect_beside_ask.rs:8:22
+  |
+8 |     #[clifacet(long, ask = "Who?")]
+  |                      ^^^

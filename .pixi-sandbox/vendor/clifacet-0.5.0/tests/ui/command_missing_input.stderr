@@ -1,0 +1,8 @@
+error: `#[clifacet::command]` needs the typed input to build: add `#[clifacet::command(input = YourInputType)]`, and a `bridge = path` if the input normalizes on the way in
+ --> tests/ui/command_missing_input.rs:2:1
+  |
+2 | / struct Cli {
+3 | |     #[arg(long)]
+4 | |     name: Option<String>,
+5 | | }
+  | |_^

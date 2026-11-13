@@ -1,0 +1,5 @@
+error: a parameter is a name: the field is built by the parser, so a pattern here would have nothing to match
+ --> tests/ui/function_pattern.rs:2:9
+  |
+2 | fn pair((left, right): (u8, u8)) -> Result<u8, clifacet::Failure> {
+  |         ^^^^^^^^^^^^^

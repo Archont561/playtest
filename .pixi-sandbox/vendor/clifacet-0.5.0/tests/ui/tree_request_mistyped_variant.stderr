@@ -1,0 +1,11 @@
+error[E0308]: `?` operator has incompatible types
+ --> tests/ui/tree_request_mistyped_variant.rs:6:10
+  |
+3 | #[clifacet::subcommands(input = Request)]
+  | ----------------------------------------- in this attribute macro expansion
+...
+6 |     Done(Done),
+  |          ^^^^ expected `AddInput`, found `DoneInput`
+  |
+  = note: `?` operator cannot convert from `DoneInput` to `AddInput`
+  = note: this error originates in the attribute macro `clifacet::subcommands` (in Nightly builds, run with -Z macro-backtrace for more info)

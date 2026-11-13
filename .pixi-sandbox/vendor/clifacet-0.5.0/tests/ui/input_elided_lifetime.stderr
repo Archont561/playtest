@@ -1,0 +1,5 @@
+error: `input` needs every lifetime named: `'_` cannot appear in an associated type; declare a lifetime on the command struct or use `'static`
+ --> tests/ui/input_elided_lifetime.rs:3:38
+  |
+3 | #[clifacet::command(input = Greeting<'_>)]
+  |                                      ^^

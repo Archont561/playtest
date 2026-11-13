@@ -1,0 +1,5 @@
+error: `form` needs a named option — `long` or `short` — because the form submits each answer as that flag's value; a positional argument cannot be a form field
+ --> tests/ui/field_form_positional.rs:5:37
+  |
+5 |     #[clifacet(value_name = "NAME", form)]
+  |                                     ^^^^

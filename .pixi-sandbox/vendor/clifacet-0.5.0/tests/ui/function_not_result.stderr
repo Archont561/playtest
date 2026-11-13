@@ -1,0 +1,5 @@
+error: a function command returns `Result<Output, ::clifacet::Failure>`: the output is what the application renders, and the failure is what the runner reports
+ --> tests/ui/function_not_result.rs:2:61
+  |
+2 | fn ping(#[clifacet(long, help = "Say more")] loud: bool) -> String {
+  |                                                             ^^^^^^

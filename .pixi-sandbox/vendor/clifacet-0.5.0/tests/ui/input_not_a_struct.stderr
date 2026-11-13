@@ -1,0 +1,5 @@
+error: without `bridge = path`, the generated bridge builds the input field by field, so `input` has to name a struct; declare `bridge = path` to build this type yourself
+ --> tests/ui/input_not_a_struct.rs:3:29
+  |
+3 | #[clifacet::command(input = (String, u8))]
+  |                             ^^^^^^^^^^^^

@@ -1,0 +1,5 @@
+error: `input` cannot mention `Self`: the generated impls are for the command struct, so `Self` would be the command or the input itself; name the type directly
+ --> tests/ui/input_names_self.rs:3:29
+  |
+3 | #[clifacet::command(input = Self::Input)]
+  |                             ^^^^

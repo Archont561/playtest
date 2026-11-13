@@ -1,0 +1,5 @@
+error: `input` names the one type `validate` returns, so `impl Trait` cannot stand for it: write the concrete type
+ --> tests/ui/input_impl_trait.rs:3:29
+  |
+3 | #[clifacet::command(input = impl Iterator<Item = u8>, bridge = build)]
+  |                             ^^^^^^^^^^^^^^^^^^^^^^^^

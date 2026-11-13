@@ -1,0 +1,5 @@
+error: `long` is declared twice on this field; one key, one meaning — merge the two declarations
+ --> tests/ui/field_attribute_repeated_key.rs:6:22
+  |
+6 |     #[clifacet(long, long = "other")]
+  |                      ^^^^

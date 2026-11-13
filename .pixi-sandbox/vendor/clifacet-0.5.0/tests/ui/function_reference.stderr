@@ -1,0 +1,5 @@
+error: a reference is not input: clap builds the value from the argument, and a borrowed value would have nothing to borrow. Take it by value, or — for the application's context — name the parameter `cx` and put it last
+ --> tests/ui/function_reference.rs:2:16
+  |
+2 | fn greet(name: &str) -> Result<String, clifacet::Failure> {
+  |                ^^^^

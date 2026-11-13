@@ -1,0 +1,9 @@
+error[E0119]: conflicting implementations of trait `Handler<Store>` for type `Add`
+  --> tests/ui/handler_beside_command.rs:17:1
+   |
+17 | impl Handler<Store> for Add {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: conflicting implementation in crate `clifacet`:
+           - impl<C, Cx> Handler<Cx> for C
+             where C: clifacet::Command, Cx: ?Sized;

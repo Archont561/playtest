@@ -1,0 +1,5 @@
+error: `about` is not a variant key of `#[clifacet(..)]`; supported: `alias = "…"`, `name = "…"`, `visible_alias = "…"`, `hide`. Any other clap key stays available as a raw `#[command(..)]` on the variant
+ --> tests/ui/tree_variant_unknown_key.rs:5:16
+  |
+5 |     #[clifacet(about = "Add a task")]
+  |                ^^^^^

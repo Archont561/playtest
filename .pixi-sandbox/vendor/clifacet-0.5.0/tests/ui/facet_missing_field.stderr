@@ -1,0 +1,7 @@
+error[E0560]: struct `Greeting` has no field named `repeat`
+  --> tests/ui/facet_missing_field.rs:10:5
+   |
+10 |     repeat: u8,
+   |     ^^^^^^ `Greeting` does not have this field
+   |
+   = note: all struct fields are already assigned

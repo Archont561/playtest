@@ -1,0 +1,7 @@
+error: `context` and `planned` cannot both be declared: with a context the tree previews through each leaf's own `Handler::preview`, so `planned` has nothing to add — drop it
+ --> tests/ui/commands_planned_with_context.rs:4:5
+  |
+4 |     clifacet::commands!(greet, planned, context = Store);
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the macro `$crate::__commands` which comes from the expansion of the macro `clifacet::commands` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -1,0 +1,5 @@
+error: `form` on a list would cut it to one value, because a form field submits one answer: collect a list with `Session::collect_values` instead
+ --> tests/ui/field_form_list.rs:5:22
+  |
+5 |     #[clifacet(long, form)]
+  |                      ^^^^

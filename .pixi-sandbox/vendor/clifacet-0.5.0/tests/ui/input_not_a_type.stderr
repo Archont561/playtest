@@ -1,0 +1,5 @@
+error: `input` takes a type, for example `input = my_module::MyInput`
+ --> tests/ui/input_not_a_type.rs:3:29
+  |
+3 | #[clifacet::command(input = 1 + 2)]
+  |                             ^

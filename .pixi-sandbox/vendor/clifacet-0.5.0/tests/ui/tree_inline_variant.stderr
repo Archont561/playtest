@@ -1,0 +1,5 @@
+error: `Add` declares its arguments inline, so it has no struct to validate them or to run: write a leaf struct instead: `Add(Add)`, with `#[clifacet::command(input = AddInput)] struct Add { … }`
+ --> tests/ui/tree_inline_variant.rs:5:5
+  |
+5 |     Add { title: String },
+  |     ^^^^^^^^^^^^^^^^^^^^^

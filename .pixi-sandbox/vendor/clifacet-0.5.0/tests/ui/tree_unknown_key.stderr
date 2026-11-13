@@ -1,0 +1,5 @@
+error: `dispatch` is not a key of `#[clifacet::subcommands(..)]`; supported keys: `input = Type`, `output = Type`, `planned`, `context = Type`
+ --> tests/ui/tree_unknown_key.rs:3:42
+  |
+3 | #[clifacet::subcommands(input = Request, dispatch = auto)]
+  |                                          ^^^^^^^^

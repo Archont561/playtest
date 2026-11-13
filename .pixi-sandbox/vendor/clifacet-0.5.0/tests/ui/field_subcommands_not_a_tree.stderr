@@ -1,0 +1,35 @@
+error[E0277]: `subcommands` needs a command tree, and `Commands` is not one
+  --> tests/ui/field_subcommands_not_a_tree.rs:5:16
+   |
+ 5 |     #[clifacet(subcommands)]
+   |                ^^^^^^^^^^^ declared on this field
+   |
+help: the trait `clifacet::facet::__derive::Tree` is not implemented for `Commands`
+  --> tests/ui/field_subcommands_not_a_tree.rs:14:1
+   |
+14 | enum Commands {
+   | ^^^^^^^^^^^^^
+   = note: declare the enum with `#[clifacet::subcommands(input = YourRequest)]`, one leaf struct per variant; the field may be the tree or an `Option` of it
+note: required by a bound in `clifacet::facet::__derive::tree`
+  --> src/facet.rs
+   |
+   |     pub fn tree<T: Tree>(tree: T) -> Result<T::Input, Failure> {
+   |                    ^^^^ required by this bound in `tree`
+
+error[E0277]: `subcommands` needs a command tree, and `Commands` is not one
+  --> tests/ui/field_subcommands_not_a_tree.rs:5:16
+   |
+ 5 |     #[clifacet(subcommands)]
+   |                ^^^^^^^^^^^ declared on this field
+   |
+help: the trait `clifacet::facet::__derive::Tree` is not implemented for `Commands`
+  --> tests/ui/field_subcommands_not_a_tree.rs:14:1
+   |
+14 | enum Commands {
+   | ^^^^^^^^^^^^^
+   = note: declare the enum with `#[clifacet::subcommands(input = YourRequest)]`, one leaf struct per variant; the field may be the tree or an `Option` of it
+note: required by a bound in `clifacet::facet::__derive::collect_tree`
+  --> src/facet.rs
+   |
+   |     pub fn collect_tree<T: Tree>(
+   |                            ^^^^ required by this bound in `collect_tree`

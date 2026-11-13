@@ -1,0 +1,5 @@
+error: `#[clifacet(context)]` marks the application's context, which the function borrows: the type is `&Cx`, not a value clap would have to build
+ --> tests/ui/function_context_marked.rs:6:36
+  |
+6 | fn add(#[clifacet(context)] store: String) -> Result<(), clifacet::Failure> {
+  |                                    ^^^^^^

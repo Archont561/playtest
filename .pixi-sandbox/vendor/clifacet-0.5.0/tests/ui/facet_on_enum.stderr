@@ -1,0 +1,8 @@
+error: the Facet derive bridges a clap command struct to typed input; enums and unions are not supported
+ --> tests/ui/facet_on_enum.rs:2:1
+  |
+2 | / #[facet(input = Greeting)]
+3 | | enum Cli {
+4 | |     Run,
+5 | | }
+  | |_^

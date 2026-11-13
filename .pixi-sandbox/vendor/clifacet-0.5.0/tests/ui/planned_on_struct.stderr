@@ -1,0 +1,5 @@
+error: `#[clifacet::planned]` goes on an `impl PlannedWith<Context> for Command` block, and adds the `Handler<Context>` that executes its plan; a planned command without a context implements `Planned` and needs no attribute
+ --> tests/ui/planned_on_struct.rs:3:1
+  |
+3 | struct Add;
+  | ^^^^^^

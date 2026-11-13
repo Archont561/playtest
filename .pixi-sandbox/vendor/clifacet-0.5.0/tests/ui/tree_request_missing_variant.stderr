@@ -1,0 +1,8 @@
+error[E0599]: no variant, associated function, or constant named `Done` found for enum `Request` in the current scope
+ --> tests/ui/tree_request_missing_variant.rs:6:5
+  |
+6 |     Done(Done),
+  |     ^^^^ variant, associated function, or constant not found in `Request`
+...
+9 | enum Request {
+  | ------------ variant, associated function, or constant `Done` not found for this enum

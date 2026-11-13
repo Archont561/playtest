@@ -1,0 +1,5 @@
+error: `greet` is listed twice; one module, one command — drop the second
+ --> tests/ui/commands_duplicate.rs:4:32
+  |
+4 |     clifacet::commands!(greet, greet);
+  |                                ^^^^^

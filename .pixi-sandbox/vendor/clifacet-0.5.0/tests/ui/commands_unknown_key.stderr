@@ -1,0 +1,5 @@
+error: `discover` is not a key of `clifacet::commands!(..)`; supported keys: `globals = Type`, `output = Type`, `context = Type`, `planned`, `name = "…"`, `about = "…"`, `long_about = "…"`, `version_off`, `root = { "field": Type }`, `request = Ident`
+ --> tests/ui/commands_unknown_key.rs:4:32
+  |
+4 |     clifacet::commands!(greet, discover = auto);
+  |                                ^^^^^^^^

@@ -1,0 +1,5 @@
+error: `ask` needs a named option — `long` or `short` — because the answer is parsed as that flag's value; a positional argument cannot be asked for
+ --> tests/ui/field_ask_positional.rs:5:37
+  |
+5 |     #[clifacet(value_name = "NAME", ask = "Who?")]
+  |                                     ^^^

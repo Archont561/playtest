@@ -1,0 +1,5 @@
+error: `bridge` is not a key of `#[clifacet::command]` on a function; the parameters are the declaration, and only `input`, `check` and `collect` describe the types and rules beside them
+ --> tests/ui/function_bridge_key.rs:1:21
+  |
+1 | #[clifacet::command(bridge = build)]
+  |                     ^^^^^^^^^^^^^^

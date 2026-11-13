@@ -1,0 +1,8 @@
+error: the Facet derive needs the typed input to build: add `#[facet(input = YourInputType)]`
+ --> tests/ui/facet_missing_input.rs:2:1
+  |
+2 | / struct Cli {
+3 | |     #[arg(long)]
+4 | |     name: Option<String>,
+5 | | }
+  | |_^

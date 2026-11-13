@@ -1,0 +1,33 @@
+error[E0432]: unresolved import `broken::Broken`
+  --> tests/ui/commands_module_without_struct.rs:12:5
+   |
+12 |     clifacet::commands!(broken);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `Broken` in `commands::broken`
+   |
+   = note: this error originates in the macro `$crate::__commands` which comes from the expansion of the macro `clifacet::commands` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider importing one of these variants instead
+  --> src/lib.rs
+   |
+    -         $crate::__commands!($($tokens)*);
+    +         crate::commands::Commands::Broken;
+    |
+    -         $crate::__commands!($($tokens)*);
+    +         crate::commands::Request::Broken;
+    |
+
+error[E0425]: cannot find type `Broken` in module `broken`
+  --> tests/ui/commands_module_without_struct.rs:12:5
+   |
+12 |     clifacet::commands!(broken);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in `broken`
+   |
+   = note: this error originates in the macro `$crate::__commands` which comes from the expansion of the macro `clifacet::commands` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is an enum variant `crate::commands::Commands::Broken` and 1 other; try using the variant's enum
+  --> src/lib.rs
+   |
+    -         $crate::__commands!($($tokens)*);
+    +         crate::commands::Commands;
+    |
+    -         $crate::__commands!($($tokens)*);
+    +         crate::commands::Request;
+    |

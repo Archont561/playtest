@@ -1,0 +1,18 @@
+error[E0308]: mismatched types
+ --> tests/ui/field_ask_not_option.rs:5:22
+  |
+5 |       #[clifacet(long, ask = "How many?")]
+  |                        ^--
+  |                        |
+  |  ______________________arguments to this method are incorrect
+  | |
+6 | |     repeat: u8,
+  | |__________^ expected `&mut Option<_>`, found `&mut u8`
+  |
+  = note: expected mutable reference `&mut Option<_>`
+             found mutable reference `&mut u8`
+note: method defined here
+ --> src/prompt.rs
+  |
+  |     pub fn ask_for<T>(
+  |            ^^^^^^^

@@ -1,0 +1,5 @@
+error: `skip` beside `subcommands` would apply to the whole tree, and a tree is not one value: declare the rule on the leaf struct's own field instead
+ --> tests/ui/field_subcommands_with_rule.rs:5:29
+  |
+5 |     #[clifacet(subcommands, skip)]
+  |                             ^^^^

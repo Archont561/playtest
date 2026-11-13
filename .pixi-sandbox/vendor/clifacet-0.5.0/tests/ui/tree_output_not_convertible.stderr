@@ -1,0 +1,13 @@
+error[E0277]: the trait bound `Report: From<u32>` is not satisfied
+  --> tests/ui/tree_output_not_convertible.rs:5:1
+   |
+ 5 | #[clifacet::subcommands(input = Request, output = Report)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `From<u32>` is not implemented for `Report`
+  --> tests/ui/tree_output_not_convertible.rs:11:1
+   |
+11 | struct Report;
+   | ^^^^^^^^^^^^^
+   = note: required for `u32` to implement `Into<Report>`
+   = note: this error originates in the attribute macro `clifacet::subcommands` (in Nightly builds, run with -Z macro-backtrace for more info)

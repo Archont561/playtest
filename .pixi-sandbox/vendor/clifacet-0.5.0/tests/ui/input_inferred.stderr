@@ -1,0 +1,5 @@
+error: `input` names the one type `validate` returns, so `_` cannot stand for it: write the concrete type
+ --> tests/ui/input_inferred.rs:3:29
+  |
+3 | #[clifacet::command(input = _, bridge = build)]
+  |                             ^

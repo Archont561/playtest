@@ -1,0 +1,53 @@
+[package]
+name = "clifacet"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Composable command-line presentation modes"
+readme = "../../README.md"
+# Scenarios are repository-only (`scripts/check_packages.py`), and their step bindings
+# read the `.feature` files at compile time, so neither half ships.
+exclude = ["features/", "tests/*_bdd.rs"]
+
+[features]
+# Each frontend is a dependency boundary: an application enables the ones it uses and
+# pays for no others. The TUI's components are public either way — see `tui` in the docs.
+default = []
+interactive = ["dep:inquire"]
+tui = ["dep:ratatui", "dep:crossterm"]
+# `Serialize` for `Failure`, `FailureKind` and a redacted `Secret`. JSON is not the
+# library's to write (decision-3): an application serialises a failure itself.
+serde = ["dep:serde"]
+# `clifacet::settings::toml`, the settings loader for the format most applications
+# already have (CLI-51). Off by default: a program that never reads a settings file pays
+# nothing for the parser.
+settings-toml = ["dep:toml_edit"]
+# `clifacet::build::commands()`, for an application's `build.rs`: it scans
+# `src/commands/` and reports it, and `clifacet::commands!()` with no list reads
+# that report (CLI-50). Off by default, because a build script is the only caller.
+build = []
+
+[dependencies]
+clifacet-macros.workspace = true
+clap.workspace = true
+serde = { workspace = true, optional = true }
+thiserror.workspace = true
+toml_edit = { workspace = true, optional = true }
+inquire = { workspace = true, optional = true }
+ratatui = { workspace = true, optional = true }
+crossterm = { workspace = true, optional = true }
+
+[dev-dependencies]
+assert_cmd.workspace = true
+trybuild.workspace = true
+rstest.workspace = true
+rstest-bdd.workspace = true
+rstest-bdd-macros.workspace = true
+# What an application would build a JSON failure body with; the tests read it back.
+serde_json.workspace = true
+
+[lints]
+workspace = true

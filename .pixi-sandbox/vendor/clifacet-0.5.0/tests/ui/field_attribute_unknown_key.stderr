@@ -1,0 +1,5 @@
+error: `logn` is not a `#[clifacet(..)]` key, so it would be an argument that means nothing. Supported keys: values — alias, conflicts_with, conflicts_with_all, default_value, group, help, hide, id, ignore_case, num_args, range, required, requires, short_alias, value_delimiter, value_name, visible_alias; flags — value_enum; either — action, default_value_t, env, long, short, value_parser; derive values — ask, confirm, fill; derive flags — form, non_empty, secret, skip, subcommands, trim. Any other clap key stays available as a raw `#[arg(logn …)]` on the same field, which this attribute passes through untouched.
+ --> tests/ui/field_attribute_unknown_key.rs:6:16
+  |
+6 |     #[clifacet(logn, value_name = "NAME")]
+  |                ^^^^

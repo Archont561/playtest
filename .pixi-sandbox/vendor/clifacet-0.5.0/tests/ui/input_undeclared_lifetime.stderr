@@ -1,0 +1,5 @@
+error: `'a` is not declared on the command struct, so the generated impls cannot name it: declare it there (`struct Cli<'a>`) or use `'static`
+ --> tests/ui/input_undeclared_lifetime.rs:3:38
+  |
+3 | #[clifacet::command(input = Greeting<'a>)]
+  |                                      ^^

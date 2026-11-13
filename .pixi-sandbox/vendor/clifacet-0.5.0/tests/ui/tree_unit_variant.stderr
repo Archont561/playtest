@@ -1,0 +1,5 @@
+error: `Done` has no leaf, so it has no input to validate or command to run — even one without arguments needs one: write a leaf struct instead: `Done(Done)`, with `#[clifacet::command(input = DoneInput)] struct Done { … }`, which may be empty
+ --> tests/ui/tree_unit_variant.rs:6:5
+  |
+6 |     Done,
+  |     ^^^^

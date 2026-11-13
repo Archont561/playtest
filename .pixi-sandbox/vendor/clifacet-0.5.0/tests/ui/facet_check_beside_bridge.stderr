@@ -1,0 +1,5 @@
+error: `check` runs inside the generated bridge, and this struct declares its own `bridge = …`, which builds the whole input: call the check from the bridge, or drop `bridge` and let the declarations build the input
+ --> tests/ui/facet_check_beside_bridge.rs:6:51
+  |
+6 | #[facet(input = Greeting, bridge = build, check = check)]
+  |                                                   ^^^^^

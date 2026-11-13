@@ -1,0 +1,39 @@
+error[E0277]: `trim` and `non_empty` apply to text, and `Option<u8>` is not text
+ --> tests/ui/field_rule_wrong_type.rs:5:22
+  |
+5 |     #[clifacet(long, trim)]
+  |                      ^^^^ declared on this field
+  |
+  = help: the trait `clifacet::facet::__derive::Text` is not implemented for `Option<u8>`
+  = note: the field has to be `String` or `Secret<String>`, or an `Option` of either (after `fill`, if one is declared)
+help: the following other types implement trait `clifacet::facet::__derive::Text`
+ --> src/facet.rs
+  |
+  |             impl Text for Option<$required> {
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |             |
+  |             `Option<Secret<std::string::String>>`
+  |             `Option<std::string::String>`
+...
+  |     text!(String, Secret<String>);
+  |     ----------------------------- in this macro invocation
+  = note: this error originates in the macro `text` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `secret` needs a redacted type, and `Option<std::string::String>` would print the credential
+ --> tests/ui/field_rule_wrong_type.rs:8:22
+  |
+8 |     #[clifacet(long, secret)]
+  |                      ^^^^^^ declared on this field
+  |
+  = help: the trait `clifacet::facet::__derive::Credential` is not implemented for `Option<std::string::String>`
+  = note: declare the field as `clifacet::secret::Secret<_>`, or an `Option` of one
+help: the trait `clifacet::facet::__derive::Credential` is implemented for `Option<Secret<T>>`
+ --> src/facet.rs
+  |
+  |     impl<T> Credential for Option<Secret<T>> {}
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: required by a bound in `clifacet::facet::__derive::credential`
+ --> src/facet.rs
+  |
+  |     pub fn credential<T: Credential>(value: T) -> T {
+  |                          ^^^^^^^^^^ required by this bound in `credential`

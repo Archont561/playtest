@@ -1,0 +1,5 @@
+error: a `skip` parameter takes no other clifacet key: it never reaches the input, so a rule on it would apply to nothing
+ --> tests/ui/function_skip_with_rule.rs:3:22
+  |
+3 |     #[clifacet(skip, trim)]
+  |                      ^^^^

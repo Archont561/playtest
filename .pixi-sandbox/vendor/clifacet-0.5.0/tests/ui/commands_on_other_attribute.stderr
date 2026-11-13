@@ -1,0 +1,5 @@
+error: expected attribute, found macro `clifacet::commands`
+ --> tests/ui/commands_on_other_attribute.rs:3:3
+  |
+3 | #[clifacet::commands(greet)]
+  |   ^^^^^^^^^^^^^^^^^^ not an attribute

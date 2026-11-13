@@ -1,0 +1,5 @@
+error: `planned` makes the tree a planned command, and a command needs its output: add `output = Type`, the type every leaf's output converts into
+ --> tests/ui/tree_planned_without_output.rs:3:42
+  |
+3 | #[clifacet::subcommands(input = Request, planned)]
+  |                                          ^^^^^^^

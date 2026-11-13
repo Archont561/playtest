@@ -1,0 +1,5 @@
+error: the context parameter comes last, so that every parameter before it is input and the command's arguments keep the order they are read in
+ --> tests/ui/function_context_not_last.rs:5:5
+  |
+5 |     cx: &App,
+  |     ^^^^^^^^

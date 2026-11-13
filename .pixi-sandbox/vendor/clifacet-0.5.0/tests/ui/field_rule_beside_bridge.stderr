@@ -1,0 +1,5 @@
+error: `trim` is a rule for the generated bridge, and this struct declares its own `bridge = …`, which builds the whole input: apply the rule in the bridge, or drop `bridge` and let the declarations build the input
+ --> tests/ui/field_rule_beside_bridge.rs:7:22
+  |
+7 |     #[clifacet(long, trim)]
+  |                      ^^^^

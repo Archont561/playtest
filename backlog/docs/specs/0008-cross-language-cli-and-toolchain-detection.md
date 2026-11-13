@@ -104,7 +104,7 @@ Exit status:
 | Code | Meaning |
 | :--- | :--- |
 | 0 | All selected targets ran and passed; policy skips and exclusions allowed |
-| 1 | At least one test failure |
+| 1 | At least one test failure. A runner's native failure status is not this code: [Spec 0014 §4.1](./0014-report-protocol-and-runner-orchestration.md) maps each runner's raw exit status onto these four |
 | 2 | Usage or selection error (unknown target or tier, no matches, invalid flag) |
 | 3 | Environment failure: an explicitly selected target is unavailable, `doctor` found a required toolchain or probe failure, the running binary does not match the version pinned in `playtest.toml` ([Spec 0013 §6](./0013-workspace-configuration-and-sdk-mirrors.md)), `playtest sync --check` found the SDK mirrors out of date (Spec 0013 §3), or an SDK reported a version or protocol that differs from the CLI's ([Spec 0014 §7](./0014-report-protocol-and-runner-orchestration.md)) |
 

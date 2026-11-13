@@ -7,12 +7,18 @@ permissions = true
 pixi_version = "v0.84.1"
 setup_pixi_cache = false
 
-# Every environment is packed, not just `default`. A sandbox that carries only the
-# default env cannot run `pixi run -e <lane>`: the lane's packages have to be fetched
-# from prefix.dev, which an offline sandbox cannot reach. That made every SDK check
-# unverifiable locally — the Go rows had to be proved by CI twice — so the bundle now
-# carries the language lanes too.
+# `default` only, and that is a hard constraint rather than a preference.
+#
+# `pixi-sandbox doctor` enforces `budgets.max_transport_mib`, which defaults to 2048 MiB.
+# The `default` environment alone is already about 2.6 GiB, so it sits at the limit; adding
+# the eight SDK lanes took the transport to roughly 22 GiB and the publish failed during
+# doctor. An SDK lane therefore cannot be packed alongside `default`, and a lane on its own
+# would still need `default`'s toolchain to be useful.
+#
+# The consequence is deliberate: `pixi run -e <lane>` needs the network here, so SDK lanes
+# are proved by CI (`sdk-<lane>`) rather than offline. Do not re-add environments to this
+# bundle without first checking the measured transport size against the budget.
 [[bundle]]
 name = "developer"
-environments = ["default", "py", "ts", "cpp", "c", "csharp", "go", "java", "r"]
+environments = ["default"]
 platforms = ["linux-64"]

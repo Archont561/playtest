@@ -57,34 +57,68 @@ _PLAYTEST_PACKAGE = (
     "--allow-dirty",
     "--locked",
 )
-_PLAYTEST_LIST = ("cargo", "package", "-p", "playtest", "--list", "--allow-dirty", "--locked")
+_PLAYTEST_LIST = ("cargo", "package", "-p", "playtest", "--list", "--offline", "--allow-dirty")
 
 
-def test_a_dependent_crate_failure_falls_back_and_says_so(
+_PLAYTEST_UNPUBLISHED = _result(
+    101,
+    stderr=(
+        "error: failed to prepare local package for uploading\n"
+        "  no matching package named `playtest-core` found"
+    ),
+)
+
+
+def test_an_unpublished_dependency_falls_back_to_the_file_set(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """An unpackable dependent crate falls back to `--list`, but never silently.
+    """A dependent crate that awaits publication falls back to `--list`, and says so.
 
     `playtest` and `playtest-cli` cannot be packed until their workspace dependencies are
-    published, so the `--list` fallback is load-bearing. The defect was not the fallback
-    but its silence: it discarded cargo's message entirely, so a packaging step could fail
-    with nothing to show for it.
+    in the registry. That is the release order, not a defect, so the step stays green and
+    validates the file set instead.
     """
-    recorder, notes, _ = _dependent_probe(
+    recorder, notes, errors = _dependent_probe(
         monkeypatch,
         {
-            _PLAYTEST_PACKAGE: _result(101, stderr="no matching package named `anyhow`"),
+            _PLAYTEST_PACKAGE: _PLAYTEST_UNPUBLISHED,
             _PLAYTEST_LIST: _result(0, stdout="src/lib.rs"),
         },
     )
 
     status = sdk_tasks._package_dependent_crates(Path(), ("playtest",))
 
-    assert status == 0, "the file-set fallback keeps an unpackable crate non-fatal"
+    assert status == 0, "an unpublished workspace dependency is not a failure"
+    assert errors == [], "the expected pre-publication state is not an error"
     assert _PLAYTEST_LIST in recorder.calls, "the fallback must still run"
     joined = "\n".join(notes)
     assert "playtest" in joined, "the note must name the crate"
-    assert "anyhow" in joined, "the note must quote cargo's reason"
+    assert "unpublished workspace crate" in joined, "the note must explain why"
+
+
+def test_any_other_dependent_crate_failure_is_fatal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failure that is not the pre-publication state must fail the step.
+
+    The earlier version downgraded every failure to a note and returned the `--list`
+    result, which exits 0 even when the crate cannot be packaged. A broken packaging step
+    therefore passed locally while CI failed on the same code.
+    """
+    recorder, _, errors = _dependent_probe(
+        monkeypatch,
+        {
+            _PLAYTEST_PACKAGE: _result(101, stderr="error: failed to verify package"),
+        },
+    )
+
+    status = sdk_tasks._package_dependent_crates(Path(), ("playtest",))
+
+    assert status != 0, "an unexpected failure must not be downgraded to a warning"
+    assert _PLAYTEST_LIST not in recorder.calls, "the file-set fallback must not mask it"
+    joined = "\n".join(errors)
+    assert "playtest" in joined
+    assert "failed to verify package" in joined
 
 
 def test_a_failing_file_set_validation_is_a_real_failure(
@@ -94,7 +128,7 @@ def test_a_failing_file_set_validation_is_a_real_failure(
     _, _, errors = _dependent_probe(
         monkeypatch,
         {
-            _PLAYTEST_PACKAGE: _result(101, stderr="no matching package"),
+            _PLAYTEST_PACKAGE: _PLAYTEST_UNPUBLISHED,
             _PLAYTEST_LIST: _result(101, stderr="failed to read src/missing.rs"),
         },
     )

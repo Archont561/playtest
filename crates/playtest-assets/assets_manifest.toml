@@ -9,6 +9,7 @@ files = [
   "pyproject.toml",
   "src/playtest/__init__.py",
   "src/playtest/_version.py",
+  "src/playtest/fixtures.py",
 ]
 
 [languages.typescript]

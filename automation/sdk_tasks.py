@@ -213,14 +213,33 @@ def _report_package_failure(crate: str, res: CommandResult) -> None:
     emit_err(f"[sdk-package] ERROR: `cargo package -p {crate}` failed:\n{_diagnostic(res)}")
 
 
+# Cargo's own words when a dependent crate cannot be packed because its workspace
+# dependency is not in the registry yet. Any other failure is a defect, not the expected
+# pre-publication state, and must not be downgraded to a warning.
+_UNRESOLVED_DEPENDENCY = "failed to prepare local package for uploading"
+
+
+def _is_unpublished_dependency(res: CommandResult) -> bool:
+    """Whether a `cargo package` failure is the expected pre-publication state.
+
+    A dependent crate cannot be packed until its workspace dependencies exist in the
+    registry. Offline, and inside a vendored sandbox, they do not, so cargo fails here
+    every time. That is a fact about the release order, not a defect in the crate.
+    """
+    return _UNRESOLVED_DEPENDENCY in _diagnostic(res)
+
+
 def _package_dependent_crates(root: Path, dependent_crates: Sequence[str]) -> int:
     """Pack the crates that depend on the leaves.
 
-    These crates cannot be packed before their workspace dependencies are published, so a
-    `cargo package` failure falls back to `cargo package --list`, which validates the file
-    set without resolving dependencies. Keep that fallback, but say so out loud: silently
-    returning the `--list` result made a failing packaging step indistinguishable from a
-    passing one, and a post-merge CI run failed with no visible reason.
+    These crates cannot be packed before their workspace dependencies are published. Only
+    that specific failure falls back to `cargo package --list`, which validates the file
+    set without resolving dependencies; every other failure is fatal.
+
+    The distinction matters because the earlier version downgraded *every* failure to a
+    note. It then returned the `--list` result, which exits 0 even when the crate cannot
+    be packaged at all, so a genuinely broken packaging step passed locally while CI — with
+    no vendored registry and no network — failed on the same code.
     """
     for crate in dependent_crates:
         res = run_cmd(
@@ -230,17 +249,27 @@ def _package_dependent_crates(root: Path, dependent_crates: Sequence[str]) -> in
         )
         if res.returncode == 0:
             continue
-        emit_line(
-            f"[sdk-package] NOTE: `{crate}` is not packable yet; "
-            f"validating its file set instead.\n{_diagnostic(res)}"
-        )
-        list_cmd = ["cargo", "package", "-p", crate, "--list", "--allow-dirty", "--locked"]
-        list_res = run_cmd(list_cmd, cwd=root, capture=True)
-        if list_res.returncode != 0:
-            _report_package_failure(crate, list_res)
-            return list_res.returncode
-        if listing := list_res.stdout.strip():
-            emit_line(listing)
+        if not _is_unpublished_dependency(res):
+            _report_package_failure(crate, res)
+            return 1
+        if (status := _validate_dependent_file_set(root, crate)) != 0:
+            return status
+    return 0
+
+
+def _validate_dependent_file_set(root: Path, crate: str) -> int:
+    """Validate a dependent crate's file set when packing it is not yet possible."""
+    emit_line(
+        f"[sdk-package] NOTE: `{crate}` depends on an unpublished workspace crate; "
+        f"validating its file set instead of packing it."
+    )
+    list_cmd = ["cargo", "package", "-p", crate, "--list", "--offline", "--allow-dirty"]
+    list_res = run_cmd(list_cmd, cwd=root, capture=True)
+    if list_res.returncode != 0:
+        _report_package_failure(crate, list_res)
+        return list_res.returncode
+    if listing := list_res.stdout.strip():
+        emit_line(listing)
     return 0
 
 

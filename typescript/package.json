@@ -10,6 +10,21 @@
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js",
 			"default": "./dist/index.js"
+		},
+		"./adapters/bun": {
+			"types": "./dist/adapters/bun.d.ts",
+			"import": "./dist/adapters/bun.js",
+			"default": "./dist/adapters/bun.js"
+		},
+		"./adapters/vitest": {
+			"types": "./dist/adapters/vitest.d.ts",
+			"import": "./dist/adapters/vitest.js",
+			"default": "./dist/adapters/vitest.js"
+		},
+		"./adapters/jest": {
+			"types": "./dist/adapters/jest.d.ts",
+			"import": "./dist/adapters/jest.js",
+			"default": "./dist/adapters/jest.js"
 		}
 	},
 	"files": [

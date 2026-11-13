@@ -51,7 +51,7 @@ The table names intended native integrations, not an API-syntax mandate. “To s
 | :--- | :--- | :--- | :--- |
 | **Rust** | `nextest` / Rust test harness | fixture handles and panic-safe guards | `proptest` |
 | **Python** | `pytest` | fixture injection and yield cleanup | `hypothesis` |
-| **TypeScript** | Bun test (and supported Playwright integration) | injected fixture values and callback cleanup | `fast-check` |
+| **TypeScript** | Runner-agnostic: bun test, vitest, jest via one adapter seam | injected fixture values and callback cleanup | `fast-check` |
 | **C++** | GoogleTest | RAII fixture and teardown hooks | RapidCheck |
 | **C** | C test harness (select and document) | explicit fixture context and registered cleanup stack | Select and document a C-compatible generator/property engine |
 | **C#** | xUnit | fixture/context injection and disposal | Select and document a .NET property-testing engine |

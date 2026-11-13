@@ -14,8 +14,27 @@ files = [
 
 [languages.typescript]
 source_dir = "typescript"
-generated = ["dist/index.d.ts", "dist/index.js"]
-files = ["dist/index.d.ts", "dist/index.js", "package.json"]
+generated = [
+  "dist/index.d.ts",
+  "dist/index.js",
+  "dist/adapters/bun.d.ts",
+  "dist/adapters/bun.js",
+  "dist/adapters/vitest.d.ts",
+  "dist/adapters/vitest.js",
+  "dist/adapters/jest.d.ts",
+  "dist/adapters/jest.js",
+]
+files = [
+  "dist/index.d.ts",
+  "dist/index.js",
+  "dist/adapters/bun.d.ts",
+  "dist/adapters/bun.js",
+  "dist/adapters/vitest.d.ts",
+  "dist/adapters/vitest.js",
+  "dist/adapters/jest.d.ts",
+  "dist/adapters/jest.js",
+  "package.json",
+]
 
 [languages.cpp]
 source_dir = "cpp"

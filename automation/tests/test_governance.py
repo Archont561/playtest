@@ -18,6 +18,11 @@ from automation.command_docs import (
     SPEC_GRAMMAR_SOURCE,
     check_documented_commands,
 )
+from automation.doc_vocabulary import (
+    DOC_SURFACES,
+    check_doc_vocabulary,
+    header_comment,
+)
 from automation.merge_lcov import merge_lcov_files
 from automation.repo_check import (
     CANONICAL_DESCRIPTION_LEAD,
@@ -132,6 +137,27 @@ def test_documented_command_guard_requires_a_spec_grammar_entry(tmp_path: Path) 
 
     readme.write_text("`playtest teleport` is not a command.\n", encoding="utf-8")
     assert any("playtest teleport" in item for item in check_documented_commands(tmp_path))
+
+
+def test_doc_vocabulary_guard_rejects_retired_positioning_terms(tmp_path: Path) -> None:
+    assert check_doc_vocabulary(REPO_ROOT) == []
+
+    surface = tmp_path / DOC_SURFACES[0]
+    surface.parent.mkdir(parents=True)
+    surface.write_text("//! Playwright-style toolkit.\n", encoding="utf-8")
+    errors = check_doc_vocabulary(tmp_path)
+    assert any("playwright" in item for item in errors)
+    assert any(DOC_SURFACES[0] in item for item in errors)
+
+    surface.write_text(
+        "//! Polyglot test framework with the batteries included.\n", encoding="utf-8"
+    )
+    assert check_doc_vocabulary(tmp_path) == []
+
+
+def test_header_comment_stops_before_code(tmp_path: Path) -> None:
+    text = "//! Fine header.\n\nuse playwright::Thing;\n"
+    assert "playwright" not in header_comment(text).lower()
 
 
 def test_crate_dependency_boundary_rejects_transitive_cli_or_assets_leak(tmp_path: Path) -> None:

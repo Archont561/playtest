@@ -1,4 +1,6 @@
-// Package playtest provides Playwright-style testing fixtures and BDD scenarios.
+// Package playtest is a polyglot test framework with the batteries included:
+// dependency-injected fixtures, strict LIFO teardown, property-based testing, and
+// code-first BDD for Go.
 package playtest
 
 import (

@@ -13,6 +13,7 @@ from pathlib import Path
 from automation import REPO_ROOT
 from automation._proc import emit_err, emit_line, run_cmd
 from automation.command_docs import check_documented_commands
+from automation.doc_vocabulary import check_doc_vocabulary
 from automation.stage_assets import (
     MANIFEST_REL,
     is_forbidden_asset_path,
@@ -320,6 +321,7 @@ def check_repository(root: Path = REPO_ROOT, *, skip_shellcheck: bool = False) -
     errors.extend(_check_manifest_versions_and_autodiscovery(root))
     errors.extend(_check_canonical_description(root))
     errors.extend(check_documented_commands(root))
+    errors.extend(check_doc_vocabulary(root))
     errors.extend(_check_utf8_bom(root))
     errors.extend(_check_restore_shell(root, skip_shellcheck=skip_shellcheck))
     return errors

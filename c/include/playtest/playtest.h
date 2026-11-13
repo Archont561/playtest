@@ -1,3 +1,9 @@
+/*
+ * Playtest for C: dependency-injected fixtures with strict LIFO teardown,
+ * property-based testing, and code-first BDD sharing one contract across nine
+ * language targets.
+ */
+
 #ifndef PLAYTEST_H
 #define PLAYTEST_H
 

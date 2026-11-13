@@ -124,3 +124,67 @@ rules:
     forbid: '^\.\.?(?:/|$)'
     level: error
     message: Relative and nested parent imports (./ or ../) are forbidden in the TypeScript SDK; use the @/ SDK root alias instead.
+
+  # One version per release (ADR 0015). The Rust workspace manifest is the authority;
+  # every other ecosystem manifest must carry the same version. automation/stamp_version.py
+  # already reads all ten locations, and this rule makes the invariant declarative so a
+  # hand-edited manifest fails the gate before it reaches a release.
+  - id: require-aligned-manifest-versions
+    kind: cross_file
+    source:
+      file: Cargo.toml
+      extract:
+        toml: $.workspace.package.version
+    targets:
+      - file: package.json
+        extract:
+          json: $.version
+      - file: python/pyproject.toml
+        extract:
+          toml: $.project.version
+      - file: typescript/package.json
+        extract:
+          json: $.version
+      - file: go/VERSION
+        extract:
+          regex: '([0-9]+\.[0-9]+\.[0-9]+)'
+      - file: r/DESCRIPTION
+        extract:
+          regex: '(?m)^Version:\s*(\S+)\s*$'
+      - file: cpp/CMakeLists.txt
+        extract:
+          regex: 'project\([^)]*?VERSION\s+([0-9A-Za-z.+-]+)'
+      - file: c/CMakeLists.txt
+        extract:
+          regex: 'project\([^)]*?VERSION\s+([0-9A-Za-z.+-]+)'
+      - file: csharp/src/Playtest/Playtest.csproj
+        extract:
+          regex: '<Version>([^<]+)</Version>'
+      - file: java/pom.xml
+        extract:
+          regex: '<artifactId>playtest</artifactId>\s*<version>([^<]+)</version>'
+    level: error
+    message: Every ecosystem manifest must declare the same version as Cargo.toml (workspace.package.version); bump all of them in one change.
+
+  # Every language target directory is a self-describing package: a build manifest the
+  # ecosystem's tooling reads, and a README a consumer lands on. Declared here rather than
+  # in Python so a new target cannot be added without both.
+  #
+  # `dir_contains` rather than `every_matching_has`: the latter evaluates nested rules
+  # against the repository root, so a per-directory file_exists passes vacuously as soon as
+  # any target satisfies the glob. Verified before adopting.
+  - id: require-sdk-target-manifest
+    kind: dir_contains
+    select: '{python,typescript,cpp,c,csharp,go,java,r}'
+    require:
+      - '{pyproject.toml,package.json,CMakeLists.txt,go.mod,pom.xml,DESCRIPTION,conanfile.py,*.slnx}'
+    level: error
+    message: Every language target directory needs its ecosystem build manifest; joining the matrix means shipping one.
+
+  - id: require-sdk-target-readme
+    kind: dir_contains
+    select: '{python,typescript,cpp,c,csharp,go,java,r}'
+    require:
+      - '{README.md,README.rst,DESCRIPTION}'
+    level: error
+    message: Every language target directory needs a README so a consumer lands on documentation, not a bare source tree.

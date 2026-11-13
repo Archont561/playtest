@@ -11,7 +11,19 @@ from automation._proc import emit_err, emit_line, run_cmd
 from automation.rude_clean import run_rude_clean
 
 AST_GREP_TARGETS: tuple[str, ...] = ("crates", "automation", "python", "typescript", "go", "java")
-VALE_TARGETS: tuple[str, ...] = ("README.md", "CONTRIBUTING.md", "AGENTS.md", "docs")
+VALE_TARGETS: tuple[str, ...] = (
+    "README.md",
+    "CONTRIBUTING.md",
+    "AGENTS.md",
+    "docs",
+    "python/README.md",
+    "typescript/README.md",
+    "cpp/README.md",
+    "c/README.md",
+    "csharp/README.md",
+    "java/README.md",
+    "go/README.md",
+)
 SEMGREP_EXCLUDES: tuple[str, ...] = (
     "vendor/clean-code-presets",
     ".agents",

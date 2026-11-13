@@ -281,6 +281,24 @@ def test_run_rude_clean_propagates_failing_rude_exit_code(
     assert run_rude_clean(tmp_path, ("clean.py",)) == 2
 
 
+_TS_RULES: tuple[str, ...] = (
+    "require-ts-bunup-config",
+    "require-ts-tsconfig",
+    "require-ts-bunup-build-script",
+    "require-ts-sdk-root-alias",
+    "require-ts-bunup-tsconfig-alias",
+    "forbid-ts-relative-imports",
+)
+
+
+def _alint_check(cfg: Path, root: Path, only: Sequence[str] = ()) -> CommandResult:
+    """Run alint against `root`, restricted to `only` when the fixture is partial."""
+    args = ["alint", "check", "--config", str(cfg)]
+    for rule in only:
+        args.extend(("--only", rule))
+    return run_cmd([*args, str(root)], capture=True)
+
+
 def _copy_real_alint_base(dst_root: Path) -> Path:
     for rel in (
         "LICENSE",
@@ -332,10 +350,9 @@ def test_alint_enforces_ts_bunup_and_forbids_relative_imports(tmp_path: Path) ->
         return
     good_src, good_test = _write_ts_fixtures(tmp_path)
     cfg = _copy_real_alint_base(tmp_path)
-    assert (
-        run_cmd(["alint", "check", "--config", str(cfg), str(tmp_path)], capture=True).returncode
-        == 0
-    )
+    # Scope to the rules under test: the fixture copies a subset of the tree, so
+    # whole-repo shape rules would fail on files this test does not build.
+    assert _alint_check(cfg, tmp_path, _TS_RULES).returncode == 0
     for target, bad_stmt in (
         (good_src, 'import { v } from "./version";\n'),
         (good_src, 'import { v } from "../other";\n'),
@@ -346,6 +363,44 @@ def test_alint_enforces_ts_bunup_and_forbids_relative_imports(tmp_path: Path) ->
         target.write_text(
             _GOOD_SRC_STMT if target == good_src else _GOOD_TEST_STMT, encoding="utf-8"
         )
+
+
+_VERSION_RULE_CFG = """
+version: 1
+rules:
+  - id: probe-version
+    kind: cross_file
+    level: error
+    message: versions must align
+    source:
+      file: Cargo.toml
+      extract:
+        toml: $.workspace.package.version
+    targets:
+      - file: python/pyproject.toml
+        extract:
+          toml: $.project.version
+"""
+
+
+def test_alint_cross_file_version_alignment_rejects_drift(tmp_path: Path) -> None:
+    if shutil.which("alint") is None:
+        return
+    (tmp_path / "python").mkdir()
+    (tmp_path / "Cargo.toml").write_text(
+        '[workspace.package]\nversion = "1.2.3"\n', encoding="utf-8"
+    )
+    pyproject = tmp_path / "python/pyproject.toml"
+    cfg = tmp_path / ".alint.yml"
+    cfg.write_text(_VERSION_RULE_CFG, encoding="utf-8")
+
+    pyproject.write_text('[project]\nname = "x"\nversion = "1.2.3"\n', encoding="utf-8")
+    assert _alint_check(cfg, tmp_path).returncode == 0
+
+    pyproject.write_text('[project]\nname = "x"\nversion = "9.9.9"\n', encoding="utf-8")
+    res = _alint_check(cfg, tmp_path)
+    assert res.returncode != 0
+    assert "probe-version" in (res.stdout + res.stderr)
 
 
 def test_scripts_directory_allows_only_restore_sh(tmp_path: Path) -> None:
@@ -359,15 +414,13 @@ def test_scripts_directory_allows_only_restore_sh(tmp_path: Path) -> None:
     if shutil.which("alint") is None:
         return
     cfg = _copy_real_alint_base(tmp_path)
-    assert (
-        run_cmd(["alint", "check", "--config", str(cfg), str(tmp_path)], capture=True).returncode
-        == 0
-    )
+    only = ("forbid-non-restore-scripts",)
+    assert _alint_check(cfg, tmp_path, only).returncode == 0
     for bad_rel in ("extra.py", ".hidden", "nested/helper.py"):
         bad_file = scripts_dir / bad_rel
         bad_file.parent.mkdir(parents=True, exist_ok=True)
         bad_file.write_text("# forbidden\n", encoding="utf-8")
-        res = run_cmd(["alint", "check", "--config", str(cfg), str(tmp_path)], capture=True)
+        res = _alint_check(cfg, tmp_path, only)
         assert res.returncode != 0
         assert "forbid-non-restore-scripts" in (res.stdout + res.stderr)
         bad_file.unlink()

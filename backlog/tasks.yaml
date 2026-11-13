@@ -101,7 +101,7 @@ tasks:
   - id: task_007
     title: Python TestFacade and pytest fixture yield bridge
     description: "Deliver Python TestFacade wrapping pytest yield fixtures with LIFO teardown parity."
-    status: backlog
+    status: done
     priority: P0
     milestone: M2-v0.2.0
     semver: "0.2.0"

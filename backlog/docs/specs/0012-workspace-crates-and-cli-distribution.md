@@ -26,7 +26,7 @@ Rules:
 
 1. `playtest-cli` is the only crate that depends on `playtest-assets` or on `clifacet`.
 2. `playtest` must not depend on `playtest-assets` or `playtest-cli`, directly or transitively. A test or lint enforces this.
-3. Every crate exports `VERSION`, and all five carry the workspace version.
+3. The four library crates export `VERSION`. `playtest-macros` cannot: Rust permits a `proc-macro` crate to export macros only, so its version lives in its manifest, which carries the workspace version like the other four. A rule that asked it to export a constant would be unimplementable, and `task_050` passed only because the crate was not yet declared `proc-macro = true`.
 4. Crates are published in dependency order: `playtest-macros`, `playtest-core`, `playtest-assets`, `playtest`, `playtest-cli`.
 5. Building `playtest-cli` needs Rust `1.88` or newer, the floor of `clifacet` `0.5.0`. Each library crate declares its minimum Rust version separately in its own `Cargo.toml`: `playtest` declares `1.88` (the floor of `proptest` `1.12`), while `playtest-macros`, `playtest-core`, and `playtest-assets` declare `1.85` (the Rust 2024 edition floor).
 6. `clifacet` types appear neither in `playtest-core` nor in documented CLI output. The output and exit-status contract is [Spec 0008 §7](./0008-cross-language-cli-and-toolchain-detection.md).

@@ -57,7 +57,7 @@ tasks:
   - id: task_004
     title: Core AsyncFixture trait and FixtureHandle lifecycle
     description: "Implement the foundation fixture engine with async setup and teardown futures in Rust."
-    status: ready
+    status: done
     priority: P0
     milestone: M2-v0.2.0
     semver: "0.2.0"
@@ -72,7 +72,7 @@ tasks:
   - id: task_005
     title: Declarative test! macro with strict LIFO teardown
     description: "Implement test! macro with destructured fixture resolution and reverse teardown."
-    status: ready
+    status: done
     priority: P0
     milestone: M2-v0.2.0
     semver: "0.2.0"
@@ -87,7 +87,7 @@ tasks:
   - id: task_006
     title: Declarative test_skip! and skip_if! macros
     description: "Implement unconditional and runtime conditional test skipping."
-    status: ready
+    status: done
     priority: P1
     milestone: M2-v0.2.0
     semver: "0.2.0"

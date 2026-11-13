@@ -7,7 +7,12 @@ permissions = true
 pixi_version = "v0.84.1"
 setup_pixi_cache = false
 
+# Every environment is packed, not just `default`. A sandbox that carries only the
+# default env cannot run `pixi run -e <lane>`: the lane's packages have to be fetched
+# from prefix.dev, which an offline sandbox cannot reach. That made every SDK check
+# unverifiable locally — the Go rows had to be proved by CI twice — so the bundle now
+# carries the language lanes too.
 [[bundle]]
 name = "developer"
-environments = ["default"]
+environments = ["default", "py", "ts", "cpp", "c", "csharp", "go", "java", "r"]
 platforms = ["linux-64"]

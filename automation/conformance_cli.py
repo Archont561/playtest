@@ -62,6 +62,7 @@ def _manifest_document(manifest: Manifest) -> dict[str, object]:
                 "target": suite.target,
                 "cmd": list(suite.cmd),
                 "capabilities": list(suite.capabilities),
+                "requires": list(suite.requires),
             }
             for suite in manifest.suites
         ],

@@ -259,3 +259,56 @@ def test_gate_allows_an_optional_capability_to_stay_unclaimed(
 
     assert isinstance(rejected, list)  # noqa: S101 - narrowing for the type checker.
     assert not any("beta" in entry for entry in rejected)
+
+
+REQUIRES_MANIFEST = MANIFEST.replace(
+    'capabilities = ["alpha"]',
+    'capabilities = ["alpha"]\nrequires = ["target/test-classes"]',
+)
+
+
+def _write_requires_manifest(root: Path) -> None:
+    _write_manifest(root, REQUIRES_MANIFEST)
+
+
+def test_a_suite_whose_build_output_is_absent_is_unavailable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`java` is on every runner, so a resolvable runner must not imply a built tree.
+
+    The Java suite runs a class directory that `javac` produced elsewhere. When that
+    directory is missing, the runner still exists and still exits non-zero -- reported as
+    `fail`, that blames the SDK for a build step nobody ran.
+    """
+    _write_requires_manifest(tmp_path)
+    monkeypatch.setattr(conformance, "_tool_available", lambda *_a, **_k: True)
+
+    rows = conformance.build_matrix(conformance.load_manifest(tmp_path), root=tmp_path, run=_fail)
+
+    assert rows[0].states["rust"] == conformance.UNAVAILABLE
+
+
+def test_a_suite_whose_build_output_exists_runs_normally(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Declaring a requirement must not make the suite unprovable once it is satisfied."""
+    _write_requires_manifest(tmp_path)
+    (tmp_path / "target" / "test-classes").mkdir(parents=True)
+    monkeypatch.setattr(conformance, "_tool_available", lambda *_a, **_k: True)
+
+    rows = conformance.build_matrix(conformance.load_manifest(tmp_path), root=tmp_path, run=_ok)
+
+    assert rows[0].states["rust"] == conformance.PASS
+
+
+def test_list_reports_the_artifacts_a_suite_requires(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The `list` document is the machine-readable contract, so it carries `requires`."""
+    import json  # noqa: PLC0415 - only this test decodes JSON.
+
+    _write_requires_manifest(tmp_path)
+    assert conformance_cli.main(["--root", str(tmp_path), "list"]) == 0
+    document = json.loads(capsys.readouterr().out)
+
+    assert document["suites"][0]["requires"] == ["target/test-classes"]

@@ -169,7 +169,10 @@ def _java_run(root: Path, main_class: str, *extra: str) -> int:
 def _java_test(root: Path) -> int:
     if _java_compile(root) != 0:
         return 1
-    return _java_run(root, "PlaytestTest")
+    for entry in ("PlaytestTest", "ConformanceTest"):
+        if (status := _java_run(root, entry)) != 0:
+            return status
+    return 0
 
 
 def _java_coverage(root: Path) -> int:

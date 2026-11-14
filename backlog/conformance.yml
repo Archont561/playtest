@@ -74,6 +74,13 @@ cmd = ["bun", "test", "tests/conformance.test.ts"]
 capabilities = ["fixture_explicit_resolution", "teardown_lifo", "teardown_failure_safety", "skip_outcome_identified"]
 
 [[suites]]
+lang = "java"
+target = "java ConformanceTest"
+cwd = "java"
+cmd = ["java", "-cp", "target/classes:target/test-classes", "io.github.archont561.playtest.ConformanceTest"]
+capabilities = ["fixture_explicit_resolution", "teardown_lifo", "teardown_failure_safety", "skip_outcome_identified"]
+
+[[suites]]
 lang = "go"
 target = "go test"
 cwd = "go"

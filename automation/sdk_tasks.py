@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import shutil
 from collections.abc import Callable, Sequence
 from pathlib import Path
@@ -31,6 +32,9 @@ from automation.stage_assets import (
 from automation.stamp_version import POM_VER_RE
 
 __all__ = ["ACTIONS", "main"]
+
+# `maven.compiler.release` in the Java POM: the language level of the published jar.
+JAVA_RELEASE_RE = re.compile(r"<maven\.compiler\.release>\s*(\d+)\s*</maven\.compiler\.release>")
 
 
 def _csharp_coverage(root: Path) -> int:
@@ -141,17 +145,33 @@ def _java_sources(java_dir: Path, sub: str) -> list[str]:
     return [str(p.relative_to(java_dir)) for p in sorted((java_dir / sub).rglob("*.java"))]
 
 
+def _java_release(java_dir: Path, *, default: str = "11") -> str:
+    """The `--release` the published artifact is built for, read from the POM.
+
+    `javac` without `--release` compiles for the running JDK, so a CI JDK newer than the
+    POM's `maven.compiler.release` accepts syntax the released jar cannot load. Reading the
+    value here makes the plain-`javac` path agree with the Maven build instead of
+    disagreeing only at release time.
+    """
+    pom = java_dir / "pom.xml"
+    if not pom.is_file():
+        return default
+    match = JAVA_RELEASE_RE.search(pom.read_text(encoding="utf-8"))
+    return match.group(1) if match else default
+
+
 def _java_compile(root: Path) -> int:
     java_dir = root / "java"
     (java_dir / "target/classes").mkdir(parents=True, exist_ok=True)
     (java_dir / "target/test-classes").mkdir(parents=True, exist_ok=True)
     _write_java_filtered_resources(java_dir)
+    release = ["--release", _java_release(java_dir)]
     main_srcs = _java_sources(java_dir, "src/main/java")
-    main_cmd = ["javac", "-Xlint:all", "-d", "target/classes", *main_srcs]
+    main_cmd = ["javac", "-Xlint:all", *release, "-d", "target/classes", *main_srcs]
     if run_cmd(main_cmd, cwd=java_dir).returncode != 0:
         return 1
     test_srcs = _java_sources(java_dir, "src/test/java")
-    test_cmd = ["javac", "-cp", "target/classes", "-d", "target/test-classes", *test_srcs]
+    test_cmd = ["javac", "-cp", "target/classes", *release, "-d", "target/test-classes", *test_srcs]
     return run_cmd(test_cmd, cwd=java_dir).returncode
 
 

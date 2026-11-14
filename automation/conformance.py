@@ -74,6 +74,10 @@ class Suite:
     cwd: str
     cmd: tuple[str, ...]
     capabilities: tuple[str, ...]
+    # Artifacts the command consumes but does not build, relative to `cwd`. A runner that
+    # only executes a prebuilt tree proves nothing unless that tree exists, so the suite
+    # is `unavailable` while any entry is missing rather than crediting a stale build.
+    requires: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -155,6 +159,9 @@ def _parse_suite(entry: object, known: set[str], seen: set[str]) -> Suite:
         cwd=str(item.get("cwd", ".")),
         cmd=tuple(cmd),
         capabilities=tuple(claimed),
+        requires=tuple(
+            _as_string_list(item.get("requires", []), f"suite {lang}: requires", non_empty=False)
+        ),
     )
 
 
@@ -227,6 +234,35 @@ def _tool_available(cmd: Sequence[str], root: Path, suite: Suite) -> bool:
     return shutil.which(runner) is not None
 
 
+def _missing_requirement(suite: Suite, root: Path) -> str | None:
+    """The first required artifact the suite consumes but nobody built, if any.
+
+    A runner can be installed while the tree it runs is absent: `java -cp target/classes`
+    finds a `java` on every CI image, but `target/` is build output and never checked in.
+    Reporting that as a failure blames the SDK for a missing build, so the suite is
+    `unavailable` instead -- the same status as a missing toolchain, because both mean
+    "nothing was proved here", and neither may render as a pass.
+    """
+    for rel in suite.requires:
+        if not (root / suite.cwd / rel).exists():
+            return rel
+    return None
+
+
+def _unavailable_reason(suite: Suite, root: Path) -> str | None:
+    """Why this suite cannot prove anything on this machine, or `None` when it can.
+
+    Two causes, one status: the toolchain is absent, or the build output the suite runs was
+    never produced. Both mean "nothing was proved", and neither is a defect in the SDK.
+    """
+    if not _tool_available(list(suite.cmd), root, suite):
+        return f"runner `{suite.cmd[0]}` is not installed; install the toolchain to claim this row"
+    missing = _missing_requirement(suite, root)
+    if missing is not None:
+        return f"`{missing}` is missing; build the target before claiming this row"
+    return None
+
+
 def run_suite(
     suite: Suite,
     *,
@@ -239,11 +275,9 @@ def run_suite(
     if not cwd.is_dir():
         emit_err(f"[conformance] {suite.lang}: missing directory {suite.cwd}")
         return FAIL
-    if not _tool_available(list(suite.cmd), root, suite):
-        emit_err(
-            f"[conformance] {suite.lang}: runner `{suite.cmd[0]}` is not installed; "
-            f"install the toolchain to claim this row"
-        )
+    reason = _unavailable_reason(suite, root)
+    if reason is not None:
+        emit_err(f"[conformance] {suite.lang}: {reason}")
         return UNAVAILABLE
     res = run(list(suite.cmd), cwd=cwd, capture=True, timeout=timeout, env=_suite_env(root))
     if res.returncode == 0:

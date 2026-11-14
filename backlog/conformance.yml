@@ -73,12 +73,17 @@ cwd = "typescript"
 cmd = ["bun", "test", "tests/conformance.test.ts"]
 capabilities = ["fixture_explicit_resolution", "teardown_lifo", "teardown_failure_safety", "skip_outcome_identified"]
 
+# Java is the one target whose runner does not build what it runs: `java` executes a
+# class directory, and `javac` produced it in a different step. `requires` names that build
+# output so a checkout without it reports `unavailable` instead of failing the gate --
+# `java` itself is on every ubuntu image, so its presence proves nothing about the build.
 [[suites]]
 lang = "java"
 target = "java ConformanceTest"
 cwd = "java"
 cmd = ["java", "-cp", "target/classes:target/test-classes", "io.github.archont561.playtest.ConformanceTest"]
 capabilities = ["fixture_explicit_resolution", "teardown_lifo", "teardown_failure_safety", "skip_outcome_identified"]
+requires = ["target/test-classes"]
 
 [[suites]]
 lang = "go"
